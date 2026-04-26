@@ -3,41 +3,85 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title></title>
+<title>Navigation Map</title>
 <style>
+/* ===== OpenStreetMap Layer ===== */
+#map{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  z-index:0;
+} 
+
+/* UI must be above map */
+.rect2,.bottomBar,.rect4,.rect6{
+  z-index:2;
+}
 html,body{
   margin:0;
   padding:0;
   width:100%;
   height:100%;
-  background:#ffffff;
+  background:#1A202B;
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display',Arial;
+
 }
 
-/* 底部整體容器（一起移動） */
+/* ===== 主內容區 ===== */
+.rect2{
+  position:absolute;
+  left:8px;
+  right:8px;
+  top:54px;
+  height:415px;
+  background:#00050F;
+  box-shadow:0 4px 4px rgba(0,0,0,0.25);
+  border-radius:12px;
+  overflow:hidden;
+  position:relative;
+}
+
+/* Rectangle 5（底部內層區塊） */
+/* Rectangle 5（底部內層區塊） */
+.rect5{
+  position:absolute;
+  left:0;
+  right:0;
+  top:123px;
+  height:346px;
+  background:#D9D9D9;
+  box-shadow:0 4px 4px rgba(0,0,0,0.25);
+  border-radius:0px 0px 12px 12px;
+}
+
+/* ===== 底部整組（原形一起移動） ===== */
 .bottomBar{
   position:absolute;
-  bottom:0;
   left:0;
-  width:100%;
+  right:0;
+  bottom:0;
   height:96px;
 }
 
 /* Rectangle 1 */
 .rect1{
-  box-sizing: border-box;
+  box-sizing:border-box;
   position:absolute;
   left:8px;
   right:8px;
   top:0;
   height:96px;
-  background:#16181C;
-  border-width:2px 2px 0px 2px;
+  background:#15171A;
+  border-width:2px 2px 0 2px;
   border-style:solid;
   border-color:#232830;
-  border-radius:11px 11px 0px 0px;
+  box-shadow:0 4px 4px rgba(0,0,0,0.25), 0 4px 4px rgba(0,0,0,0.25);
+  border-radius:11px 11px 0 0;
 }
 
-/* Rectangle 3 */
+/* Rectangle 3（置中拖曳條） */
 .rect3{
   position:absolute;
   width:46px;
@@ -46,46 +90,151 @@ html,body{
   top:5px;
   transform:translateX(-50%);
   background:#74767A;
+  box-shadow:0 4px 4px rgba(0,0,0,0.25), 0 4px 4px rgba(0,0,0,0.25);
   border-radius:2.5px;
 }
 
-/* Text */
+/* 文字（置中） */
 .info{
   position:absolute;
   left:50%;
-  top:13px;
+  top:11px;
   transform:translateX(-50%);
-  font-family:'Inter';
+  font-family:'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', Arial;
   font-style:normal;
   font-weight:500;
   font-size:20px;
   line-height:24px;
   color:#FFFFFF;
   white-space:nowrap;
+  text-shadow:0 4px 4px rgba(0,0,0,0.25), 0 4px 4px rgba(0,0,0,0.25);
 }
 
-/* Rectangle 2 */
-.rect2{
+
+/* Rectangle 6 */
+.rect6{
   position:absolute;
+  width:76px;
+  height:76px;
   left:8px;
+  top:478px;
+  background:#0D162A;
+  box-shadow:0 4px 4px rgba(0,0,0,0.25);
+  border-radius:38px;
+}
+
+/* ===== Rectangle 4 ===== */
+.rect4{
+  box-sizing:border-box;
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  bottom:106px;
+  width:174px;
+  height:33px;
+  background:#15171A;
+  border:2px solid #232830;
+  box-shadow:0 4px 4px rgba(0,0,0,0.25);
+  border-radius:16.5px;
+  z-index:5;
+}
+
+.rect4 .label{
+  position:absolute;
+  left:13px;
+  top:5px;
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display',Arial;
+  font-style:normal;
+  font-weight:500;
+  font-size:16px;
+  line-height:19px;
+  color:#FFFFFF;
+  text-shadow:0 4px 4px rgba(0,0,0,0.25);
+}
+
+.rect4 .icon{
+  position:absolute;
+  width:20px;
+  height:20px;
   right:8px;
-  top:54px;
-  height:415px;
-  background:#00050F;
-  border-radius:12px;
+  top:4.5px;
+  background:url('https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/TWHW3.svg/120px-TWHW3.svg.png') center/cover no-repeat;
+  filter:drop-shadow(0px 4px 4px rgba(0,0,0,0.25));
+}
+
+.rect4 .label{
+  position:absolute;
+  left:13px;
+  top:6px;
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display',Arial;
+  font-style:normal;
+  font-weight:500;
+  font-size:16px;
+  line-height:19px;
+  color:#FFFFFF;
+  text-shadow:0 4px 4px rgba(0,0,0,0.25);
+}
+
+.rect4 .icon{
+  position:absolute;
+  width:20px;
+  height:20px;
+  right:8px;
+  top:3.5px;
+  background:url('https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/TWHW3.svg/120px-TWHW3.svg.png') center/cover no-repeat;
+  filter:drop-shadow(0px 4px 4px rgba(0,0,0,0.25));
 }
 
 </style>
 </head>
 <body>
 
-<div class="rect2"></div>
+<!-- OpenStreetMap Layer -->
+<div id="map"></div>
 
+<!-- 主內容 -->
+<div class="rect2">
+  <div class="rect5"></div>
+</div>
+
+<div class="rect6"></div>
+
+
+  <div class="icon"></div>
+</div>
+
+<!-- 底部 -->
 <div class="bottomBar">
+  <div class="rect4">
+    <div class="label">福爾摩沙高速公路</div>
+    <div class="icon"></div>
+  </div>
   <div class="rect1"></div>
   <div class="rect3"></div>
   <div class="info">0小時0分鐘 0公里</div>
 </div>
 
+
+<!-- MapLibre 3D Map -->
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+  const map = new maplibregl.Map({
+    container: 'map',
+    style: 'https://demotiles.maplibre.org/style.json',
+    center: [121.4629, 25.0173],
+    zoom: 14,
+    pitch: 60,
+    bearing: -20
+  });
+
+  map.addControl(new maplibregl.NavigationControl());
+</script>
+<script>
+  var map = L.map('map').setView([25.0173,121.4629], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+</script>
 </body>
 </html>
