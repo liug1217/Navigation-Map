@@ -128,29 +128,6 @@ html,body{
   filter:drop-shadow(0px 4px 4px rgba(0,0,0,0.25));
 }
 
-.rect4 .label{
-  position:absolute;
-  left:13px;
-  top:6px;
-  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display',Arial;
-  font-style:normal;
-  font-weight:500;
-  font-size:16px;
-  line-height:19px;
-  color:#FFFFFF;
-  text-shadow:0 4px 4px rgba(0,0,0,0.25);
-}
-
-.rect4 .icon{
-  position:absolute;
-  width:20px;
-  height:20px;
-  right:8px;
-  top:3.5px;
-  background:url('https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/TWHW3.svg/120px-TWHW3.svg.png') center/cover no-repeat;
-  filter:drop-shadow(0px 4px 4px rgba(0,0,0,0.25));
-}
-
 /* ===== Rectangle 8 ===== */
 /* Rectangle 8 */
 /* Rectangle 8 */
@@ -187,12 +164,7 @@ html,body{
 <div class="rect8"></div>
 <div class="rect6"></div>
 
-</div>
 
-
-
-
-  <div class="icon"></div>
 </div>
 
 <!-- 底部 -->
@@ -215,18 +187,13 @@ html,body{
     container: 'map',
     style: 'https://demotiles.maplibre.org/style.json',
     center: [121.4629, 25.0173],
-    zoom: 14,
+    zoom: 15,
     pitch: 60,
     bearing: -20
   });
 
   map.addControl(new maplibregl.NavigationControl());
 </script>
-<script>
-  var map = L.map('map').setView([25.0173,121.4629], 13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(map);
-</script>
+
 </body>
 </html>
