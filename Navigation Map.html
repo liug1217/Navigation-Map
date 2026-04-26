@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title></title>
+<style>
+html,body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  background:#ffffff;
+}
+
+/* 底部整體容器（一起移動） */
+.bottomBar{
+  position:absolute;
+  bottom:0;
+  left:0;
+  width:100%;
+  height:96px;
+}
+
+/* Rectangle 1 */
+.rect1{
+  box-sizing: border-box;
+  position:absolute;
+  left:8px;
+  right:8px;
+  top:0;
+  height:96px;
+  background:#16181C;
+  border-width:2px 2px 0px 2px;
+  border-style:solid;
+  border-color:#232830;
+  border-radius:11px 11px 0px 0px;
+}
+
+/* Rectangle 3 */
+.rect3{
+  position:absolute;
+  width:46px;
+  height:4px;
+  left:50%;
+  top:5px;
+  transform:translateX(-50%);
+  background:#74767A;
+  border-radius:2.5px;
+}
+
+/* Text */
+.info{
+  position:absolute;
+  left:50%;
+  top:13px;
+  transform:translateX(-50%);
+  font-family:'Inter';
+  font-style:normal;
+  font-weight:500;
+  font-size:20px;
+  line-height:24px;
+  color:#FFFFFF;
+  white-space:nowrap;
+}
+
+/* Rectangle 2 */
+.rect2{
+  position:absolute;
+  left:8px;
+  right:8px;
+  top:54px;
+  height:415px;
+  background:#00050F;
+  border-radius:12px;
+}
+
+</style>
+</head>
+<body>
+
+<div class="rect2"></div>
+
+<div class="bottomBar">
+  <div class="rect1"></div>
+  <div class="rect3"></div>
+  <div class="info">0小時0分鐘 0公里</div>
+</div>
+
+</body>
+</html>
