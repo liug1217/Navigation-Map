@@ -124,7 +124,7 @@ html,body{
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
 }
 
-/* ===== Rectangle 6（GPS圓形：中間顯示時數） ===== */
+/* ===== Rectangle 6（GPS圓形：中間顯示速度） ===== */
 .rect6{
   position:absolute;
   width:76px;
@@ -138,11 +138,22 @@ html,body{
   display:flex;
   align-items:center;
   justify-content:center;
+  flex-direction: column;
 
-  font-size:40px;
+  font-size:24px;
   font-weight:400;
   color:#FFFFFF;
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
+}
+
+.rect6 .speed-value {
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.rect6 .speed-unit {
+  font-size: 12px;
+  font-weight: 400;
 }
 </style>
 </head>
@@ -152,7 +163,10 @@ html,body{
 
 <div class="rect8"></div>
 
-<div class="rect6">0</div>
+<div class="rect6">
+  <div class="speed-value">0</div>
+  <div class="speed-unit">km/h</div>
+</div>
 
 <div class="bottomBar">
   <div class="rect4">
@@ -161,11 +175,12 @@ html,body{
   </div>
   <div class="rect1"></div>
   <div class="rect3"></div>
-  <div class="info">0小時0分鐘 0公里</div>
+  <div class="info">0小時0分鐘 0.00公里</div>
 </div>
 
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.min.js"></script>
 <script>
   const map = new maplibregl.Map({
     container: 'map',
@@ -177,29 +192,152 @@ html,body{
   });
   map.addControl(new maplibregl.NavigationControl());
 
-  // ===== Real GPS (only for rect6) =====
-  const rect6 = document.querySelector('.rect6');
+  // ===== Real GPS Tracking =====
+  const infoElement = document.querySelector('.info');
+  const rect6SpeedValue = document.querySelector('.rect6 .speed-value');
+  const rect6SpeedUnit = document.querySelector('.rect6 .speed-unit');
+  
   let startTime = null;
+  let lastPosition = null;
+  let totalDistance = 0;
+  let routeCoordinates = [];
+  let marker = null;
+  let routeSource = null;
+
+  // Add route source and layer to map
+  map.on('load', () => {
+    map.addSource('route', {
+      type: 'geojson',
+      data: {
+        type: 'FeatureCollection',
+        features: []
+      }
+    });
+
+    map.addLayer({
+      id: 'route',
+      type: 'line',
+      source: 'route',
+      paint: {
+        'line-color': '#3b82f6',
+        'line-width': 3,
+        'line-opacity': 0.8
+      }
+    });
+
+    routeSource = map.getSource('route');
+  });
+
+  // Calculate distance between two coordinates using Haversine formula
+  function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  // Format time display
+  function formatTime(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours}小時${minutes}分鐘`;
+  }
+
+  // Update GPS info display
+  function updateDisplay(speed, elapsedMs) {
+    rect6SpeedValue.innerText = Math.round(speed);
+    infoElement.innerText = `${formatTime(elapsedMs)} ${totalDistance.toFixed(2)}公里`;
+  }
 
   if (navigator.geolocation) {
     navigator.geolocation.watchPosition((pos) => {
-      const now = new Date();
+      const now = Date.now();
+      const currentLat = pos.coords.latitude;
+      const currentLon = pos.coords.longitude;
+      const currentSpeed = pos.coords.speed || 0; // speed in m/s
 
       if (!startTime) {
         startTime = now;
+        lastPosition = { lat: currentLat, lon: currentLon };
+        routeCoordinates = [[currentLon, currentLat]];
       }
 
-      const diffMs = now - startTime;
-      const hours = Math.floor(diffMs / 3600000);
+      // Calculate distance traveled
+      if (lastPosition) {
+        const distance = calculateDistance(lastPosition.lat, lastPosition.lon, currentLat, currentLon);
+        totalDistance += distance;
+        lastPosition = { lat: currentLat, lon: currentLon };
+      }
 
-      rect6.innerText = hours;
+      // Update route coordinates
+      routeCoordinates.push([currentLon, currentLat]);
+
+      // Update route on map
+      if (routeSource) {
+        routeSource.setData({
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: routeCoordinates
+            }
+          }]
+        });
+      }
+
+      // Update map center and marker
+      map.flyTo({
+        center: [currentLon, currentLat],
+        zoom: 15,
+        speed: 0.5
+      });
+
+      // Remove old marker if exists
+      if (marker) {
+        marker.remove();
+      }
+
+      // Add new marker
+      const el = document.createElement('div');
+      el.style.width = '20px';
+      el.style.height = '20px';
+      el.style.backgroundColor = '#3b82f6';
+      el.style.borderRadius = '50%';
+      el.style.border = '2px solid white';
+      el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+
+      marker = new maplibregl.Marker(el)
+        .setLngLat([currentLon, currentLat])
+        .addTo(map);
+
+      // Calculate elapsed time
+      const elapsedMs = now - startTime;
+
+      // Convert speed from m/s to km/h
+      const speedKmh = currentSpeed * 3.6;
+
+      // Update display
+      updateDisplay(speedKmh, elapsedMs);
 
     }, (err) => {
-      console.log('GPS error:', err);
+      console.error('GPS error:', err);
+      rect6SpeedValue.innerText = '×';
+      rect6SpeedUnit.innerText = 'GPS';
     }, {
       enableHighAccuracy: true,
-      maximumAge: 1000
+      maximumAge: 1000,
+      timeout: 10000
     });
+  } else {
+    alert('您的瀏覽器不支援地理定位功能');
   }
 </script>
 
