@@ -184,11 +184,60 @@ html,body{
 <script>
   const map = new maplibregl.Map({
     container: 'map',
-    style: 'https://demotiles.maplibre.org/style.json',
-    center: [121.4629, 25.0173],
-    zoom: 15,
-    pitch: 60,
-    bearing: -20
+    style: 'https://tiles.openfreemap.org/styles/liberty',
+    center: [121.394, 24.951],
+    zoom: 16,
+    pitch: 60, // 🔥 3D視角
+    bearing: -20,
+    antialias: true
+  });
+
+  // ===== 🔥 3D 建築 =====
+  map.on('load', () => {
+    const layers = map.getStyle().layers;
+    let labelLayerId;
+
+    for (let i = 0; i < layers.length; i++) {
+      if (layers[i].type === 'symbol') {
+        labelLayerId = layers[i].id;
+        break;
+      }
+    }
+
+    map.addLayer(
+      {
+        id: '3d-buildings',
+        source: 'openmaptiles',
+        'source-layer': 'building',
+        type: 'fill-extrusion',
+        minzoom: 15,
+        paint: {
+        'fill-extrusion-height': 80,
+        'fill-extrusion-base': 0,
+          'fill-extrusion-color': '#aaa',
+          'fill-extrusion-height': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            15,
+            0,
+            15.05,
+            ['get', 'height']
+          ],
+          'fill-extrusion-base': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            15,
+            0,
+            15.05,
+            ['get', 'min_height']
+          ],
+          'fill-extrusion-opacity': 0.8
+        }
+      },
+      labelLayerId
+    );
   });
   map.addControl(new maplibregl.NavigationControl());
 
@@ -214,18 +263,40 @@ html,body{
       }
     });
 
+    // ===== 填滿區域（Polygon） =====
     map.addLayer({
       id: 'route',
-      type: 'line',
+      type: 'fill-extrusion',
       source: 'route',
       paint: {
-        'line-color': '#3b82f6',
-        'line-width': 3,
-        'line-opacity': 0.8
+        'fill-extrusion-color': '#888888', // 灰色填滿
+        'fill-extrusion-opacity': 1
       }
     });
 
     routeSource = map.getSource('route');
+
+    // 四點區域
+    const A = [121.39431694905831, 24.95161377427496]; // 左上
+    const B = [121.40117103967137, 24.950945728162928]; // 右上
+    const C = [121.40115004678125, 24.95076327043688]; // 右下
+    const D = [121.39428811531214, 24.951394298417927]; // 左下
+
+    const polygon = [
+      [A, B, C, D, A] // 閉合
+    ];
+
+    map.getSource('route').setData({
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: polygon
+        }
+      }]
+    });
+
   });
 
   // Calculate distance between two coordinates using Haversine formula
@@ -276,8 +347,13 @@ html,body{
         lastPosition = { lat: currentLat, lon: currentLon };
       }
 
-      // Update route coordinates
-      routeCoordinates.push([currentLon, currentLat]);
+      // Update route coordinates（避免GPS抖動亂畫）
+      if (lastPosition) {
+        const d = calculateDistance(lastPosition.lat, lastPosition.lon, currentLat, currentLon);
+        if (d > 0.005) { // 大於5公尺才加入
+          routeCoordinates.push([currentLon, currentLat]);
+        }
+      }
 
       // Update route on map
       if (routeSource) {
@@ -300,23 +376,20 @@ html,body{
         speed: 0.5
       });
 
-      // Remove old marker if exists
-      if (marker) {
-        marker.remove();
+      // Marker只建立一次
+      if (!marker) {
+        const el = document.createElement('div');
+        el.style.width = '20px';
+        el.style.height = '20px';
+        el.style.backgroundColor = '#3b82f6';
+        el.style.borderRadius = '50%';
+        el.style.border = '2px solid white';
+        el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+
+        marker = new maplibregl.Marker(el).setLngLat([currentLon, currentLat]).addTo(map);
+      } else {
+        marker.setLngLat([currentLon, currentLat]);
       }
-
-      // Add new marker
-      const el = document.createElement('div');
-      el.style.width = '20px';
-      el.style.height = '20px';
-      el.style.backgroundColor = '#3b82f6';
-      el.style.borderRadius = '50%';
-      el.style.border = '2px solid white';
-      el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
-
-      marker = new maplibregl.Marker(el)
-        .setLngLat([currentLon, currentLat])
-        .addTo(map);
 
       // Calculate elapsed time
       const elapsedMs = now - startTime;
