@@ -212,7 +212,7 @@ html,body{
         type: 'fill-extrusion',
         minzoom: 15,
         paint: {
-        'fill-extrusion-height': 80,
+        'fill-extrusion-height': 0.1,
         'fill-extrusion-base': 0,
           'fill-extrusion-color': '#aaa',
           'fill-extrusion-height': [
@@ -263,15 +263,120 @@ html,body{
       }
     });
 
-    // ===== 填滿區域（Polygon） =====
+    // ===== 🔥 3D 區塊（fill-extrusion） =====
     map.addLayer({
       id: 'route',
       type: 'fill-extrusion',
       source: 'route',
       paint: {
-        'fill-extrusion-color': '#888888', // 灰色填滿
+        'fill-extrusion-color': '#888888', // 灰色
+        'fill-extrusion-height': 0.1,      // 🔥 立體高度
+        'fill-extrusion-base': 0,
         'fill-extrusion-opacity': 1
       }
+    });
+
+    // ===== ✨ 白色兩側邊框 =====
+    // ===== ✨ 白色邊框（改為 LineString，確保可見） =====
+    map.addLayer({
+      id: 'route-outline',
+      type: 'line',
+      source: 'route',
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      paint: {
+        'line-color': '#ffffff',
+        'line-width': 4,
+        'line-opacity': 1
+      }
+    });
+
+    // ===== 🛣️ 白色標線（指定兩點） =====
+    map.addSource('road-marking', {
+      type: 'geojson',
+      data: {
+        type: 'FeatureCollection',
+        features: [{
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [121.39249524004471, 24.95169532386274],
+              [121.40284752438394, 24.95075216220213]
+            ]
+          }
+        }]
+      }
+    });
+
+    map.addLayer({
+      id: 'road-marking',
+      type: 'line',
+      source: 'road-marking',
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      paint: {
+        'line-color': '#ffffff',
+        'line-width': 2,
+        'line-opacity': 1
+      }
+    }); // 🔥 確保在最上層顯示
+
+    // ===== 🛣️ 新白色標線2 =====
+    map.addSource('road-marking-2', {
+      type: 'geojson',
+      data: {
+        type: 'FeatureCollection',
+        features: [{
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [121.38221308869691, 24.946019147702295],
+              [121.38232507092059, 24.9460392114842],
+              [121.38260277126123, 24.9442672449878],
+              [121.38272347066383, 24.944294605078653]
+            ]
+          }
+        }]
+      }
+    });
+
+    map.addLayer({
+      id: 'road-marking-2',
+      type: 'line',
+      source: 'road-marking-2',
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      paint: {
+        'line-color': '#ffffff',
+        'line-width': 2,
+        'line-opacity': 1
+      }
+    });
+
+    // ===== 🧭 自動顯示所有道路（修正看不到問題） =====
+    const bounds = new maplibregl.LngLatBounds();
+
+    // road-marking
+    bounds.extend([121.39249524004471, 24.95169532386274]);
+    bounds.extend([121.40284752438394, 24.95075216220213]);
+
+    // road-marking-2
+    bounds.extend([121.38221308869691, 24.946019147702295]);
+    bounds.extend([121.38232507092059, 24.9460392114842]);
+    bounds.extend([121.38260277126123, 24.9442672449878]);
+    bounds.extend([121.38272347066383, 24.944294605078653]);
+
+    map.fitBounds(bounds, {
+      padding: 80,
+      duration: 1200
     });
 
     routeSource = map.getSource('route');
@@ -282,11 +387,11 @@ html,body{
     const C = [121.40115004678125, 24.95076327043688]; // 右下
     const D = [121.39428811531214, 24.951394298417927]; // 左下
 
-    const polygon = [
-      [A, B, C, D, A] // 閉合
-    ];
+    const polygon = [[
+      A, B, C, D, A
+    ]];
 
-    map.getSource('route').setData({
+    routeSource.setData({
       type: 'FeatureCollection',
       features: [{
         type: 'Feature',
