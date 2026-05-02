@@ -155,6 +155,13 @@ html,body{
   font-size: 12px;
   font-weight: 400;
 }
+/* ===== 全部 Marker 圖示統一大小 ===== */
+.maplibregl-marker img{
+  width:40px !important;
+  height:auto !important;
+  object-fit:contain;
+  display:block;
+}
 </style>
 </head>
 <body>
@@ -380,13 +387,8 @@ html,body{
     });
 
     // ===== 📍 加入圖片標記 =====
-    // ===== 📍 加入圖片標記（修正SVG顯示問題） =====
-    const logoEl = document.createElement('img');
-    logoEl.src = 'https://www.8way.com.tw/static/img/logo.47158c2.svg';
-    logoEl.style.width = '50px';
-    logoEl.style.height = '50px';
-    logoEl.style.display = 'block';
-    logoEl.style.objectFit = 'contain';
+    // ===== 📍 圖片標記（統一使用 coordsList） =====
+    // 已移除 logoEl（避免單一與多點重複架構）
 
     // ===== 📍 多個圖片標記 =====
     const coordsList = [
@@ -406,9 +408,9 @@ html,body{
 
     coordsList.forEach((coord, i) => {
       const img = document.createElement('img');
-      img.src = 'https://www.8way.com.tw/static/img/logo.47158c2.svg';
-      img.style.width = '50px';
-      img.style.height = '50px';
+      img.src = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQNHtMeiL_EeFFUYcvvhbtqkCYEx5rvfdqx0w&s';
+      img.style.width = '40px';
+      img.style.height = 'auto';
       img.style.display = 'block';
       img.style.objectFit = 'contain';
 
@@ -443,7 +445,7 @@ html,body{
       const fmImg = document.createElement('img');
       fmImg.src = 'https://www.family.com.tw/Marketing/images/qrcode/fm_app.png';
       fmImg.style.width = '40px';
-      fmImg.style.height = '40px';
+      fmImg.style.height = 'auto';
       fmImg.style.display = 'block';
       fmImg.style.objectFit = 'contain';
 
@@ -465,7 +467,8 @@ html,body{
       [121.37981419076462, 24.94693984577171],
       [121.36256712645255, 24.939153205138993],
       [121.36386627140404, 24.937647964076998],
-      [121.376426379177, 24.94421748889167]
+      [121.376426379177, 24.94421748889167],
+      [121.38059076096646, 24.94566071931538]
     ];
 
     const customImgUrl = 'https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcRob-lQM7gY8P7nWOJC6vOGb8_brAq1g6em4L54KeozfZCtsTI-';
@@ -474,7 +477,7 @@ html,body{
       const img = document.createElement('img');
       img.src = customImgUrl;
       img.style.width = '40px';
-      img.style.height = '40px';
+      img.style.height = 'auto';
       img.style.display = 'block';
       img.style.objectFit = 'contain';
 
@@ -482,6 +485,18 @@ html,body{
         .setLngLat(coord)
         .addTo(map);
     });
+
+    // ===== 📍 新增單一自訂圖片標記 =====
+    const specialImg = document.createElement('img');
+    specialImg.src = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTodDL-n4ZqxNmpWAIG38tO9b-V9yRTgI_8Qw&s';
+    specialImg.style.width = '40px';
+    specialImg.style.height = 'auto';
+    specialImg.style.display = 'block';
+    specialImg.style.objectFit = 'contain';
+
+    new maplibregl.Marker({ element: specialImg, anchor: 'center' })
+      .setLngLat([121.38059717994372, 24.945483507015254])
+      .addTo(map);
 
     routeSource = map.getSource('route');
 
