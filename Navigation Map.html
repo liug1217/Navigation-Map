@@ -425,7 +425,18 @@ html,body{
     const fmCoords = [
       [121.38394404399801, 24.948573900819657],
       [121.38263683357708, 24.94498354227102],
-      [121.38134713998998, 24.94659315185402]
+      [121.38134713998998, 24.94659315185402],
+      [121.37858227731472, 24.950267809527947],
+      [121.37939884588098, 24.948104546231093],
+      [121.37804640419316, 24.946080067551595],
+      [121.37886297200315, 24.943396177784525],
+      [121.36709342576458, 24.936255236556708],
+      [121.37348375172652, 24.937404929473203],
+      [121.37556342603465, 24.936895876051967],
+      [121.37491272680614, 24.938214773604724],
+      [121.348450215826973, 24.948450215826973],
+      [121.37372821526003, 24.945389664931483],
+      [121.37693068874358, 24.945181430197934]
     ];
 
     fmCoords.forEach(coord => {
@@ -442,16 +453,35 @@ html,body{
     });
 
     // ===== 原本單一 FamilyMart（已整合） =====
-    const fmImg = document.createElement('img');
-    fmImg.src = 'https://www.family.com.tw/Marketing/images/qrcode/fm_app.png';
-    fmImg.style.width = '40px';
-    fmImg.style.height = '40px';
-    fmImg.style.display = 'block';
-    fmImg.style.objectFit = 'contain';
+    // 已移除重複單一 marker（避免重複顯示）
 
-    new maplibregl.Marker({ element: fmImg, anchor: 'center' })
-      .setLngLat([121.38394404399801, 24.948573900819657])
-      .addTo(map);
+    // ===== 📍 新增自訂圖片標記 =====
+    const customImgCoords = [
+      [121.38369699212406, 24.948450215826973],
+      [121.37874077315169, 24.942189928592054],
+      [121.948450215826973, 24.948450215826973],
+      [121.37372821526003, 24.945389664931483],
+      [121.37693068874358, 24.945181430197934],
+      [121.37981419076462, 24.94693984577171],
+      [121.36256712645255, 24.939153205138993],
+      [121.36386627140404, 24.937647964076998],
+      [121.376426379177, 24.94421748889167]
+    ];
+
+    const customImgUrl = 'https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcRob-lQM7gY8P7nWOJC6vOGb8_brAq1g6em4L54KeozfZCtsTI-';
+
+    customImgCoords.forEach(coord => {
+      const img = document.createElement('img');
+      img.src = customImgUrl;
+      img.style.width = '40px';
+      img.style.height = '40px';
+      img.style.display = 'block';
+      img.style.objectFit = 'contain';
+
+      new maplibregl.Marker({ element: img, anchor: 'center' })
+        .setLngLat(coord)
+        .addTo(map);
+    });
 
     routeSource = map.getSource('route');
 
