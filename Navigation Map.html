@@ -199,7 +199,35 @@ html,body{
 </div>
 
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js">// ===== 📍 Google-style 藍色定位點 =====
+let userMarker = null;
+
+function updateUserLocation(position) {
+  const lng = position.coords.longitude;
+  const lat = position.coords.latitude;
+
+  const el = document.createElement('div');
+  el.style.width = '16px';
+  el.style.height = '16px';
+  el.style.borderRadius = '50%';
+  el.style.background = '#2F80FF';
+  el.style.border = '3px solid white';
+  el.style.boxShadow = '0 0 10px rgba(47,128,255,0.6)';
+
+  if (userMarker) userMarker.remove();
+
+  userMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
+    .setLngLat([lng, lat])
+    .addTo(map);
+
+  map.easeTo({ center: [lng, lat], zoom: 16 });
+}
+
+if (navigator.geolocation) {
+  navigator.geolocation.watchPosition(updateUserLocation);
+}
+
+</script>
 <script src="https://unpkg.com/@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.min.js"></script>
 <script>
   const map = new maplibregl.Map({
