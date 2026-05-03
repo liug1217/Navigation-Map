@@ -241,7 +241,21 @@ if (navigator.geolocation) {
   });
 
   // ===== 🔥 3D 建築 =====
-  map.on('load', () => {
+  map.on('load',()=>{
+
+// ===== 📍 使用 Google 類型藍點定位 =====
+const geolocate = new maplibregl.GeolocateControl({
+  positionOptions: {
+    enableHighAccuracy: true
+  },
+  trackUserLocation: true,
+  showUserHeading: true
+});
+
+map.addControl(geolocate);
+
+// 自動啟動定位
+geolocate.trigger();
     const layers = map.getStyle().layers;
     let labelLayerId;
 
@@ -795,56 +809,62 @@ if (navigator.geolocation) {
   }
 </script>
 
-</body>
-</html>
-
+<script>
 // ===== 📍 Google 呼吸藍點（100%生效版）=====
 
-let userMarker = null;
+map.on('load', () => {
 
-// 呼吸動畫
-const style = document.createElement('style');
-style.innerHTML = `
-@keyframes pulse {
-  0% { transform: scale(0.8); opacity: 0.7; }
-  50% { transform: scale(1.6); opacity: 0.2; }
-  100% { transform: scale(0.8); opacity: 0.7; }
-}
-`;
-document.head.appendChild(style);
+  let userMarker = null;
 
-function createUserDot(lng, lat) {
-  const el = document.createElement('div');
+  // 呼吸動畫
+  const style = document.createElement('style');
+  style.innerHTML = `
+  @keyframes pulse {
+    0% { transform: scale(0.8); opacity: 0.7; }
+    50% { transform: scale(1.6); opacity: 0.2; }
+    100% { transform: scale(0.8); opacity: 0.7; }
+  }
+  `;
+  document.head.appendChild(style);
 
-  el.style.width = '16px';
-  el.style.height = '16px';
-  el.style.borderRadius = '50%';
-  el.style.background = '#2F80FF';
-  el.style.border = '3px solid white';
-  el.style.boxShadow = '0 0 12px rgba(47,128,255,0.8)';
-  el.style.animation = 'pulse 1.4s infinite';
+  function createUserDot(lng, lat) {
+    const el = document.createElement('div');
 
-  return new maplibregl.Marker({
-    element: el,
-    anchor: 'center'
-  }).setLngLat([lng, lat]);
-}
+    el.style.width = '16px';
+    el.style.height = '16px';
+    el.style.borderRadius = '50%';
+    el.style.background = '#2F80FF';
+    el.style.border = '3px solid white';
+    el.style.boxShadow = '0 0 12px rgba(47,128,255,0.8)';
+    el.style.animation = 'pulse 1.4s infinite';
 
-navigator.geolocation.watchPosition((pos) => {
-  const lng = pos.coords.longitude;
-  const lat = pos.coords.latitude;
+    return new maplibregl.Marker({
+      element: el,
+      anchor: 'center'
+    }).setLngLat([lng, lat]);
+  }
 
-  if (userMarker) userMarker.remove();
+  navigator.geolocation.watchPosition((pos) => {
+    const lng = pos.coords.longitude;
+    const lat = pos.coords.latitude;
 
-  userMarker = createUserDot(lng, lat).addTo(map);
+    if (userMarker) userMarker.remove();
 
-  map.easeTo({
-    center: [lng, lat],
-    duration: 800
+    userMarker = createUserDot(lng, lat).addTo(map);
+
+    map.easeTo({
+      center: [lng, lat],
+      duration: 800
+    });
+
+  }, (err) => {
+    console.log("GPS error:", err);
+  }, {
+    enableHighAccuracy: true
   });
 
-}, (err) => {
-  console.log("GPS error:", err);
-}, {
-  enableHighAccuracy: true
 });
+
+</script>
+</body>
+</html>
