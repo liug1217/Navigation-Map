@@ -466,7 +466,7 @@ html,body{
     const customImgCoords = [
       [121.38369699212406, 24.948450215826973],
       [121.37874077315169, 24.942189928592054],
-      [121.948450215826973, 24.948450215826973],
+      
       [121.37372821526003, 24.945389664931483],
       [121.37693068874358, 24.945181430197934],
       [121.37981419076462, 24.94693984577171],
@@ -502,6 +502,117 @@ html,body{
     new maplibregl.Marker({ element: specialImg, anchor: 'center' })
       .setLngLat([121.38059717994372, 24.945483507015254])
       .addTo(map);
+
+    // ===== 📍 第二張自訂圖片（統一多點） =====
+    const specialImg2Coords = [
+      [121.50331638808322, 25.038264764294617],
+      [121.489506476399, 25.058872831316673],
+      [121.49191538301302, 25.032906210776257],
+      [121.38530542525086, 24.946082279450305],
+      [121.37788613269329, 24.930917803456754],
+      [121.38841402770046, 24.955343478593388],
+      [121.35232917251496, 24.95037443753619],
+      [121.36605601912859, 24.9391792790245],
+      [121.38768504869627, 24.934123908590777],
+      [121.40133229488609, 24.93474936599032],
+      [121.39952041717852, 24.9425777440574],
+      [121.36432432944697, 24.956577542211445],
+      [121.38719255889475, 24.933328437655273],
+      [121.35414239999925, 24.95714717861699],
+      [121.36629267055152, 24.91487850775103],
+      [121.39159672453619, 24.96234237012682],
+      [121.35650735889472, 24.940923388437692],
+      [121.40812918834249, 24.959902417935666],
+      [121.35620679999924, 24.940532080462503],
+      [121.34080968834249, 24.952912402965936]
+    ];
+
+    specialImg2Coords.forEach(coord => {
+      const img = document.createElement('img');
+      img.src = 'https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcRb6MVUrIoMuo8cZwOlOn_cwDnVkcgEAgX2-B9A98rrT5vc714M';
+      img.style.width = '40px';
+      img.style.height = 'auto';
+      img.style.display = 'block';
+      img.style.objectFit = 'contain';
+
+      new maplibregl.Marker({ element: img, anchor: 'center' })
+        .setLngLat(coord)
+        .addTo(map);
+    });
+
+    // ===== 📍 第三張自訂圖片（新） =====
+    const specialImg3Coords = [
+      [121.37434608225334, 24.93285982917405],
+      [121.44022970850776, 24.972648533090798],
+      [121.33898697379546, 24.992312361904126],
+      [121.31988655889398, 24.990902111904767],
+      [121.29832161778945, 24.951135054191393],
+      [121.30630827668494, 24.989100996815203],
+      [121.42380261901289, 25.023711679329065],
+      [121.306002658894, 25.00277100879384],
+      [121.46798031778945, 25.007606676768955],
+      [121.30608619999849, 24.993965711101904],
+      [121.45520857668495, 25.00962415307255],
+      [121.45449981778945, 25.022831064444087]
+    ];
+
+    specialImg3Coords.forEach(coord => {
+      const img = document.createElement('img');
+      img.src = 'https://down-tw.img.susercontent.com/file/33b36f142cd68d91a30ed506af435cec';
+      img.style.width = '40px';
+      img.style.height = 'auto';
+      img.style.display = 'block';
+      img.style.objectFit = 'contain';
+
+      new maplibregl.Marker({ element: img, anchor: 'center' })
+        .setLngLat(coord)
+        .addTo(map);
+    });
+
+    // ===== 📍 第四張自訂圖片（新） =====
+    const specialImg4Coords = [
+      [121.37776008627395, 24.947929536029573]
+    ];
+
+    specialImg4Coords.forEach(coord => {
+      const img = document.createElement('img');
+      img.src = 'https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcSiUjGf2F58QMp1IaMoQorSrFI5sxEdwMDOgHBVsslGA27HGyhu';
+      img.style.width = '40px';
+      img.style.height = 'auto';
+      img.style.display = 'block';
+      img.style.objectFit = 'contain';
+
+      new maplibregl.Marker({ element: img, anchor: 'center' })
+        .setLngLat(coord)
+        .addTo(map);
+    });
+
+    // ===== 📍 第五張自訂圖片（新） =====
+    const specialImg5Coords = [
+      [121.37787755482056, 24.947771604192354],
+      [121.38507460502822, 24.948068846289413],
+      [121.38016022200124, 24.949680343569657],
+      [121.37559424522817, 24.945409207822877],
+      [121.37858205889397, 24.94156110497883],
+      [121.37184515889396, 24.947682971133588],
+      [121.37404389999847, 24.944876455952407],
+      [121.40115839999848, 24.97043428577425],
+      [121.37921209447593, 24.93621992621962],
+      [121.36047099999847, 24.937197361667018]
+    ];
+
+    specialImg5Coords.forEach(coord => {
+      const img = document.createElement('img');
+      img.src = 'https://www.park24.com.tw/upload/news_list_pic/twL_news_22G06_TyLKR2i7QE.png';
+      img.style.width = '40px';
+      img.style.height = 'auto';
+      img.style.display = 'block';
+      img.style.objectFit = 'contain';
+
+      new maplibregl.Marker({ element: img, anchor: 'center' })
+        .setLngLat(coord)
+        .addTo(map);
+    });
 
     routeSource = map.getSource('route');
 
