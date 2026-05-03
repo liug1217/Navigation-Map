@@ -798,45 +798,53 @@ if (navigator.geolocation) {
 </body>
 </html>
 
-// ===== 📍 Google 藍色呼吸定位（動畫版）=====
+// ===== 📍 Google 呼吸藍點（100%生效版）=====
 
-// 呼吸動畫 CSS
+let userMarker = null;
+
+// 呼吸動畫
 const style = document.createElement('style');
 style.innerHTML = `
 @keyframes pulse {
   0% { transform: scale(0.8); opacity: 0.7; }
-  50% { transform: scale(1.4); opacity: 0.3; }
+  50% { transform: scale(1.6); opacity: 0.2; }
   100% { transform: scale(0.8); opacity: 0.7; }
 }
 `;
 document.head.appendChild(style);
 
-let userMarker = null;
-
-function updateUserLocation(position) {
-  const lng = position.coords.longitude;
-  const lat = position.coords.latitude;
-
+function createUserDot(lng, lat) {
   const el = document.createElement('div');
+
   el.style.width = '16px';
   el.style.height = '16px';
   el.style.borderRadius = '50%';
   el.style.background = '#2F80FF';
   el.style.border = '3px solid white';
   el.style.boxShadow = '0 0 12px rgba(47,128,255,0.8)';
-  el.style.animation = 'pulse 1.5s infinite';
+  el.style.animation = 'pulse 1.4s infinite';
+
+  return new maplibregl.Marker({
+    element: el,
+    anchor: 'center'
+  }).setLngLat([lng, lat]);
+}
+
+navigator.geolocation.watchPosition((pos) => {
+  const lng = pos.coords.longitude;
+  const lat = pos.coords.latitude;
 
   if (userMarker) userMarker.remove();
 
-  userMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
-    .setLngLat([lng, lat])
-    .addTo(map);
+  userMarker = createUserDot(lng, lat).addTo(map);
 
-  map.easeTo({ center: [lng, lat] });
-}
-
-if (navigator.geolocation) {
-  navigator.geolocation.watchPosition(updateUserLocation, null, {
-    enableHighAccuracy: true
+  map.easeTo({
+    center: [lng, lat],
+    duration: 800
   });
-}
+
+}, (err) => {
+  console.log("GPS error:", err);
+}, {
+  enableHighAccuracy: true
+});
