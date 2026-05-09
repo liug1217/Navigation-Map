@@ -180,6 +180,27 @@ html,body{
 .maplibregl-user-location-accuracy-circle{
   fill:rgba(30,144,255,0.15) !important;
 }
+
+/* 🔒 Lock UI (prevent page move) */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  touch-action: none;
+}
+
+/* 🔒 Lock UI (fixed version) */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  touch-action: none;
+}
 </style>
 </head>
 <body>
@@ -875,7 +896,6 @@ map.on('load', () => {
   });
 
 });
-
 </script>
 </body>
 </html>
