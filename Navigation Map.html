@@ -899,3 +899,23 @@ map.on('load', () => {
 </script>
 </body>
 </html>
+
+<!-- 🔥 Fullscreen Fix (Apple safe-area removed) -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+}
+</style>
