@@ -237,32 +237,7 @@ map.dragPan.enable();
 
 <script>
 // ===== 📍 Google-style 藍色定位點 =====
-let userMarker = null;
 
-function updateUserLocation(position) {
-  const lng = position.coords.longitude;
-  const lat = position.coords.latitude;
-
-  const el = document.createElement('div');
-  el.style.width = '16px';
-  el.style.height = '16px';
-  el.style.borderRadius = '50%';
-  el.style.background = '#2F80FF';
-  el.style.border = '3px solid white';
-  el.style.boxShadow = '0 0 10px rgba(47,128,255,0.6)';
-
-  if (userMarker) userMarker.remove();
-
-  userMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
-    .setLngLat([lng, lat])
-    .addTo(map);
-
-  map.easeTo({ center: [lng, lat], zoom: 16 });
-}
-
-if (navigator.geolocation) {
-  navigator.geolocation.watchPosition(updateUserLocation);
-}
 </script>
 <script src="https://unpkg.com/@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.min.js"></script>
 <script>
@@ -800,11 +775,15 @@ geolocate.trigger();
       }
 
       // Update map center and marker
-      map.flyTo({
-        center: [currentLon, currentLat],
-        zoom: 15,
-        speed: 0.5
-      });
+       map.easeTo({
+         center: [smoothLng, smoothLat],
+         duration: 1200,
+         easing: t => t,
+         zoom: 17,
+         pitch: 60,
+         bearing: map.getBearing(),
+         essential: true
+       });
 
       // Marker只建立一次
       if (!marker) {
@@ -845,60 +824,5 @@ geolocate.trigger();
 </script>
 
 <script>
-// ===== 📍 Google 呼吸藍點（100%生效版）=====
-
-map.on('load', () => {
-
-  let userMarker = null;
-
-  // 呼吸動畫
-  const style = document.createElement('style');
-  style.innerHTML = `
-  @keyframes pulse {
-    0% { transform: scale(0.8); opacity: 0.7; }
-    50% { transform: scale(1.6); opacity: 0.2; }
-    100% { transform: scale(0.8); opacity: 0.7; }
-  }
-  `;
-  document.head.appendChild(style);
-
-  function createUserDot(lng, lat) {
-    const el = document.createElement('div');
-
-    el.style.width = '16px';
-    el.style.height = '16px';
-    el.style.borderRadius = '50%';
-    el.style.background = '#2F80FF';
-    el.style.border = '3px solid white';
-    el.style.boxShadow = '0 0 12px rgba(47,128,255,0.8)';
-    el.style.animation = 'pulse 1.4s infinite';
-
-    return new maplibregl.Marker({
-      element: el,
-      anchor: 'center'
-    }).setLngLat([lng, lat]);
-  }
-
-  navigator.geolocation.watchPosition((pos) => {
-    const lng = pos.coords.longitude;
-    const lat = pos.coords.latitude;
-
-    if (userMarker) userMarker.remove();
-
-    userMarker = createUserDot(lng, lat).addTo(map);
-
-    map.easeTo({
-      center: [lng, lat],
-      duration: 800
-    });
-
-  }, (err) => {
-    console.log("GPS error:", err);
-  }, {
-    enableHighAccuracy: true
-  });
-
-});
-</script>
 </body>
 </html>
