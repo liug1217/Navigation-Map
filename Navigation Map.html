@@ -931,6 +931,7 @@ async function updateRoadName(lng, lat){
 
     let best = "未知道路";
     let min = Infinity;
+    let bestTags = null;
 
     if(data.elements){
       for(const el of data.elements){
@@ -941,12 +942,34 @@ async function updateRoadName(lng, lat){
         if(d < min){
           min = d;
           best = el.tags.name;
+          bestTags = el.tags;
         }
       }
     }
 
+    // 🚨 只判斷「你選到的那條路」，避免附近國道誤亮
+    let isFreeway = false;
+
+    if(bestTags){
+      const hw = bestTags.highway || "";
+      const ref = bestTags.ref || "";
+      const name = bestTags.name || "";
+
+      isFreeway =
+        (hw === "motorway" && ref.includes("3")) ||
+        name.includes("國道3") ||
+        name.includes("國道三") ||
+        name.includes("福爾摩沙");
+    }
+
     const label = document.getElementById("roadLabel");
+    const icon = document.querySelector(".rect4 .icon");
+
     if(label) label.innerText = best;
+
+    if(icon){
+      icon.style.display = isFreeway ? "block" : "none";
+    }
 
   }catch(e){
     console.log("road name error", e);
