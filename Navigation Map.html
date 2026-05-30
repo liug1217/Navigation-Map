@@ -217,7 +217,7 @@ html, body {
 
 <div class="bottomBar">
   <div class="rect4">
-    <div class="label">福爾摩沙高速公路</div>
+    <div class="label" id="roadLabel">偵測中...</div>
     <div class="icon"></div>
   </div>
   <div class="rect1"></div>
@@ -827,6 +827,7 @@ geolocate.trigger();
 
       // Update display
       updateDisplay(speedKmh, elapsedMs);
+      updateRoadName(currentLon, currentLat);
 
     }, (err) => {
       console.error('GPS error:', err);
@@ -897,6 +898,26 @@ map.on('load', () => {
   });
 
 });
+</script>
+<script>
+// ===== 🛣️ 道路名稱自動偵測（Reverse Geocoding） =====
+async function updateRoadName(lng, lat){
+  try{
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    let name = "未知道路";
+    if(data && data.address){
+      name = data.address.road || data.address.pedestrian || data.address.footway || data.display_name.split(",")[0];
+    }
+
+    const label = document.getElementById("roadLabel");
+    if(label) label.innerText = name;
+  }catch(e){
+    console.log("road name error", e);
+  }
+}
 </script>
 </body>
 </html>
