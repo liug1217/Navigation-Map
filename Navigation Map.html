@@ -977,5 +977,142 @@ async function updateRoadName(lng, lat){
   }
 }
 </script>
+
+<script>
+// ===== 📍 Rectangle 10（改為地圖座標 Marker 版本 + 新增第二座標） =====
+map.on('load', () => {
+
+  // ===== 共用樣式函數 =====
+  function createRectMarker(lng, lat){
+    const el = document.createElement('div');
+    el.style.position = 'relative';
+    el.style.width = '28px';
+    el.style.height = '14px';
+
+    const rect10 = document.createElement('div');
+    rect10.style.boxSizing = 'border-box';
+    rect10.style.position = 'absolute';
+    rect10.style.left = '0px';
+    rect10.style.top = '0px';
+    rect10.style.width = '28px';
+    rect10.style.height = '14px';
+    rect10.style.background = '#253A63';
+    rect10.style.border = '2px solid #D9E6FC';
+    rect10.style.boxShadow = '0px 4px 4px rgba(0, 0, 0, 0.25)';
+    rect10.style.borderRadius = '7px';
+
+    const e1 = document.createElement('div');
+    e1.style.position = 'absolute';
+    e1.style.width = '6px';
+    e1.style.height = '6px';
+    e1.style.left = '4px';
+    e1.style.top = '4px';
+    e1.style.background = '#EA5044';
+    e1.style.borderRadius = '50%';
+
+    const e2 = document.createElement('div');
+    e2.style.position = 'absolute';
+    e2.style.width = '6px';
+    e2.style.height = '6px';
+    e2.style.left = '11px';
+    e2.style.top = '4px';
+    e2.style.background = '#D9BE1A';
+    e2.style.borderRadius = '50%';
+
+    const e3 = document.createElement('div');
+    e3.style.position = 'absolute';
+    e3.style.width = '6px';
+    e3.style.height = '6px';
+    e3.style.left = '18px';
+    e3.style.top = '4px';
+    e3.style.background = '#23A72F';
+    e3.style.borderRadius = '50%';
+
+    el.appendChild(rect10);
+    el.appendChild(e1);
+    el.appendChild(e2);
+    el.appendChild(e3);
+
+    new maplibregl.Marker({ element: el, anchor: 'center' })
+      .setLngLat([lng, lat])
+      .addTo(map);
+  }
+
+  // ===== 原本第一個點 =====
+  createRectMarker(121.3854445481512, 24.948700735617006);
+
+  // ===== 新增第二個點 =====
+  createRectMarker(121.38529093161087, 24.948512560280403);
+
+  // ===== 新增第三個點 =====
+  createRectMarker(121.38540988922426, 24.948871828266757);
+
+});
+</script>
+<!-- ===== 🚗 車道級導航（簡化版：類高德導航UI） ===== -->
+<script>
+// ⚠️ 注意：真實「車道級」需 HD Map 或 Mapbox Lane API
+// 這裡做的是「導航體驗模擬 + 路段推斷 UI」
+
+let lanePanel = null;
+let lastBearing = null;
+
+function createLanePanel(){
+  const el = document.createElement('div');
+  el.style.position = 'absolute';
+  el.style.left = '50%';
+  el.style.top = '90px';
+  el.style.transform = 'translateX(-50%)';
+  el.style.padding = '10px 14px';
+  el.style.background = 'rgba(0,0,0,0.75)';
+  el.style.color = '#fff';
+  el.style.borderRadius = '12px';
+  el.style.fontSize = '14px';
+  el.style.fontWeight = '500';
+  el.style.zIndex = '9999';
+  el.innerText = '車道分析中...';
+  document.body.appendChild(el);
+  return el;
+}
+
+function calcBearing(a, b){
+  const toRad = x => x * Math.PI / 180;
+  const toDeg = x => x * 180 / Math.PI;
+
+  const lat1 = toRad(a[1]);
+  const lon1 = toRad(a[0]);
+  const lat2 = toRad(b[1]);
+  const lon2 = toRad(b[0]);
+
+  const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
+  const x = Math.cos(lat1)*Math.sin(lat2) - Math.sin(lat1)*Math.cos(lat2)*Math.cos(lon2 - lon1);
+
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+function updateLaneUI(currentPos, routeCoords){
+  if(!lanePanel) lanePanel = createLanePanel();
+  if(routeCoords.length < 2) return;
+
+  const last = routeCoords[routeCoords.length - 2];
+  const now = routeCoords[routeCoords.length - 1];
+
+  const bearing = calcBearing(last, now);
+
+  let laneHint = '直行車道';
+
+  if(lastBearing !== null){
+    const diff = bearing - lastBearing;
+
+    if(diff > 15) laneHint = '建議靠右 / 右轉車道';
+    else if(diff < -15) laneHint = '建議靠左 / 左轉車道';
+    else laneHint = '保持直行車道';
+  }
+
+  lastBearing = bearing;
+
+  lanePanel.innerText = `🚗 車道建議：${laneHint}`;
+}
+</script>
 </body>
 </html>
