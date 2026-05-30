@@ -925,6 +925,7 @@ async function updateRoadName(lng, lat){
 
     const res = await fetch("https://overpass-api.de/api/interpreter", {
       method: "POST",
+      // removed headers for compatibility
       body: query
     });
 
@@ -948,7 +949,6 @@ async function updateRoadName(lng, lat){
       }
     }
 
-    // 🚨 只判斷「你選到的那條路」，避免附近國道誤亮
     let isFreeway = false;
 
     if(bestTags){
