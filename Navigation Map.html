@@ -903,17 +903,77 @@ map.on('load', () => {
 // ===== 🛣️ 道路名稱自動偵測（Reverse Geocoding） =====
 async function updateRoadName(lng, lat){
   try{
-    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
-    const res = await fetch(url);
+    const R = 6371e3;
+    const toRad = Math.PI / 180;
+
+    function getDistance(lat1, lon1, lat2, lon2){
+      const dLat = (lat2 - lat1) * toRad;
+      const dLon = (lon2 - lon1) * toRad;
+      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*toRad)*Math.cos(lat2*toRad)*Math.sin(dLon/2)**2;
+      return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    const query = `
+    [out:json];
+    way(around:80,${lat},${lng})["highway"]["name"];
+    out center;
+    `;
+
+    const res = await fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      body: query
+    });
+
     const data = await res.json();
 
-    let name = "未知道路";
-    if(data && data.address){
-      name = data.address.road || data.address.pedestrian || data.address.footway || data.display_name.split(",")[0];
+    let best = "未知道路";
+    let min = Infinity;
+
+    if(data.elements){
+      for(const el of data.elements){
+        if(!el.center || !el.tags?.name) continue;
+
+        const d = getDistance(lat, lng, el.center.lat, el.center.lon);
+
+        if(d < min){
+          min = d;
+          best = el.tags.name;
+        }
+      }
     }
 
     const label = document.getElementById("roadLabel");
-    if(label) label.innerText = name;
+    if(label) label.innerText = best;
+
+  }catch(e){
+    console.log("road name error", e);
+  }
+}tch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      body: query
+    });
+
+    const data = await res.json();
+
+    let best = "未知道路";
+    let min = Infinity;
+
+    if(data.elements){
+      for(const el of data.elements){
+        if(!el.center || !el.tags?.name) continue;
+
+        const d = getDistance(lat, lng, el.center.lat, el.center.lon);
+
+        if(d < min){
+          min = d;
+          best = el.tags.name;
+        }
+      }
+    }
+
+    const label = document.getElementById("roadLabel");
+    if(label) label.innerText = best;
+
   }catch(e){
     console.log("road name error", e);
   }
