@@ -978,258 +978,50 @@ async function updateRoadName(lng, lat){
 }
 </script>
 
-<script>
-// ===== 📍 Rectangle 10（改為地圖座標 Marker 版本 + 新增第二座標） =====
-map.on('load', () => {
+<!-- Rectangle 10 -->
+<div class="traffic-light"></div>
+<div class="light red"></div>
+<div class="light yellow"></div>
+<div class="light green"></div>
 
-  // ===== 共用樣式函數 =====
-  function createRectMarker(lng, lat){
-    const el = document.createElement('div');
-    el.style.position = 'relative';
-    el.style.width = '28px';
-    el.style.height = '14px';
-
-    const rect10 = document.createElement('div');
-    rect10.style.boxSizing = 'border-box';
-    rect10.style.position = 'absolute';
-    rect10.style.left = '0px';
-    rect10.style.top = '0px';
-    rect10.style.width = '28px';
-    rect10.style.height = '14px';
-    rect10.style.background = '#253A63';
-    rect10.style.border = '2px solid #D9E6FC';
-    rect10.style.boxShadow = '0px 4px 4px rgba(0, 0, 0, 0.25)';
-    rect10.style.borderRadius = '7px';
-
-    const e1 = document.createElement('div');
-    e1.style.position = 'absolute';
-    e1.style.width = '6px';
-    e1.style.height = '6px';
-    e1.style.left = '4px';
-    e1.style.top = '4px';
-    e1.style.background = '#EA5044';
-    e1.style.borderRadius = '50%';
-
-    const e2 = document.createElement('div');
-    e2.style.position = 'absolute';
-    e2.style.width = '6px';
-    e2.style.height = '6px';
-    e2.style.left = '11px';
-    e2.style.top = '4px';
-    e2.style.background = '#D9BE1A';
-    e2.style.borderRadius = '50%';
-
-    const e3 = document.createElement('div');
-    e3.style.position = 'absolute';
-    e3.style.width = '6px';
-    e3.style.height = '6px';
-    e3.style.left = '18px';
-    e3.style.top = '4px';
-    e3.style.background = '#23A72F';
-    e3.style.borderRadius = '50%';
-
-    el.appendChild(rect10);
-    el.appendChild(e1);
-    el.appendChild(e2);
-    el.appendChild(e3);
-
-    new maplibregl.Marker({ element: el, anchor: 'center' })
-      .setLngLat([lng, lat])
-      .addTo(map);
-  }
-
-  // ===== 原本第一個點 =====
-  createRectMarker(121.3854445481512, 24.948700735617006);
-
-  // ===== 新增第二個點 =====
-  createRectMarker(121.38529093161087, 24.948512560280403);
-
-  // ===== 新增第三個點 =====
-  createRectMarker(121.38540988922426, 24.948871828266757);
-
-  // ===== 新增第四個點 =====
-  createRectMarker(121.38568065124844, 24.949394879395122);
-
-  // ===== 新增第五個點 =====
-  createRectMarker(121.38575033105803, 24.94953648005969);
-
-});
-</script>
-<!-- ===== 🚗 車道級導航（簡化版：類高德導航UI） ===== -->
-<script>
-// ⚠️ 注意：真實「車道級」需 HD Map 或 Mapbox Lane API
-// 這裡做的是「導航體驗模擬 + 路段推斷 UI」
-
-let lanePanel = null;
-let lastBearing = null;
-
-function createLanePanel(){
-  const el = document.createElement('div');
-  el.style.position = 'absolute';
-  el.style.left = '50%';
-  el.style.top = '90px';
-  el.style.transform = 'translateX(-50%)';
-  el.style.padding = '10px 14px';
-  el.style.background = 'rgba(0,0,0,0.75)';
-  el.style.color = '#fff';
-  el.style.borderRadius = '12px';
-  el.style.fontSize = '14px';
-  el.style.fontWeight = '500';
-  el.style.zIndex = '9999';
-  el.innerText = '車道分析中...';
-  document.body.appendChild(el);
-  return el;
+<style>
+.traffic-light{
+  box-sizing:border-box;
+  position:absolute;
+  width:28px;
+  height:14px;
+  left:206px;
+  top:612px;
+  background:#253A63;
+  border:2px solid #D9E6FC;
+  box-shadow:0px 4px 4px rgba(0,0,0,0.25);
+  border-radius:7px;
 }
 
-function calcBearing(a, b){
-  const toRad = x => x * Math.PI / 180;
-  const toDeg = x => x * 180 / Math.PI;
-
-  const lat1 = toRad(a[1]);
-  const lon1 = toRad(a[0]);
-  const lat2 = toRad(b[1]);
-  const lon2 = toRad(b[0]);
-
-  const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
-  const x = Math.cos(lat1)*Math.sin(lat2) - Math.sin(lat1)*Math.cos(lat2)*Math.cos(lon2 - lon1);
-
-  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+.light{
+  position:absolute;
+  width:6px;
+  height:6px;
+  border-radius:50%;
 }
 
-function updateLaneUI(currentPos, routeCoords){
-  if(!lanePanel) lanePanel = createLanePanel();
-  if(routeCoords.length < 2) return;
-
-  const last = routeCoords[routeCoords.length - 2];
-  const now = routeCoords[routeCoords.length - 1];
-
-  const bearing = calcBearing(last, now);
-
-  let laneHint = '直行車道';
-
-  if(lastBearing !== null){
-    const diff = bearing - lastBearing;
-
-    if(diff > 15) laneHint = '建議靠右 / 右轉車道';
-    else if(diff < -15) laneHint = '建議靠左 / 左轉車道';
-    else laneHint = '保持直行車道';
-  }
-
-  lastBearing = bearing;
-
-  lanePanel.innerText = `🚗 車道建議：${laneHint}`;
-}
-</script>
-<!-- ===== 🔧 FIX：縮放/漂移問題修正（最終修正版） ===== -->
-<script>
-// 🚨 統一 GPS 控制：避免 flyTo / setCenter / easeTo 打架
-let lastMoveTime = 0;
-let cameraLocked = true;
-
-if (navigator.geolocation) {
-  navigator.geolocation.watchPosition((pos) => {
-
-    const now = Date.now();
-    if (now - lastMoveTime < 800) return; // 🔥 降低更新頻率避免抖動
-    lastMoveTime = now;
-
-    const lng = pos.coords.longitude;
-    const lat = pos.coords.latitude;
-
-    // ===== ✔ 只更新 marker，不再動地圖中心 =====
-    if (window.userMarker) {
-      window.userMarker.setLngLat([lng, lat]);
-    } else {
-      const el = document.createElement('div');
-      el.style.width = '16px';
-      el.style.height = '16px';
-      el.style.borderRadius = '50%';
-      el.style.background = '#2F80FF';
-      el.style.border = '3px solid white';
-      el.style.boxShadow = '0 0 12px rgba(47,128,255,0.8)';
-
-      window.userMarker = new maplibregl.Marker({
-        element: el,
-        anchor: 'center'
-      }).setLngLat([lng, lat]).addTo(map);
-    }
-
-    // ===== ✔ 僅在首次定位時移動畫面 =====
-    if (cameraLocked) {
-      map.easeTo({
-        center: [lng, lat],
-        zoom: 16,
-        duration: 800
-      });
-      cameraLocked = false;
-    }
-
-  }, (err) => {
-    console.log('GPS error:', err);
-  }, {
-    enableHighAccuracy: true,
-    maximumAge: 1000,
-    timeout: 10000
-  });
+.red{
+  left:210px;
+  top:616px;
+  background:#EA5044;
 }
 
-// 🚨 Marker 穩定化
-const styleFix = document.createElement('style');
-styleFix.innerHTML = `
-.maplibregl-marker {
-  transform-origin: center bottom !important;
-  will-change: transform;
+.yellow{
+  left:217px;
+  top:616px;
+  background:#D9BE1A;
 }
-.maplibregl-marker img {
-  width: 40px !important;
-  height: auto !important;
-  object-fit: contain;
-  transform: translateZ(0);
+
+.green{
+  left:224px;
+  top:616px;
+  background:#23A72F;
 }
-`;
-document.head.appendChild(styleFix);
-
-console.log('Navigation FINAL FIX enabled');
-</script>
-<!-- ===== 🧠 FINAL STABILITY FIX（解決縮放/飄移/雙GPS衝突） ===== -->
-<script>
-// 🚨 1. 禁用 flyTo（避免所有動畫搶視角）
-map.flyTo = function(opts){
-  if(opts && opts.center){
-    map.setCenter(opts.center);
-  }
-  if(opts && opts.zoom){
-    map.setZoom(opts.zoom);
-  }
-};
-
-// 🚨 2. 禁止 GeolocateControl 自動追蹤（避免雙GPS）
-try {
-  const controls = document.getElementsByClassName('maplibregl-ctrl-geolocate');
-  if(controls && controls.length){
-    console.log('GeolocateControl detected - recommend disable trackUserLocation in init');
-  }
-} catch(e){}
-
-// 🚨 3. 強制所有 Marker 穩定（避免 zoom 視覺偏移）
-const fixStyle = document.createElement('style');
-fixStyle.innerHTML = `
-.maplibregl-marker{
-  transform-origin:center bottom !important;
-  will-change:transform;
-}
-.maplibregl-marker img{
-  transform:translateZ(0);
-  backface-visibility:hidden;
-}
-`;
-document.head.appendChild(fixStyle);
-
-// 🚨 4. 停止任何第二套 camera control（只允許 userMarker）
-window._cameraLocked = true;
-
-console.log('🧭 FINAL NAV FIX APPLIED (single-camera mode)');
-</script>
-</body>`}]}
-</html>
+</style>
+</body>
 </html>
