@@ -827,6 +827,9 @@ geolocate.trigger();
 
       // Update display
       updateDisplay(speedKmh, elapsedMs);
+      // 🛣️ 即時道路偵測
+      updateRoadName(currentLon, currentLat);
+      console.log('road update trigger', currentLon, currentLat);
       updateRoadName(currentLon, currentLat);
 
     }, (err) => {
@@ -920,35 +923,6 @@ async function updateRoadName(lng, lat){
     `;
 
     const res = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      body: query
-    });
-
-    const data = await res.json();
-
-    let best = "未知道路";
-    let min = Infinity;
-
-    if(data.elements){
-      for(const el of data.elements){
-        if(!el.center || !el.tags?.name) continue;
-
-        const d = getDistance(lat, lng, el.center.lat, el.center.lon);
-
-        if(d < min){
-          min = d;
-          best = el.tags.name;
-        }
-      }
-    }
-
-    const label = document.getElementById("roadLabel");
-    if(label) label.innerText = best;
-
-  }catch(e){
-    console.log("road name error", e);
-  }
-}tch("https://overpass-api.de/api/interpreter", {
       method: "POST",
       body: query
     });
