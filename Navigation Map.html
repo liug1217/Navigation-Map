@@ -919,7 +919,7 @@ async function updateRoadName(lng, lat){
 
     const query = `
     [out:json];
-    way(around:80,${lat},${lng})["highway"]["name"];
+    way(around:10,${lat},${lng})["highway"]["name"];
     out center;
     `;
 
