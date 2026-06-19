@@ -714,11 +714,23 @@ geolocate.trigger();
     fetchRealTrafficSegments(center.lng, center.lat, true);
   }
 
-  function handleAutoTrafficProbe(speedKmh){
-    if(!lastPosition) return;
-    fetchRealTrafficSegments(lastPosition.lon, lastPosition.lat, false);
+  function handleAutoTrafficProbe(speedKmh, lng, lat, movedKm){
+    if(lng == null || lat == null) return;
+    fetchRealTrafficSegments(lng, lat, false);
 
-    const nearest = findNearestTrafficSegment(lastPosition.lon, lastPosition.lat);
+    const movedMeters = (movedKm || 0) * 1000;
+    if(movedMeters >= 6 || (Number.isFinite(speedKmh) && speedKmh >= 4)){
+      hasTrafficMovementStarted = true;
+    }
+
+    if(!Number.isFinite(speedKmh) || (!hasTrafficMovementStarted && speedKmh < 4)){
+      liveTrafficProbe = null;
+      refreshTrafficLayer();
+      if(trafficStatusElement) trafficStatusElement.innerText = 'Waiting for real GPS movement';
+      return;
+    }
+
+    const nearest = findNearestTrafficSegment(lng, lat);
     if(!nearest){
       if(trafficStatusElement) trafficStatusElement.innerText = 'Finding real nearby roads...';
       return;
@@ -733,7 +745,7 @@ geolocate.trigger();
     };
 
     if(Date.now() - lastSavedTrafficSampleAt > 10000){
-      saveActualTrafficSample(nearest, inferredSpeed, speedKmh < 5 ? 'stop' : 'drive', lastPosition.lon, lastPosition.lat);
+      saveActualTrafficSample(nearest, inferredSpeed, speedKmh < 5 ? 'stop' : 'drive', lng, lat);
       lastSavedTrafficSampleAt = Date.now();
     }
 
