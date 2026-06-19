@@ -163,6 +163,63 @@ html,body{
   font-weight: 400;
 }
 /* ===== 全部 Marker 圖示統一大小 ===== */
+.trafficPanel{
+  position:absolute;
+  right:10px;
+  top:74px;
+  width:168px;
+  padding:10px;
+  box-sizing:border-box;
+  background:rgba(255,255,255,0.88);
+  border:1px solid rgba(255,255,255,0.95);
+  box-shadow:0 6px 18px rgba(14,26,45,0.18);
+  border-radius:8px;
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+  z-index:4;
+  font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
+}
+
+.trafficPanelTitle{
+  font-size:13px;
+  font-weight:700;
+  color:#0E1A2D;
+  margin-bottom:7px;
+}
+
+.trafficStatus{
+  min-height:28px;
+  margin-bottom:8px;
+  color:#36445A;
+  font-size:11px;
+  line-height:14px;
+}
+
+.trafficActions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+}
+
+.trafficActions button{
+  height:30px;
+  border:0;
+  border-radius:8px;
+  color:#FFFFFF;
+  font-size:12px;
+  font-weight:700;
+  box-shadow:0 2px 5px rgba(0,0,0,0.16);
+}
+
+.trafficActions button:active{
+  transform:translateY(1px);
+}
+
+.report-stop{background:#D84536;}
+.report-jam{background:#F28C28;}
+.report-slow{background:#D7AA18;}
+.report-clear{background:#1F9D55;}
+
 .maplibregl-marker img{
   width:40px !important;
   height:auto !important;
@@ -214,6 +271,17 @@ html, body {
 <div class="rect6">
   <div class="speed-value">0</div>
   <div class="speed-unit">km/h</div>
+</div>
+
+<div class="trafficPanel">
+  <div class="trafficPanelTitle">Live traffic</div>
+  <div class="trafficStatus" id="trafficStatus">GPS will estimate nearby road speed</div>
+  <div class="trafficActions">
+    <button class="report-stop" type="button" onclick="reportCrowdTraffic('stop')">Stop</button>
+    <button class="report-jam" type="button" onclick="reportCrowdTraffic('jam')">Jam</button>
+    <button class="report-slow" type="button" onclick="reportCrowdTraffic('slow')">Slow</button>
+    <button class="report-clear" type="button" onclick="reportCrowdTraffic('clear')">Clear</button>
+  </div>
 </div>
 
 <div class="bottomBar">
@@ -337,6 +405,309 @@ geolocate.trigger();
     );
   });
   map.addControl(new maplibregl.NavigationControl());
+
+  // ===== Crowd traffic speed layer =====
+  const trafficStatusElement = document.getElementById('trafficStatus');
+  const trafficStorageKey = 'navigation-map-traffic-reports-v1';
+  const trafficReportMaxAge = 20 * 60 * 1000;
+  let trafficSegments = [];
+  let liveTrafficProbe = null;
+  let lastTrafficFetchAt = 0;
+  let lastTrafficFetchCenter = null;
+  let trafficFetchInFlight = false;
+
+  function loadTrafficReports(){
+    try{
+      return JSON.parse(localStorage.getItem(trafficStorageKey) || '[]');
+    }catch(e){
+      return [];
+    }
+  }
+
+  function saveTrafficReports(reports){
+    localStorage.setItem(trafficStorageKey, JSON.stringify(reports.slice(-80)));
+  }
+
+  function reportTypeToSpeed(type){
+    if(type === 'stop') return 3;
+    if(type === 'jam') return 12;
+    if(type === 'slow') return 25;
+    return 50;
+  }
+
+  function getTrafficColor(speed){
+    if(speed <= 8) return '#D84536';
+    if(speed <= 18) return '#F28C28';
+    if(speed <= 32) return '#D7AA18';
+    return '#1F9D55';
+  }
+
+  function getBaseSpeedFromHighway(highway){
+    if(highway === 'motorway' || highway === 'trunk') return 80;
+    if(highway === 'primary') return 55;
+    if(highway === 'secondary') return 45;
+    if(highway === 'tertiary') return 40;
+    if(highway === 'residential' || highway === 'unclassified') return 30;
+    return 35;
+  }
+
+  function normalizeRoadName(tags, fallbackId){
+    return tags.name || tags.ref || tags['name:zh'] || `Road ${fallbackId}`;
+  }
+
+  async function fetchRealTrafficSegments(lng, lat, force){
+    if(trafficFetchInFlight) return;
+
+    const now = Date.now();
+    if(!force && lastTrafficFetchCenter){
+      const movedKm = calculateDistance(lastTrafficFetchCenter.lat, lastTrafficFetchCenter.lng, lat, lng);
+      if(now - lastTrafficFetchAt < 45000 && movedKm < 0.25) return;
+    }
+
+    trafficFetchInFlight = true;
+    lastTrafficFetchAt = now;
+    lastTrafficFetchCenter = { lng, lat };
+
+    try{
+      if(trafficStatusElement) trafficStatusElement.innerText = 'Loading real roads...';
+
+      const query = `
+      [out:json][timeout:12];
+      way(around:650,${lat},${lng})["highway"]["highway"!~"footway|path|steps|cycleway|pedestrian|service|track|corridor|construction"];
+      out tags geom;
+      `;
+
+      const res = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: query
+      });
+      const data = await res.json();
+
+      const segments = (data.elements || [])
+        .filter(el => el.type === 'way' && el.geometry && el.geometry.length > 1)
+        .map(el => ({
+          id: `osm-${el.id}`,
+          name: normalizeRoadName(el.tags || {}, el.id),
+          baseSpeed: getBaseSpeedFromHighway((el.tags || {}).highway),
+          coordinates: el.geometry.map(point => [point.lon, point.lat])
+        }))
+        .slice(0, 28);
+
+      if(segments.length){
+        trafficSegments = segments;
+        refreshTrafficLayer();
+        if(trafficStatusElement) trafficStatusElement.innerText = `Loaded ${segments.length} real roads`;
+      }else if(trafficStatusElement){
+        trafficStatusElement.innerText = 'No nearby driveable roads found';
+      }
+    }catch(e){
+      console.log('traffic road fetch error', e);
+      if(trafficStatusElement) trafficStatusElement.innerText = 'Real road data unavailable';
+    }finally{
+      trafficFetchInFlight = false;
+    }
+  }
+
+  function getSegmentCenter(segment){
+    const mid = Math.floor(segment.coordinates.length / 2);
+    return segment.coordinates[mid];
+  }
+
+  function findNearestTrafficSegment(lng, lat){
+    if(!trafficSegments.length) return null;
+
+    let nearest = trafficSegments[0];
+    let minDistance = Infinity;
+
+    trafficSegments.forEach(segment => {
+      segment.coordinates.forEach(coord => {
+        const distance = calculateDistance(lat, lng, coord[1], coord[0]);
+        if(distance < minDistance){
+          minDistance = distance;
+          nearest = segment;
+        }
+      });
+    });
+
+    return nearest;
+  }
+
+  function buildTrafficData(){
+    const now = Date.now();
+    const reports = loadTrafficReports().filter(report => now - report.time < trafficReportMaxAge);
+    if(reports.length !== loadTrafficReports().length) saveTrafficReports(reports);
+
+    const lineFeatures = [];
+    const labelFeatures = [];
+
+    trafficSegments.forEach(segment => {
+      const segmentReports = reports.filter(report => report.segmentId === segment.id);
+      if(liveTrafficProbe && liveTrafficProbe.segmentId === segment.id && now - liveTrafficProbe.time < 45000){
+        segmentReports.push(liveTrafficProbe);
+      }
+
+      const reportSpeeds = segmentReports.map(report => report.speed);
+      const averageSpeed = reportSpeeds.length
+        ? Math.round(reportSpeeds.reduce((sum, speed) => sum + speed, 0) / reportSpeeds.length)
+        : segment.baseSpeed;
+      const userCount = Math.max(segmentReports.length, reportSpeeds.length ? 1 : 0);
+      const labelPoint = getSegmentCenter(segment);
+
+      lineFeatures.push({
+        type: 'Feature',
+        properties: {
+          id: segment.id,
+          name: segment.name,
+          speed: averageSpeed,
+          color: getTrafficColor(averageSpeed),
+          users: userCount
+        },
+        geometry: {
+          type: 'LineString',
+          coordinates: segment.coordinates
+        }
+      });
+
+      labelFeatures.push({
+        type: 'Feature',
+        properties: {
+          label: `${averageSpeed} km/h`,
+          color: getTrafficColor(averageSpeed),
+          users: userCount
+        },
+        geometry: {
+          type: 'Point',
+          coordinates: labelPoint
+        }
+      });
+    });
+
+    return {
+      lines: { type: 'FeatureCollection', features: lineFeatures },
+      labels: { type: 'FeatureCollection', features: labelFeatures }
+    };
+  }
+
+  function refreshTrafficLayer(){
+    if(!map.getSource('crowd-traffic-lines')) return;
+    const trafficData = buildTrafficData();
+    map.getSource('crowd-traffic-lines').setData(trafficData.lines);
+    map.getSource('crowd-traffic-labels').setData(trafficData.labels);
+  }
+
+  function setupTrafficLayer(){
+    const trafficData = buildTrafficData();
+
+    map.addSource('crowd-traffic-lines', {
+      type: 'geojson',
+      data: trafficData.lines
+    });
+
+    map.addLayer({
+      id: 'crowd-traffic-lines',
+      type: 'line',
+      source: 'crowd-traffic-lines',
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-width': 8,
+        'line-opacity': 0.82
+      }
+    });
+
+    map.addSource('crowd-traffic-labels', {
+      type: 'geojson',
+      data: trafficData.labels
+    });
+
+    map.addLayer({
+      id: 'crowd-traffic-labels',
+      type: 'symbol',
+      source: 'crowd-traffic-labels',
+      layout: {
+        'text-field': ['get', 'label'],
+        'text-size': 13,
+        'text-font': ['Noto Sans Bold'],
+        'text-allow-overlap': true,
+        'text-ignore-placement': true
+      },
+      paint: {
+        'text-color': '#FFFFFF',
+        'text-halo-color': '#0E1A2D',
+        'text-halo-width': 2
+      }
+    });
+
+    const center = map.getCenter();
+    fetchRealTrafficSegments(center.lng, center.lat, true);
+  }
+
+  function handleAutoTrafficProbe(speedKmh){
+    if(!lastPosition) return;
+    fetchRealTrafficSegments(lastPosition.lon, lastPosition.lat, false);
+
+    if(speedKmh > 34){
+      liveTrafficProbe = null;
+      refreshTrafficLayer();
+      return;
+    }
+
+    const nearest = findNearestTrafficSegment(lastPosition.lon, lastPosition.lat);
+    if(!nearest){
+      if(trafficStatusElement) trafficStatusElement.innerText = 'Finding real nearby roads...';
+      return;
+    }
+
+    const inferredSpeed = speedKmh < 5 ? 3 : Math.max(8, Math.round(speedKmh));
+    liveTrafficProbe = {
+      segmentId: nearest.id,
+      speed: inferredSpeed,
+      time: Date.now(),
+      type: speedKmh < 5 ? 'stop' : 'auto'
+    };
+
+    refreshTrafficLayer();
+    if(trafficStatusElement){
+      trafficStatusElement.innerText = `${nearest.name} auto ${inferredSpeed} km/h`;
+    }
+  }
+
+  window.reportCrowdTraffic = function(type){
+    if(!lastPosition){
+      if(trafficStatusElement) trafficStatusElement.innerText = 'Waiting for GPS before reporting';
+      return;
+    }
+
+    const nearest = findNearestTrafficSegment(lastPosition.lon, lastPosition.lat);
+    if(!nearest){
+      fetchRealTrafficSegments(lastPosition.lon, lastPosition.lat, true);
+      if(trafficStatusElement) trafficStatusElement.innerText = 'Finding real nearby roads...';
+      return;
+    }
+
+    const reports = loadTrafficReports().filter(report => Date.now() - report.time < trafficReportMaxAge);
+    const report = {
+      segmentId: nearest.id,
+      speed: reportTypeToSpeed(type),
+      type,
+      time: Date.now()
+    };
+
+    reports.push(report);
+    saveTrafficReports(reports);
+    refreshTrafficLayer();
+
+    if(trafficStatusElement){
+      const label = type === 'stop' ? 'Stop' : type === 'jam' ? 'Jam' : type === 'slow' ? 'Slow' : 'Clear';
+      trafficStatusElement.innerText = `Reported ${nearest.name}: ${label} ${report.speed} km/h`;
+    }
+  };
+
+  map.on('load', setupTrafficLayer);
+  setInterval(refreshTrafficLayer, 15000);
 
   // ===== Real GPS Tracking =====
   const infoElement = document.querySelector('.info');
@@ -828,6 +1199,7 @@ geolocate.trigger();
 
       // Update display
       updateDisplay(speedKmh, elapsedMs);
+      handleAutoTrafficProbe(speedKmh);
       // 🛣️ 即時道路偵測
       updateRoadName(currentLon, currentLat);
       console.log('road update trigger', currentLon, currentLat);
