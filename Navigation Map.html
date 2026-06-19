@@ -408,7 +408,7 @@ geolocate.trigger();
 
   // ===== Crowd traffic speed layer =====
   const trafficStatusElement = document.getElementById('trafficStatus');
-  const trafficStorageKey = 'navigation-map-traffic-reports-v1';
+  const trafficStorageKey = 'navigation-map-traffic-reports-v2';
   const trafficReportMaxAge = 24 * 60 * 60 * 1000;
   let trafficSegments = [];
   let liveTrafficProbe = null;
@@ -717,6 +717,13 @@ geolocate.trigger();
 
   function handleAutoTrafficProbe(speedKmh){
     if(!lastPosition) return;
+    if(!Number.isFinite(speedKmh)){
+      liveTrafficProbe = null;
+      refreshTrafficLayer();
+      if(trafficStatusElement) trafficStatusElement.innerText = 'No real GPS speed yet';
+      return;
+    }
+
     fetchRealTrafficSegments(lastPosition.lon, lastPosition.lat, false);
 
     const nearest = findNearestTrafficSegment(lastPosition.lon, lastPosition.lat);
@@ -1203,7 +1210,8 @@ geolocate.trigger();
       const now = Date.now();
       const currentLat = pos.coords.latitude;
       const currentLon = pos.coords.longitude;
-      const currentSpeed = pos.coords.speed || 0; // speed in m/s
+      const hasRealSpeed = typeof pos.coords.speed === 'number' && Number.isFinite(pos.coords.speed);
+      const currentSpeed = hasRealSpeed ? pos.coords.speed : null; // speed in m/s
 
       if (!startTime) {
         startTime = now;
@@ -1266,10 +1274,15 @@ geolocate.trigger();
       const elapsedMs = now - startTime;
 
       // Convert speed from m/s to km/h
-      const speedKmh = currentSpeed * 3.6;
+      const speedKmh = hasRealSpeed ? currentSpeed * 3.6 : NaN;
 
       // Update display
-      updateDisplay(speedKmh, elapsedMs);
+      if(hasRealSpeed){
+        updateDisplay(speedKmh, elapsedMs);
+      }else{
+        rect6SpeedValue.innerText = '?';
+        rect6SpeedUnit.innerText = 'GPS';
+      }
       handleAutoTrafficProbe(speedKmh);
       // 🛣️ 即時道路偵測
       updateRoadName(currentLon, currentLat);
