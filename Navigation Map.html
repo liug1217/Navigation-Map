@@ -409,9 +409,10 @@ geolocate.trigger();
   // ===== Crowd traffic speed layer =====
   const trafficStatusElement = document.getElementById('trafficStatus');
   const trafficStorageKey = 'navigation-map-traffic-reports-v1';
-  const trafficReportMaxAge = 20 * 60 * 1000;
+  const trafficReportMaxAge = 24 * 60 * 60 * 1000;
   let trafficSegments = [];
   let liveTrafficProbe = null;
+  let lastSavedTrafficSampleAt = 0;
   let lastTrafficFetchAt = 0;
   let lastTrafficFetchCenter = null;
   let trafficFetchInFlight = false;
@@ -425,7 +426,7 @@ geolocate.trigger();
   }
 
   function saveTrafficReports(reports){
-    localStorage.setItem(trafficStorageKey, JSON.stringify(reports.slice(-80)));
+    localStorage.setItem(trafficStorageKey, JSON.stringify(reports.slice(-300)));
   }
 
   function reportTypeToSpeed(type){
@@ -440,15 +441,6 @@ geolocate.trigger();
     if(speed <= 18) return '#F28C28';
     if(speed <= 32) return '#D7AA18';
     return '#1F9D55';
-  }
-
-  function getBaseSpeedFromHighway(highway){
-    if(highway === 'motorway' || highway === 'trunk') return 80;
-    if(highway === 'primary') return 55;
-    if(highway === 'secondary') return 45;
-    if(highway === 'tertiary') return 40;
-    if(highway === 'residential' || highway === 'unclassified') return 30;
-    return 35;
   }
 
   function normalizeRoadName(tags, fallbackId){
@@ -488,7 +480,6 @@ geolocate.trigger();
         .map(el => ({
           id: `osm-${el.id}`,
           name: normalizeRoadName(el.tags || {}, el.id),
-          baseSpeed: getBaseSpeedFromHighway((el.tags || {}).highway),
           coordinates: el.geometry.map(point => [point.lon, point.lat])
         }))
         .slice(0, 28);
@@ -532,6 +523,20 @@ geolocate.trigger();
     return nearest;
   }
 
+  function saveActualTrafficSample(segment, speed, type){
+    const now = Date.now();
+    const reports = loadTrafficReports().filter(report => now - report.time < trafficReportMaxAge);
+    reports.push({
+      segmentId: segment.id,
+      roadName: segment.name,
+      speed: Math.max(0, Math.round(speed)),
+      type,
+      source: 'gps',
+      time: now
+    });
+    saveTrafficReports(reports);
+  }
+
   function buildTrafficData(){
     const now = Date.now();
     const reports = loadTrafficReports().filter(report => now - report.time < trafficReportMaxAge);
@@ -547,10 +552,10 @@ geolocate.trigger();
       }
 
       const reportSpeeds = segmentReports.map(report => report.speed);
-      const averageSpeed = reportSpeeds.length
-        ? Math.round(reportSpeeds.reduce((sum, speed) => sum + speed, 0) / reportSpeeds.length)
-        : segment.baseSpeed;
-      const userCount = Math.max(segmentReports.length, reportSpeeds.length ? 1 : 0);
+      if(!reportSpeeds.length) return;
+
+      const averageSpeed = Math.round(reportSpeeds.reduce((sum, speed) => sum + speed, 0) / reportSpeeds.length);
+      const userCount = segmentReports.length;
       const labelPoint = getSegmentCenter(segment);
 
       lineFeatures.push({
@@ -649,19 +654,13 @@ geolocate.trigger();
     if(!lastPosition) return;
     fetchRealTrafficSegments(lastPosition.lon, lastPosition.lat, false);
 
-    if(speedKmh > 34){
-      liveTrafficProbe = null;
-      refreshTrafficLayer();
-      return;
-    }
-
     const nearest = findNearestTrafficSegment(lastPosition.lon, lastPosition.lat);
     if(!nearest){
       if(trafficStatusElement) trafficStatusElement.innerText = 'Finding real nearby roads...';
       return;
     }
 
-    const inferredSpeed = speedKmh < 5 ? 3 : Math.max(8, Math.round(speedKmh));
+    const inferredSpeed = Math.max(0, Math.round(speedKmh));
     liveTrafficProbe = {
       segmentId: nearest.id,
       speed: inferredSpeed,
@@ -669,9 +668,14 @@ geolocate.trigger();
       type: speedKmh < 5 ? 'stop' : 'auto'
     };
 
+    if(Date.now() - lastSavedTrafficSampleAt > 10000){
+      saveActualTrafficSample(nearest, inferredSpeed, speedKmh < 5 ? 'stop' : 'drive');
+      lastSavedTrafficSampleAt = Date.now();
+    }
+
     refreshTrafficLayer();
     if(trafficStatusElement){
-      trafficStatusElement.innerText = `${nearest.name} auto ${inferredSpeed} km/h`;
+      trafficStatusElement.innerText = `${nearest.name} recorded ${inferredSpeed} km/h`;
     }
   }
 
@@ -691,8 +695,10 @@ geolocate.trigger();
     const reports = loadTrafficReports().filter(report => Date.now() - report.time < trafficReportMaxAge);
     const report = {
       segmentId: nearest.id,
+      roadName: nearest.name,
       speed: reportTypeToSpeed(type),
       type,
+      source: 'manual',
       time: Date.now()
     };
 
