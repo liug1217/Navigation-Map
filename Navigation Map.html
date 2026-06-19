@@ -412,6 +412,7 @@ geolocate.trigger();
   const trafficReportMaxAge = 24 * 60 * 60 * 1000;
   let trafficSegments = [];
   let liveTrafficProbe = null;
+  let activeTrafficSegmentId = null;
   let lastSavedTrafficSampleAt = 0;
   let lastTrafficFetchAt = 0;
   let lastTrafficFetchCenter = null;
@@ -543,6 +544,8 @@ geolocate.trigger();
 
     let nearest = null;
     let minDistance = Infinity;
+    let activeSegment = null;
+    let activeDistance = Infinity;
 
     trafficSegments.forEach(segment => {
       const distance = getPointToLineDistanceMeters(lng, lat, segment.coordinates);
@@ -550,9 +553,25 @@ geolocate.trigger();
         minDistance = distance;
         nearest = segment;
       }
+      if(segment.id === activeTrafficSegmentId){
+        activeSegment = segment;
+        activeDistance = distance;
+      }
     });
 
-    if(minDistance > 28) return null;
+    if(activeSegment && activeDistance <= 18 && minDistance > activeDistance - 8){
+      return {
+        ...activeSegment,
+        distanceMeters: activeDistance
+      };
+    }
+
+    if(minDistance > 18) {
+      activeTrafficSegmentId = null;
+      return null;
+    }
+
+    activeTrafficSegmentId = nearest.id;
 
     return {
       ...nearest,
@@ -560,15 +579,24 @@ geolocate.trigger();
     };
   }
 
-  function saveActualTrafficSample(segment, speed, type){
+  function saveActualTrafficSample(segment, speed, type, lng, lat){
     const now = Date.now();
-    const reports = loadTrafficReports().filter(report => now - report.time < trafficReportMaxAge);
+    const nearbySegmentIds = trafficSegments
+      .filter(item => item.id !== segment.id && getPointToLineDistanceMeters(lng, lat, item.coordinates) <= 26)
+      .map(item => item.id);
+    const reports = loadTrafficReports().filter(report => {
+      const isFresh = now - report.time < trafficReportMaxAge;
+      const isNearbyOtherGps = report.source === 'gps' && nearbySegmentIds.includes(report.segmentId);
+      return isFresh && !isNearbyOtherGps;
+    });
     reports.push({
       segmentId: segment.id,
       roadName: segment.name,
       speed: Math.max(0, Math.round(speed)),
       type,
       source: 'gps',
+      lng,
+      lat,
       time: now
     });
     saveTrafficReports(reports);
@@ -706,7 +734,7 @@ geolocate.trigger();
     };
 
     if(Date.now() - lastSavedTrafficSampleAt > 10000){
-      saveActualTrafficSample(nearest, inferredSpeed, speedKmh < 5 ? 'stop' : 'drive');
+      saveActualTrafficSample(nearest, inferredSpeed, speedKmh < 5 ? 'stop' : 'drive', lastPosition.lon, lastPosition.lat);
       lastSavedTrafficSampleAt = Date.now();
     }
 
