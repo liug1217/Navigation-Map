@@ -334,7 +334,7 @@ html, body {
 
 <div class="cctvPanel">
   <div class="cctvPanelTitle">📷 即時影像</div>
-  <img class="cctvImage" id="cctvImage" src="https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=427" alt="CCTV 即時影像" onerror="document.getElementById('cctvStatus').textContent='影像載入失敗,可能該監視器暫時離線'">
+  <img class="cctvImage" id="cctvImage" src="https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=427" alt="CCTV 即時影像">
   <div class="cctvStatus" id="cctvStatus">國道監視器 #427</div>
 </div>
 
@@ -1233,6 +1233,32 @@ document.addEventListener("DOMContentLoaded", function(){
         statusEl.textContent = RADIO_STATIONS[radioCurrentIndex].name + " 串流發生錯誤";
       }
     });
+  }
+
+  // ===== 📷 CCTV 即時影像:定期自動重新連線,避免串流斷掉後畫面卡住 =====
+  const cctvImage = document.getElementById("cctvImage");
+  const cctvStatus = document.getElementById("cctvStatus");
+  const CCTV_BASE_URL = "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=427";
+  const CCTV_REFRESH_INTERVAL = 20000; // 每 20 秒主動重新連線一次
+
+  function reloadCctvImage(){
+    if(!cctvImage) return;
+    cctvImage.src = CCTV_BASE_URL + "&_t=" + Date.now();
+  }
+
+  if(cctvImage){
+    cctvImage.addEventListener("load", function(){
+      if(cctvStatus) cctvStatus.textContent = "國道監視器 #427";
+    });
+
+    cctvImage.addEventListener("error", function(){
+      if(cctvStatus) cctvStatus.textContent = "影像連線中斷,正在重新連線...";
+      // 斷線時稍等一下再重試,避免一直連續失敗洗版
+      setTimeout(reloadCctvImage, 3000);
+    });
+
+    // 不管串流目前狀態如何,定期主動重新整理,避免伺服器端逾時斷線後畫面卡住不動
+    setInterval(reloadCctvImage, CCTV_REFRESH_INTERVAL);
   }
 });
 </script>
