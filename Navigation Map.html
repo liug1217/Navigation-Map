@@ -1239,7 +1239,7 @@ document.addEventListener("DOMContentLoaded", function(){
   const cctvImage = document.getElementById("cctvImage");
   const cctvStatus = document.getElementById("cctvStatus");
   const CCTV_BASE_URL = "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=427";
-  const CCTV_REFRESH_INTERVAL = 11000; // 每 11 秒主動重新連線一次
+  const CCTV_REFRESH_INTERVAL = 9000; // 每 9 秒主動重新連線一次
 
   function reloadCctvImage(){
     if(!cctvImage) return;
