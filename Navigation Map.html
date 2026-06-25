@@ -44,7 +44,7 @@ html,body{
   right:8px;
   top:0;
   height:96px;
-  border-width:2px 2px 0 2px;
+  border-width:1.5px 1.5px 0 1.5px;
   border-style:solid;
   border-color:#FFFFFF;
   box-shadow:0 4px 4px rgba(0,0,0,0.25), 0 4px 4px rgba(0,0,0,0.25);
@@ -88,7 +88,7 @@ html,body{
   width:174px;
   height:33px;
   background:#FFFFFF;
-  border:2px solid #FFFFFF;
+  border:1.5px solid #FFFFFF;
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
   border-radius:16.5px;
   display:flex;
@@ -242,6 +242,45 @@ html,body{
   flex:1;
 }
 
+/* ===== 📷 CCTV 即時影像 ===== */
+.cctvPanel{
+  position:absolute;
+  right:10px;
+  top:240px;
+  width:168px;
+  padding:10px;
+  box-sizing:border-box;
+  background:rgba(255,255,255,0.88);
+  border:1px solid rgba(255,255,255,0.95);
+  box-shadow:0 6px 18px rgba(14,26,45,0.18);
+  border-radius:8px;
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+  z-index:4;
+  font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
+}
+
+.cctvPanelTitle{
+  font-size:13px;
+  font-weight:700;
+  color:#0E1A2D;
+  margin-bottom:7px;
+}
+
+.cctvImage{
+  width:100%;
+  border-radius:6px;
+  display:block;
+  background:#0E1A2D;
+}
+
+.cctvStatus{
+  margin-top:6px;
+  color:#36445A;
+  font-size:10px;
+  line-height:13px;
+}
+
 .maplibregl-marker img{
   width:40px !important;
   height:auto !important;
@@ -291,6 +330,12 @@ html, body {
     <input class="radioVolume" id="radioVolume" type="range" min="0" max="1" step="0.05" value="0.8" oninput="setRadioVolume(this.value)">
   </div>
   <audio id="radioAudio" preload="none"></audio>
+</div>
+
+<div class="cctvPanel">
+  <div class="cctvPanelTitle">📷 即時影像</div>
+  <img class="cctvImage" id="cctvImage" src="https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=427" alt="CCTV 即時影像" onerror="document.getElementById('cctvStatus').textContent='影像載入失敗,可能該監視器暫時離線'">
+  <div class="cctvStatus" id="cctvStatus">國道監視器 #427</div>
 </div>
 
 <div class="bottomBar">
