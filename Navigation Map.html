@@ -29,7 +29,6 @@ html,body{
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Arial,sans-serif;
 }
 
-/* ===== 底部整組（原形一起移動） ===== */
 .bottomBar{
   position:absolute;
   left:0;
@@ -80,7 +79,6 @@ html,body{
   text-shadow:0 4px 4px rgba(0,0,0,0.25);
 }
 
-/* ===== Rectangle 4 ===== */
 .rect4{
   box-sizing:border-box;
   position:absolute;
@@ -119,7 +117,6 @@ html,body{
   display:none;
 }
 
-/* ===== Rectangle 8 ===== */
 .rect8{
   position:absolute;
   width:calc(100% - 16px);
@@ -131,7 +128,6 @@ html,body{
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
 }
 
-/* ===== Rectangle 6（GPS圓形：中間顯示速度） ===== */
 .rect6{
   position:absolute;
   width:76px;
@@ -162,8 +158,10 @@ html,body{
   font-size: 12px;
   font-weight: 400;
 }
-/* ===== 全部 Marker 圖示統一大小 ===== */
-.trafficPanel{
+
+
+/* ===== 📻 網路電台播放器 ===== */
+.radioPanel{
   position:absolute;
   right:10px;
   top:74px;
@@ -180,45 +178,69 @@ html,body{
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
 }
 
-.trafficPanelTitle{
+.radioPanelTitle{
   font-size:13px;
   font-weight:700;
   color:#0E1A2D;
   margin-bottom:7px;
 }
 
-.trafficStatus{
-  min-height:28px;
+.radioStatus{
+  min-height:16px;
   margin-bottom:8px;
   color:#36445A;
   font-size:11px;
   line-height:14px;
 }
 
-.trafficActions{
-  display:grid;
-  grid-template-columns:1fr 1fr;
+.radioStationList{
+  display:flex;
+  flex-direction:column;
   gap:6px;
+  margin-bottom:8px;
 }
 
-.trafficActions button{
+.radioStationList button{
+  height:28px;
+  border:1px solid rgba(14,26,45,0.12);
+  border-radius:8px;
+  background:#FFFFFF;
+  color:#0E1A2D;
+  font-size:12px;
+  font-weight:600;
+  text-align:left;
+  padding:0 8px;
+}
+
+.radioStationList button.active{
+  background:#1E90FF;
+  border-color:#1E90FF;
+  color:#FFFFFF;
+}
+
+.radioControls{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.radioControls button{
+  width:30px;
   height:30px;
   border:0;
-  border-radius:8px;
+  border-radius:50%;
+  background:#0E1A2D;
   color:#FFFFFF;
-  font-size:12px;
-  font-weight:700;
-  box-shadow:0 2px 5px rgba(0,0,0,0.16);
+  font-size:13px;
 }
 
-.trafficActions button:active{
+.radioControls button:active{
   transform:translateY(1px);
 }
 
-.report-stop{background:#D84536;}
-.report-jam{background:#F28C28;}
-.report-slow{background:#D7AA18;}
-.report-clear{background:#1F9D55;}
+.radioVolume{
+  flex:1;
+}
 
 .maplibregl-marker img{
   width:40px !important;
@@ -226,7 +248,7 @@ html,body{
   object-fit:contain;
   display:block;
 }
-/* ===== 📍 使用者定位藍色圖標 ===== */
+
 .maplibregl-user-location-dot{
   background-color:#1E90FF !important;
   width:14px !important;
@@ -240,19 +262,6 @@ html,body{
   fill:rgba(30,144,255,0.15) !important;
 }
 
-/* 🔒 Lock UI (prevent page move) */
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  overflow: hidden;
-}
-
-body {
-  touch-action: none;
-}
-
-/* 🔒 Lock UI (fixed version) */
 html, body {
   margin: 0;
   padding: 0;
@@ -273,15 +282,15 @@ html, body {
   <div class="speed-unit">km/h</div>
 </div>
 
-<div class="trafficPanel">
-  <div class="trafficPanelTitle">Live traffic</div>
-  <div class="trafficStatus" id="trafficStatus">GPS will estimate nearby road speed</div>
-  <div class="trafficActions">
-    <button class="report-stop" type="button" onclick="reportCrowdTraffic('stop')">Stop</button>
-    <button class="report-jam" type="button" onclick="reportCrowdTraffic('jam')">Jam</button>
-    <button class="report-slow" type="button" onclick="reportCrowdTraffic('slow')">Slow</button>
-    <button class="report-clear" type="button" onclick="reportCrowdTraffic('clear')">Clear</button>
+<div class="radioPanel">
+  <div class="radioPanelTitle">📻 網路電台</div>
+  <div class="radioStatus" id="radioStatus">點選電台開始播放</div>
+  <div class="radioStationList" id="radioStationList"></div>
+  <div class="radioControls">
+    <button type="button" id="radioPlayBtn" onclick="toggleRadioPlay()">▶</button>
+    <input class="radioVolume" id="radioVolume" type="range" min="0" max="1" step="0.05" value="0.8" oninput="setRadioVolume(this.value)">
   </div>
+  <audio id="radioAudio" preload="none"></audio>
 </div>
 
 <div class="bottomBar">
@@ -295,15 +304,9 @@ html, body {
 </div>
 
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js">map.dragRotate.disable();
-map.touchZoomRotate.disableRotation();
-map.boxZoom.disable();
-map.scrollZoom.enable();
-map.dragPan.enable();
-</script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 
 <script>
-// ===== 📍 Google-style 藍色定位點 =====
 let userMarker = null;
 
 function updateUserLocation(position) {
@@ -338,15 +341,21 @@ if (navigator.geolocation) {
     style: 'https://tiles.openfreemap.org/styles/liberty',
     center: [121.394, 24.951],
     zoom: 16,
-    pitch: 60, // 🔥 3D視角
+    pitch: 60,
     bearing: -20,
     antialias: true
   });
 
-  // ===== 🔥 3D 建築 =====
+  map.on('load', () => {
+    map.dragRotate.disable();
+    map.touchZoomRotate.disableRotation();
+    map.boxZoom.disable();
+    map.scrollZoom.enable();
+    map.dragPan.enable();
+  });
+
   map.on('load',()=>{
 
-// ===== 📍 使用 Google 類型藍點定位 =====
 const geolocate = new maplibregl.GeolocateControl({
   positionOptions: {
     enableHighAccuracy: true
@@ -356,8 +365,6 @@ const geolocate = new maplibregl.GeolocateControl({
 });
 
 map.addControl(geolocate);
-
-// 自動啟動定位
 geolocate.trigger();
     const layers = map.getStyle().layers;
     let labelLayerId;
@@ -406,392 +413,7 @@ geolocate.trigger();
   });
   map.addControl(new maplibregl.NavigationControl());
 
-  // ===== Crowd traffic speed layer =====
-  const trafficStatusElement = document.getElementById('trafficStatus');
-  const trafficStorageKey = 'navigation-map-traffic-reports-v3';
-  const trafficReportMaxAge = 24 * 60 * 60 * 1000;
-  let trafficSegments = [];
-  let liveTrafficProbe = null;
-  let activeTrafficSegmentId = null;
-  let lastTrafficMotionPoint = null;
-  let hasTrafficMovementStarted = false;
-  let lastSavedTrafficSampleAt = 0;
-  let lastTrafficFetchAt = 0;
-  let lastTrafficFetchCenter = null;
-  let trafficFetchInFlight = false;
 
-  function loadTrafficReports(){
-    try{
-      return JSON.parse(localStorage.getItem(trafficStorageKey) || '[]');
-    }catch(e){
-      return [];
-    }
-  }
-
-  function saveTrafficReports(reports){
-    localStorage.setItem(trafficStorageKey, JSON.stringify(reports.slice(-300)));
-  }
-
-  function reportTypeToSpeed(type){
-    if(type === 'stop') return 3;
-    if(type === 'jam') return 12;
-    if(type === 'slow') return 25;
-    return 50;
-  }
-
-  function getTrafficColor(speed){
-    if(speed <= 8) return '#D84536';
-    if(speed <= 18) return '#F28C28';
-    if(speed <= 32) return '#D7AA18';
-    return '#1F9D55';
-  }
-
-  function normalizeRoadName(tags, fallbackId){
-    return tags.name || tags.ref || tags['name:zh'] || `Road ${fallbackId}`;
-  }
-
-  async function fetchRealTrafficSegments(lng, lat, force){
-    if(trafficFetchInFlight) return;
-
-    const now = Date.now();
-    if(!force && lastTrafficFetchCenter){
-      const movedKm = calculateDistance(lastTrafficFetchCenter.lat, lastTrafficFetchCenter.lng, lat, lng);
-      if(now - lastTrafficFetchAt < 45000 && movedKm < 0.25) return;
-    }
-
-    trafficFetchInFlight = true;
-    lastTrafficFetchAt = now;
-    lastTrafficFetchCenter = { lng, lat };
-
-    try{
-      if(trafficStatusElement) trafficStatusElement.innerText = 'Loading real roads...';
-
-      const query = `
-      [out:json][timeout:12];
-      way(around:650,${lat},${lng})["highway"]["highway"!~"footway|path|steps|cycleway|pedestrian|service|track|corridor|construction"];
-      out tags geom;
-      `;
-
-      const res = await fetch('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        body: query
-      });
-      const data = await res.json();
-
-      const segments = (data.elements || [])
-        .filter(el => el.type === 'way' && el.geometry && el.geometry.length > 1)
-        .map(el => ({
-          id: `osm-${el.id}`,
-          name: normalizeRoadName(el.tags || {}, el.id),
-          coordinates: el.geometry.map(point => [point.lon, point.lat])
-        }))
-        .slice(0, 28);
-
-      if(segments.length){
-        trafficSegments = segments;
-        refreshTrafficLayer();
-        if(trafficStatusElement) trafficStatusElement.innerText = `Loaded ${segments.length} real roads`;
-      }else if(trafficStatusElement){
-        trafficStatusElement.innerText = 'No nearby driveable roads found';
-      }
-    }catch(e){
-      console.log('traffic road fetch error', e);
-      if(trafficStatusElement) trafficStatusElement.innerText = 'Real road data unavailable';
-    }finally{
-      trafficFetchInFlight = false;
-    }
-  }
-
-  function getSegmentCenter(segment){
-    const mid = Math.floor(segment.coordinates.length / 2);
-    return segment.coordinates[mid];
-  }
-
-  function lngLatToMeters(lng, lat, originLat){
-    const metersPerDegreeLat = 111320;
-    const metersPerDegreeLng = 111320 * Math.cos(originLat * Math.PI / 180);
-    return {
-      x: lng * metersPerDegreeLng,
-      y: lat * metersPerDegreeLat
-    };
-  }
-
-  function getPointToLineDistanceMeters(lng, lat, coordinates){
-    if(!coordinates || coordinates.length < 2) return Infinity;
-
-    const point = lngLatToMeters(lng, lat, lat);
-    let minDistance = Infinity;
-
-    for(let i = 0; i < coordinates.length - 1; i++){
-      const a = lngLatToMeters(coordinates[i][0], coordinates[i][1], lat);
-      const b = lngLatToMeters(coordinates[i + 1][0], coordinates[i + 1][1], lat);
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const lengthSquared = dx * dx + dy * dy;
-      const t = lengthSquared === 0
-        ? 0
-        : Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared));
-      const projectedX = a.x + t * dx;
-      const projectedY = a.y + t * dy;
-      const distance = Math.hypot(point.x - projectedX, point.y - projectedY);
-
-      if(distance < minDistance) minDistance = distance;
-    }
-
-    return minDistance;
-  }
-
-  function findNearestTrafficSegment(lng, lat){
-    if(!trafficSegments.length) return null;
-
-    let nearest = null;
-    let minDistance = Infinity;
-    let activeSegment = null;
-    let activeDistance = Infinity;
-
-    trafficSegments.forEach(segment => {
-      const distance = getPointToLineDistanceMeters(lng, lat, segment.coordinates);
-      if(distance < minDistance){
-        minDistance = distance;
-        nearest = segment;
-      }
-      if(segment.id === activeTrafficSegmentId){
-        activeSegment = segment;
-        activeDistance = distance;
-      }
-    });
-
-    if(activeSegment && activeDistance <= 18 && minDistance > activeDistance - 8){
-      return {
-        ...activeSegment,
-        distanceMeters: activeDistance
-      };
-    }
-
-    if(minDistance > 18) {
-      activeTrafficSegmentId = null;
-      return null;
-    }
-
-    activeTrafficSegmentId = nearest.id;
-
-    return {
-      ...nearest,
-      distanceMeters: minDistance
-    };
-  }
-
-  function saveActualTrafficSample(segment, speed, type, lng, lat){
-    const now = Date.now();
-    const nearbySegmentIds = trafficSegments
-      .filter(item => item.id !== segment.id && getPointToLineDistanceMeters(lng, lat, item.coordinates) <= 26)
-      .map(item => item.id);
-    const reports = loadTrafficReports().filter(report => {
-      const isFresh = now - report.time < trafficReportMaxAge;
-      const isNearbyOtherGps = report.source === 'gps' && nearbySegmentIds.includes(report.segmentId);
-      return isFresh && !isNearbyOtherGps;
-    });
-    reports.push({
-      segmentId: segment.id,
-      roadName: segment.name,
-      speed: Math.max(0, Math.round(speed)),
-      type,
-      source: 'gps',
-      lng,
-      lat,
-      time: now
-    });
-    saveTrafficReports(reports);
-  }
-
-  function buildTrafficData(){
-    const now = Date.now();
-    const reports = loadTrafficReports().filter(report => now - report.time < trafficReportMaxAge);
-    if(reports.length !== loadTrafficReports().length) saveTrafficReports(reports);
-
-    const lineFeatures = [];
-    const labelFeatures = [];
-
-    trafficSegments.forEach(segment => {
-      const segmentReports = reports.filter(report => report.segmentId === segment.id);
-
-      const reportSpeeds = segmentReports.map(report => report.speed);
-      if(!reportSpeeds.length) return;
-
-      const averageSpeed = Math.round(reportSpeeds.reduce((sum, speed) => sum + speed, 0) / reportSpeeds.length);
-      const userCount = segmentReports.length;
-      const labelPoint = getSegmentCenter(segment);
-
-      lineFeatures.push({
-        type: 'Feature',
-        properties: {
-          id: segment.id,
-          name: segment.name,
-          speed: averageSpeed,
-          color: getTrafficColor(averageSpeed),
-          users: userCount
-        },
-        geometry: {
-          type: 'LineString',
-          coordinates: segment.coordinates
-        }
-      });
-
-      labelFeatures.push({
-        type: 'Feature',
-        properties: {
-          label: `${averageSpeed} km/h`,
-          color: getTrafficColor(averageSpeed),
-          users: userCount
-        },
-        geometry: {
-          type: 'Point',
-          coordinates: labelPoint
-        }
-      });
-    });
-
-    return {
-      lines: { type: 'FeatureCollection', features: lineFeatures },
-      labels: { type: 'FeatureCollection', features: labelFeatures }
-    };
-  }
-
-  function refreshTrafficLayer(){
-    if(!map.getSource('crowd-traffic-lines')) return;
-    const trafficData = buildTrafficData();
-    map.getSource('crowd-traffic-lines').setData(trafficData.lines);
-    map.getSource('crowd-traffic-labels').setData(trafficData.labels);
-  }
-
-  function setupTrafficLayer(){
-    const trafficData = buildTrafficData();
-
-    map.addSource('crowd-traffic-lines', {
-      type: 'geojson',
-      data: trafficData.lines
-    });
-
-    map.addLayer({
-      id: 'crowd-traffic-lines',
-      type: 'line',
-      source: 'crowd-traffic-lines',
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
-      },
-      paint: {
-        'line-color': ['get', 'color'],
-        'line-width': 8,
-        'line-opacity': 0.82
-      }
-    });
-
-    map.addSource('crowd-traffic-labels', {
-      type: 'geojson',
-      data: trafficData.labels
-    });
-
-    map.addLayer({
-      id: 'crowd-traffic-labels',
-      type: 'symbol',
-      source: 'crowd-traffic-labels',
-      layout: {
-        'text-field': ['get', 'label'],
-        'text-size': 13,
-        'text-font': ['Noto Sans Bold'],
-        'text-allow-overlap': true,
-        'text-ignore-placement': true
-      },
-      paint: {
-        'text-color': '#FFFFFF',
-        'text-halo-color': '#0E1A2D',
-        'text-halo-width': 2
-      }
-    });
-
-    const center = map.getCenter();
-    fetchRealTrafficSegments(center.lng, center.lat, true);
-  }
-
-  function handleAutoTrafficProbe(speedKmh, lng, lat, movedKm){
-    if(lng == null || lat == null) return;
-    fetchRealTrafficSegments(lng, lat, false);
-
-    const movedMeters = (movedKm || 0) * 1000;
-    if(movedMeters >= 6 || (Number.isFinite(speedKmh) && speedKmh >= 4)){
-      hasTrafficMovementStarted = true;
-    }
-
-    if(!Number.isFinite(speedKmh) || (!hasTrafficMovementStarted && speedKmh < 4)){
-      liveTrafficProbe = null;
-      refreshTrafficLayer();
-      if(trafficStatusElement) trafficStatusElement.innerText = 'Waiting for real GPS movement';
-      return;
-    }
-
-    const nearest = findNearestTrafficSegment(lng, lat);
-    if(!nearest){
-      if(trafficStatusElement) trafficStatusElement.innerText = 'Finding real nearby roads...';
-      return;
-    }
-
-    const inferredSpeed = Math.max(0, Math.round(speedKmh));
-    liveTrafficProbe = {
-      segmentId: nearest.id,
-      speed: inferredSpeed,
-      time: Date.now(),
-      type: speedKmh < 5 ? 'stop' : 'auto'
-    };
-
-    if(Date.now() - lastSavedTrafficSampleAt > 10000){
-      saveActualTrafficSample(nearest, inferredSpeed, speedKmh < 5 ? 'stop' : 'drive', lng, lat);
-      lastSavedTrafficSampleAt = Date.now();
-    }
-
-    refreshTrafficLayer();
-    if(trafficStatusElement){
-      trafficStatusElement.innerText = `${nearest.name} recorded ${inferredSpeed} km/h`;
-    }
-  }
-
-  window.reportCrowdTraffic = function(type){
-    if(!lastPosition){
-      if(trafficStatusElement) trafficStatusElement.innerText = 'Waiting for GPS before reporting';
-      return;
-    }
-
-    const nearest = findNearestTrafficSegment(lastPosition.lon, lastPosition.lat);
-    if(!nearest){
-      fetchRealTrafficSegments(lastPosition.lon, lastPosition.lat, true);
-      if(trafficStatusElement) trafficStatusElement.innerText = 'Finding real nearby roads...';
-      return;
-    }
-
-    const reports = loadTrafficReports().filter(report => Date.now() - report.time < trafficReportMaxAge);
-    const report = {
-      segmentId: nearest.id,
-      roadName: nearest.name,
-      speed: reportTypeToSpeed(type),
-      type,
-      source: 'manual',
-      time: Date.now()
-    };
-
-    reports.push(report);
-    saveTrafficReports(reports);
-    refreshTrafficLayer();
-
-    if(trafficStatusElement){
-      const label = type === 'stop' ? 'Stop' : type === 'jam' ? 'Jam' : type === 'slow' ? 'Slow' : 'Clear';
-      trafficStatusElement.innerText = `Reported ${nearest.name}: ${label} ${report.speed} km/h`;
-    }
-  };
-
-  map.on('load', setupTrafficLayer);
-  setInterval(refreshTrafficLayer, 15000);
-
-  // ===== Real GPS Tracking =====
   const infoElement = document.querySelector('.info');
   const rect6SpeedValue = document.querySelector('.rect6 .speed-value');
   const rect6SpeedUnit = document.querySelector('.rect6 .speed-unit');
@@ -803,7 +425,6 @@ geolocate.trigger();
   let marker = null;
   let routeSource = null;
 
-  // Add route source and layer to map
   map.on('load', () => {
     map.addSource('route', {
       type: 'geojson',
@@ -813,21 +434,18 @@ geolocate.trigger();
       }
     });
 
-    // ===== 🔥 3D 區塊（fill-extrusion） =====
     map.addLayer({
       id: 'route',
       type: 'fill-extrusion',
       source: 'route',
       paint: {
-        'fill-extrusion-color': '#888888', // 灰色
-        'fill-extrusion-height': 0.1,      // 🔥 立體高度
+        'fill-extrusion-color': '#888888',
+        'fill-extrusion-height': 0.1,
         'fill-extrusion-base': 0,
         'fill-extrusion-opacity': 1
       }
     });
 
-    // ===== ✨ 白色兩側邊框 =====
-    // ===== ✨ 白色邊框（改為 LineString，確保可見） =====
     map.addLayer({
       id: 'route-outline',
       type: 'line',
@@ -843,7 +461,6 @@ geolocate.trigger();
       }
     });
 
-    // ===== 🛣️ 白色標線（指定兩點） =====
     map.addSource('road-marking', {
       type: 'geojson',
       data: {
@@ -874,9 +491,8 @@ geolocate.trigger();
         'line-width': 2,
         'line-opacity': 1
       }
-    }); // 🔥 確保在最上層顯示
+    });
 
-    // ===== 🛣️ 新白色標線2 =====
     map.addSource('road-marking-2', {
       type: 'geojson',
       data: {
@@ -911,14 +527,11 @@ geolocate.trigger();
       }
     });
 
-    // ===== 🧭 自動顯示所有道路（修正看不到問題） =====
     const bounds = new maplibregl.LngLatBounds();
 
-    // road-marking
     bounds.extend([121.39249524004471, 24.95169532386274]);
     bounds.extend([121.40284752438394, 24.95075216220213]);
 
-    // road-marking-2
     bounds.extend([121.38221308869691, 24.946019147702295]);
     bounds.extend([121.38232507092059, 24.9460392114842]);
     bounds.extend([121.38260277126123, 24.9442672449878]);
@@ -929,11 +542,6 @@ geolocate.trigger();
       duration: 1200
     });
 
-    // ===== 📍 加入圖片標記 =====
-    // ===== 📍 圖片標記（統一使用 coordsList） =====
-    // 已移除 logoEl（避免單一與多點重複架構）
-
-    // ===== 📍 多個圖片標記 =====
     const coordsList = [
       [121.37947362099798, 24.946599763017144],
       [121.37528481579257, 24.946239254457673],
@@ -942,7 +550,6 @@ geolocate.trigger();
       
     ];
 
-    // 偏移已移除（不再需要）
     const offsets = [
       [0, 0],
       [0, 0],
@@ -966,7 +573,6 @@ geolocate.trigger();
         .addTo(map);
     });
 
-    // ===== 📍 新增 FamilyMart 圖片標記 =====
     const fmCoords = [
       [121.38394404399801, 24.948573900819657],
       [121.38263683357708, 24.94498354227102],
@@ -1002,10 +608,6 @@ geolocate.trigger();
         .addTo(map);
     });
 
-    // ===== 原本單一 FamilyMart（已整合） =====
-    // 已移除重複單一 marker（避免重複顯示）
-
-    // ===== 📍 新增自訂圖片標記 =====
     const customImgCoords = [
       [121.38369699212406, 24.948450215826973],
       [121.37874077315169, 24.942189928592054],
@@ -1033,7 +635,6 @@ geolocate.trigger();
         .addTo(map);
     });
 
-    // ===== 📍 新增單一自訂圖片標記 =====
     const specialImg = document.createElement('img');
     specialImg.src = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTodDL-n4ZqxNmpWAIG38tO9b-V9yRTgI_8Qw&s';
     specialImg.style.width = '40px';
@@ -1045,7 +646,6 @@ geolocate.trigger();
       .setLngLat([121.38059717994372, 24.945483507015254])
       .addTo(map);
 
-    // ===== 📍 第二張自訂圖片（統一多點） =====
     const specialImg2Coords = [
       [121.50331638808322, 25.038264764294617],
       [121.489506476399, 25.058872831316673],
@@ -1082,7 +682,6 @@ geolocate.trigger();
         .addTo(map);
     });
 
-    // ===== 📍 第三張自訂圖片（新） =====
     const specialImg3Coords = [
       [121.37434608225334, 24.93285982917405],
       [121.44022970850776, 24.972648533090798],
@@ -1111,7 +710,6 @@ geolocate.trigger();
         .addTo(map);
     });
 
-    // ===== 📍 第四張自訂圖片（新） =====
     const specialImg4Coords = [
       [121.37776008627395, 24.947929536029573]
     ];
@@ -1129,7 +727,6 @@ geolocate.trigger();
         .addTo(map);
     });
 
-    // ===== 📍 第五張自訂圖片（新） =====
     const specialImg5Coords = [
       [121.37787755482056, 24.947771604192354],
       [121.38507460502822, 24.948068846289413],
@@ -1158,11 +755,10 @@ geolocate.trigger();
 
     routeSource = map.getSource('route');
 
-    // 四點區域
-    const A = [121.39431694905831, 24.95161377427496]; // 左上
-    const B = [121.40117103967137, 24.950945728162928]; // 右上
-    const C = [121.40115004678125, 24.95076327043688]; // 右下
-    const D = [121.39428811531214, 24.951394298417927]; // 左下
+    const A = [121.39431694905831, 24.95161377427496];
+    const B = [121.40117103967137, 24.950945728162928];
+    const C = [121.40115004678125, 24.95076327043688];
+    const D = [121.39428811531214, 24.951394298417927];
 
     const polygon = [[
       A, B, C, D, A
@@ -1181,9 +777,8 @@ geolocate.trigger();
 
   });
 
-  // Calculate distance between two coordinates using Haversine formula
   function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Earth's radius in km
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = 
@@ -1194,7 +789,6 @@ geolocate.trigger();
     return R * c;
   }
 
-  // Format time display
   function formatTime(ms) {
     const totalSeconds = Math.floor(ms / 1000);
     const hours = Math.floor(totalSeconds / 3600);
@@ -1203,7 +797,6 @@ geolocate.trigger();
     return `${hours}小時${minutes}分鐘`;
   }
 
-  // Update GPS info display
   function updateDisplay(speed, elapsedMs) {
     rect6SpeedValue.innerText = Math.round(speed);
     infoElement.innerText = `${formatTime(elapsedMs)} ${totalDistance.toFixed(2)}公里`;
@@ -1214,7 +807,7 @@ geolocate.trigger();
       const now = Date.now();
       const currentLat = pos.coords.latitude;
       const currentLon = pos.coords.longitude;
-      const currentSpeed = pos.coords.speed || 0; // speed in m/s
+      const currentSpeed = pos.coords.speed || 0;
 
       if (!startTime) {
         startTime = now;
@@ -1222,22 +815,19 @@ geolocate.trigger();
         routeCoordinates = [[currentLon, currentLat]];
       }
 
-      // Calculate distance traveled
       if (lastPosition) {
         const distance = calculateDistance(lastPosition.lat, lastPosition.lon, currentLat, currentLon);
         totalDistance += distance;
         lastPosition = { lat: currentLat, lon: currentLon };
       }
 
-      // Update route coordinates（避免GPS抖動亂畫）
       if (lastPosition) {
         const d = calculateDistance(lastPosition.lat, lastPosition.lon, currentLat, currentLon);
-        if (d > 0.005) { // 大於5公尺才加入
+        if (d > 0.005) {
           routeCoordinates.push([currentLon, currentLat]);
         }
       }
 
-      // Update route on map
       if (routeSource) {
         routeSource.setData({
           type: 'FeatureCollection',
@@ -1251,14 +841,12 @@ geolocate.trigger();
         });
       }
 
-      // Update map center and marker
       map.flyTo({
         center: [currentLon, currentLat],
         zoom: 15,
         speed: 0.5
       });
 
-      // Marker只建立一次
       if (!marker) {
         const el = document.createElement('div');
         el.style.width = '20px';
@@ -1273,16 +861,10 @@ geolocate.trigger();
         marker.setLngLat([currentLon, currentLat]);
       }
 
-      // Calculate elapsed time
       const elapsedMs = now - startTime;
-
-      // Convert speed from m/s to km/h
       const speedKmh = currentSpeed * 3.6;
 
-      // Update display
       updateDisplay(speedKmh, elapsedMs);
-      handleAutoTrafficProbe(speedKmh);
-      // 🛣️ 即時道路偵測
       updateRoadName(currentLon, currentLat);
       console.log('road update trigger', currentLon, currentLat);
       updateRoadName(currentLon, currentLat);
@@ -1302,13 +884,10 @@ geolocate.trigger();
 </script>
 
 <script>
-// ===== 📍 Google 呼吸藍點（100%生效版）=====
-
 map.on('load', () => {
 
   let userMarker = null;
 
-  // 呼吸動畫
   const style = document.createElement('style');
   style.innerHTML = `
   @keyframes pulse {
@@ -1358,7 +937,6 @@ map.on('load', () => {
 });
 </script>
 <script>
-// ===== 🛣️ 道路名稱自動偵測（Reverse Geocoding） =====
 async function updateRoadName(lng, lat){
   try{
     const R = 6371e3;
@@ -1379,7 +957,6 @@ async function updateRoadName(lng, lat){
 
     const res = await fetch("https://overpass-api.de/api/interpreter", {
       method: "POST",
-      // removed headers for compatibility
       body: query
     });
 
@@ -1477,5 +1054,143 @@ async function updateRoadName(lng, lat){
   background:#23A72F;
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+<script>
+// ===== 📻 網路電台播放器 =====
+// 提醒:網路電台串流網址常常會變動或失效,如果某個電台播不出來,
+// 之後可以換成別的串流網址。
+
+const RADIO_STATIONS = [
+  { name: "ICRT", url: "https://live.leanstream.co/ICRTFM-MP3", isHls: false },
+  { name: "央廣 RTI 國語", url: "https://www.soundvideostar.com/live/definst/rti3/playlist.m3u8", isHls: true },
+  { name: "央廣 RTI 音樂台", url: "https://www.soundvideostar.com/live/definst/rti4/playlist.m3u8", isHls: true }
+];
+
+let radioCurrentIndex = -1;
+let radioHls = null;
+
+function buildRadioStationButtons(){
+  const list = document.getElementById("radioStationList");
+  if(!list) return;
+
+  list.innerHTML = "";
+
+  RADIO_STATIONS.forEach((station, index) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = station.name;
+    btn.onclick = () => playRadioStation(index);
+    list.appendChild(btn);
+  });
+}
+
+function updateRadioActiveButton(){
+  const list = document.getElementById("radioStationList");
+  if(!list) return;
+
+  Array.from(list.children).forEach((btn, index) => {
+    btn.classList.toggle("active", index === radioCurrentIndex);
+  });
+}
+
+function stopRadioHls(){
+  if(radioHls){
+    radioHls.destroy();
+    radioHls = null;
+  }
+}
+
+function playRadioStation(index){
+  const audio = document.getElementById("radioAudio");
+  const statusEl = document.getElementById("radioStatus");
+  const station = RADIO_STATIONS[index];
+  if(!audio || !station) return;
+
+  radioCurrentIndex = index;
+  updateRadioActiveButton();
+
+  statusEl.textContent = "連線中... " + station.name;
+
+  stopRadioHls();
+
+  if(station.isHls){
+    // .m3u8 格式:Safari 原生支援,其他瀏覽器用 hls.js 函式庫播放
+    if(audio.canPlayType("application/vnd.apple.mpegurl")){
+      audio.src = station.url;
+    }else if(window.Hls && window.Hls.isSupported()){
+      radioHls = new window.Hls();
+      radioHls.loadSource(station.url);
+      radioHls.attachMedia(audio);
+      radioHls.on(window.Hls.Events.ERROR, function(event, data){
+        if(data && data.fatal){
+          statusEl.textContent = station.name + " 串流發生錯誤";
+        }
+      });
+    }else{
+      statusEl.textContent = "此瀏覽器不支援這個串流格式";
+      return;
+    }
+  }else{
+    audio.src = station.url;
+  }
+
+  audio.play()
+    .then(() => {
+      statusEl.textContent = "正在播放:" + station.name;
+      document.getElementById("radioPlayBtn").textContent = "⏸";
+    })
+    .catch(() => {
+      statusEl.textContent = station.name + " 播放失敗,可能是串流已失效";
+    });
+}
+
+function toggleRadioPlay(){
+  const audio = document.getElementById("radioAudio");
+  const statusEl = document.getElementById("radioStatus");
+  const playBtn = document.getElementById("radioPlayBtn");
+  if(!audio) return;
+
+  if(radioCurrentIndex === -1){
+    playRadioStation(0);
+    return;
+  }
+
+  if(audio.paused){
+    audio.play()
+      .then(() => {
+        playBtn.textContent = "⏸";
+        statusEl.textContent = "正在播放:" + RADIO_STATIONS[radioCurrentIndex].name;
+      })
+      .catch(() => {
+        statusEl.textContent = "播放失敗,可能是串流已失效";
+      });
+  }else{
+    audio.pause();
+    playBtn.textContent = "▶";
+    statusEl.textContent = "已暫停:" + RADIO_STATIONS[radioCurrentIndex].name;
+  }
+}
+
+function setRadioVolume(value){
+  const audio = document.getElementById("radioAudio");
+  if(audio) audio.volume = parseFloat(value);
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  buildRadioStationButtons();
+
+  const audio = document.getElementById("radioAudio");
+  if(audio){
+    audio.volume = 0.8;
+    audio.addEventListener("error", function(){
+      const statusEl = document.getElementById("radioStatus");
+      if(radioCurrentIndex !== -1 && statusEl){
+        statusEl.textContent = RADIO_STATIONS[radioCurrentIndex].name + " 串流發生錯誤";
+      }
+    });
+  }
+});
+</script>
+
 </body>
 </html>
