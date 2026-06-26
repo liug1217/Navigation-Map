@@ -1241,9 +1241,21 @@ document.addEventListener("DOMContentLoaded", function(){
   const CCTV_BASE_URL = "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=427";
   const CCTV_REFRESH_INTERVAL = 8000; // 每 8 秒主動重新連線一次
 
+  let cctvReloadTimer = null;
+
+  function scheduleCctvReload(delay){
+    // 只用一個計時器,排新的之前先取消舊的,避免兩個重連動作互相打架
+    if(cctvReloadTimer){
+      clearTimeout(cctvReloadTimer);
+    }
+    cctvReloadTimer = setTimeout(reloadCctvImage, delay);
+  }
+
   function reloadCctvImage(){
     if(!cctvImage) return;
     cctvImage.src = CCTV_BASE_URL + "&_t=" + Date.now();
+    // 每次重連之後,重新排下一次的定期重連(不管這次是正常排程還是錯誤觸發的)
+    scheduleCctvReload(CCTV_REFRESH_INTERVAL);
   }
 
   if(cctvImage){
@@ -1253,15 +1265,12 @@ document.addEventListener("DOMContentLoaded", function(){
 
     cctvImage.addEventListener("error", function(){
       if(cctvStatus) cctvStatus.textContent = "影像連線中斷,正在重新連線...";
-      // 斷線時稍等一下再重試,避免一直連續失敗洗版
-      setTimeout(reloadCctvImage, 3000);
+      // 斷線時提前重連,並取消原本排定的那一次,避免兩邊同時觸發
+      scheduleCctvReload(3000);
     });
 
     // 立即用跟後續重連一樣的網址格式載入第一次,避免初始網址格式不同造成延遲
     reloadCctvImage();
-
-    // 不管串流目前狀態如何,定期主動重新整理,避免伺服器端逾時斷線後畫面卡住不動
-    setInterval(reloadCctvImage, CCTV_REFRESH_INTERVAL);
   }
 });
 </script>
