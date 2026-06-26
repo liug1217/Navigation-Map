@@ -847,6 +847,48 @@ geolocate.trigger();
     infoElement.innerText = `${formatTime(elapsedMs)} ${totalDistance.toFixed(2)}公里`;
   }
 
+  // ===== 平滑移動定位點(用動畫插值,不要瞬間跳轉) =====
+  let markerAnimFrame = null;
+  let markerDisplayLngLat = null; // 目前畫面上實際顯示的位置(動畫的起點)
+
+  function animateMarkerTo(targetLng, targetLat, duration){
+    if(!marker) return;
+
+    // 第一次還沒有起點位置時,直接定位過去,不需要動畫
+    if(!markerDisplayLngLat){
+      markerDisplayLngLat = [targetLng, targetLat];
+      marker.setLngLat(markerDisplayLngLat);
+      return;
+    }
+
+    const startLng = markerDisplayLngLat[0];
+    const startLat = markerDisplayLngLat[1];
+    const startTimeMs = performance.now();
+
+    if(markerAnimFrame){
+      cancelAnimationFrame(markerAnimFrame);
+    }
+
+    function step(){
+      const elapsed = performance.now() - startTimeMs;
+      const t = Math.min(1, elapsed / duration);
+      // easeOutCubic,讓移動有自然的減速感,不會死板地等速移動
+      const eased = 1 - Math.pow(1 - t, 3);
+
+      const lng = startLng + (targetLng - startLng) * eased;
+      const lat = startLat + (targetLat - startLat) * eased;
+
+      markerDisplayLngLat = [lng, lat];
+      marker.setLngLat(markerDisplayLngLat);
+
+      if(t < 1){
+        markerAnimFrame = requestAnimationFrame(step);
+      }
+    }
+
+    markerAnimFrame = requestAnimationFrame(step);
+  }
+
   if (navigator.geolocation) {
     navigator.geolocation.watchPosition((pos) => {
       const now = Date.now();
@@ -886,10 +928,10 @@ geolocate.trigger();
         });
       }
 
-      map.flyTo({
+      map.easeTo({
         center: [currentLon, currentLat],
         zoom: 15,
-        speed: 0.5
+        duration: 1000
       });
 
       if (!marker) {
@@ -902,8 +944,10 @@ geolocate.trigger();
         el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
 
         marker = new maplibregl.Marker(el).setLngLat([currentLon, currentLat]).addTo(map);
+        markerDisplayLngLat = [currentLon, currentLat];
       } else {
-        marker.setLngLat([currentLon, currentLat]);
+        // 用 1 秒的平滑動畫移動過去,而不是瞬間跳轉到新座標
+        animateMarkerTo(currentLon, currentLat, 1000);
       }
 
       const elapsedMs = now - startTime;
