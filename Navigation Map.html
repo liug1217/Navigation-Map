@@ -243,42 +243,73 @@ html,body{
 }
 
 /* ===== 📷 CCTV 即時影像 ===== */
-.cctvPanel{
-  position:absolute;
-  right:10px;
-  top:240px;
-  width:168px;
-  padding:10px;
+/* ===== 📷 CCTV 即時影像:置中大尺寸彈出視窗 ===== */
+.cctvOverlay{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%, -50%);
+  width:88%;
+  max-width:640px;
+  padding:14px;
   box-sizing:border-box;
-  background:rgba(255,255,255,0.88);
-  border:1px solid rgba(255,255,255,0.95);
-  box-shadow:0 6px 18px rgba(14,26,45,0.18);
-  border-radius:8px;
+  background:rgba(14,26,45,0.95);
+  border:1px solid rgba(255,255,255,0.15);
+  box-shadow:0 12px 40px rgba(0,0,0,0.45);
+  border-radius:14px;
   backdrop-filter:blur(18px);
   -webkit-backdrop-filter:blur(18px);
-  z-index:4;
+  z-index:50;
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
+  display:none;
+}
+
+.cctvOverlay.show{
+  display:block;
 }
 
 .cctvPanelTitle{
-  font-size:13px;
+  font-size:18px;
   font-weight:700;
-  color:#0E1A2D;
-  margin-bottom:7px;
+  color:#FFFFFF;
+  margin-bottom:10px;
+  padding-right:36px;
+  cursor:move;
+  user-select:none;
 }
 
 .cctvImage{
   width:100%;
-  border-radius:6px;
+  border-radius:8px;
   display:block;
-  background:#0E1A2D;
+  background:#000000;
 }
 
 .cctvStatus{
-  margin-top:6px;
-  color:#36445A;
-  font-size:10px;
-  line-height:13px;
+  margin-top:10px;
+  color:#B9C2D0;
+  font-size:13px;
+  line-height:17px;
+}
+
+.cctvCloseBtn{
+  position:absolute;
+  top:10px;
+  right:10px;
+  width:30px;
+  height:30px;
+  border:0;
+  border-radius:50%;
+  background:rgba(255,255,255,0.12);
+  color:#FFFFFF;
+  font-size:18px;
+  line-height:30px;
+  text-align:center;
+  cursor:pointer;
+}
+
+.cctvCloseBtn:active{
+  background:rgba(255,255,255,0.25);
 }
 
 .maplibregl-marker img{
@@ -332,10 +363,11 @@ html, body {
   <audio id="radioAudio" preload="none"></audio>
 </div>
 
-<div class="cctvPanel">
-  <div class="cctvPanelTitle">📷 即時影像</div>
+<div class="cctvOverlay" id="cctvOverlay">
+  <button class="cctvCloseBtn" type="button" onclick="closeCctvOverlay()">✕</button>
+  <div class="cctvPanelTitle" id="cctvPanelTitle">📷 即時影像</div>
   <img class="cctvImage" id="cctvImage" alt="CCTV 即時影像">
-  <div class="cctvStatus" id="cctvStatus">國道監視器 #427</div>
+  <div class="cctvStatus" id="cctvStatus">點選地圖上的監視器圖示開始觀看</div>
 </div>
 
 <div class="bottomBar">
@@ -795,6 +827,99 @@ geolocate.trigger();
 
       new maplibregl.Marker({ element: img, anchor: 'center' })
         .setLngLat(coord)
+        .addTo(map);
+    });
+
+    // ===== 📷 國道3號 CCTV 監視器標記 =====
+    const cctvCameras = [
+      { id: "CCTV-N3-S-111.040-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=470", lon: 120.90035, lat: 24.723917, mile: "111K+040" },
+      { id: "CCTV-N3-S-112.020-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=471", lon: 120.8953, lat: 24.7167, mile: "112K+020" },
+      { id: "CCTV-N3-S-112.065-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=556", lon: 120.89492, lat: 24.716165, mile: "112K+065" },
+      { id: "CCTV-N3-S-112.203-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=244", lon: 120.894113, lat: 24.715247, mile: "112K+203" },
+      { id: "CCTV-N3-S-114.580-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=245", lon: 120.874123, lat: 24.70452, mile: "114K+580" },
+      { id: "CCTV-N3-S-116.400-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=679", lon: 120.858345, lat: 24.696895, mile: "116K+400" },
+      { id: "CCTV-N3-S-117.380-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=362", lon: 120.851838, lat: 24.69023, mile: "117K+380" },
+      { id: "CCTV-N3-S-118.318-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=680", lon: 120.847595, lat: 24.682857, mile: "118K+318" },
+      { id: "CCTV-N3-S-119-I-WS-21-南下入口", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=1677", lon: 120.846864, lat: 24.676235, mile: "119K+020" },
+      { id: "CCTV-N3-S-121.390-M-後龍南地磅站", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=430", lon: 120.839412, lat: 24.657159, mile: "121K+390" },
+      { id: "CCTV-N3-S-122.473-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=248", lon: 120.831706, lat: 24.650384, mile: "122K+473" },
+      { id: "CCTV-N3-S-123.620-M-後龍北地磅站", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=431", lon: 120.824007, lat: 24.642977, mile: "123K+620" },
+      { id: "CCTV-N3-S-124.493-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=249", lon: 120.818085, lat: 24.636745, mile: "124K+493" },
+      { id: "CCTV-N3-S-124-I-WS-1X-南下入口", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=1679", lon: 120.816857, lat: 24.635489, mile: "124K+530" },
+      { id: "CCTV-N3-S-125.995-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=363", lon: 120.813432, lat: 24.624193, mile: "125K+995" },
+      { id: "CCTV-N3-S-128.385-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=11", lon: 120.799528, lat: 24.608342, mile: "128K+385" },
+      { id: "CCTV-N3-S-129.241-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=683", lon: 120.792084, lat: 24.604367, mile: "129K+241" },
+      { id: "CCTV-N3-S-130.097-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=250", lon: 120.786544, lat: 24.59874, mile: "130K+097" },
+      { id: "CCTV-N3-S-131.040-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=472", lon: 120.780317, lat: 24.5925, mile: "131K+040" },
+      { id: "CCTV-N3-S-133.390-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=584", lon: 120.76355, lat: 24.57815, mile: "133K+390" },
+      { id: "CCTV-N3-S-134.320-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=23", lon: 120.761505, lat: 24.570105, mile: "134K+320" },
+      { id: "CCTV-N3-S-134.590-R-西湖服務區-大車區", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=462", lon: 120.75916, lat: 24.564662, mile: "134K+590" },
+      { id: "CCTV-N3-S-137.450-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=432", lon: 120.744622, lat: 24.546711, mile: "137K+450" },
+      { id: "CCTV-N3-S-138.721-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=685", lon: 120.73844, lat: 24.537007, mile: "138K+721" },
+      { id: "CCTV-N3-S-140.835-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=253", lon: 120.724948, lat: 24.522253, mile: "140K+835" },
+      { id: "CCTV-N3-S-142.916-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=364", lon: 120.71307, lat: 24.507198, mile: "142K+916" },
+      { id: "CCTV-N3-S-144.171-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=254", lon: 120.705575, lat: 24.498399, mile: "144K+171" },
+      { id: "CCTV-N3-S-146.970-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=587", lon: 120.69183, lat: 24.47766, mile: "146K+970" },
+      { id: "CCTV-N3-S-148.110-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=433", lon: 120.683579, lat: 24.470949, mile: "148K+110" },
+      { id: "CCTV-N3-S-150.250-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=688", lon: 120.678409, lat: 24.45236, mile: "150K+250" },
+      { id: "CCTV-N3-S-150.610-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=588", lon: 120.67879, lat: 24.44913, mile: "150K+610" },
+      { id: "CCTV-N3-S-155.690-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=690", lon: 120.671379, lat: 24.40608, mile: "155K+690" },
+      { id: "CCTV-N3-S-156.651-M", road: "國道3號", url: "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=257", lon: 120.669504, lat: 24.39807, mile: "156K+651" },
+      { id: "CCTV-N1-S-0.000-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10000", lon: 121.735695, lat: 25.1229931, mile: "0K+000" },
+      { id: "CCTV-N1-S-0.070-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10002", lon: 121.735127048479, lat: 25.1220774328133, mile: "0K+070" },
+      { id: "CCTV-N1-S-0.100-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10010", lon: 121.734691993744, lat: 25.1216059592137, mile: "0K+100" },
+      { id: "CCTV-N1-S-0.250-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10021", lon: 121.733883638289, lat: 25.1206199136058, mile: "0K+250" },
+      { id: "CCTV-N1-S-0.300-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10030", lon: 121.733554741217, lat: 25.1202833876966, mile: "0K+300" },
+      { id: "CCTV-N1-S-0.700-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10070", lon: 121.73044, lat: 25.117608, mile: "0K+700" },
+      { id: "CCTV-N1-S-1.000-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10110", lon: 121.728675490689, lat: 25.1156937598763, mile: "1K+000" },
+      { id: "CCTV-N1-S-2.800-I-八堵交流道", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10280", lon: 121.728387924674, lat: 25.1046958841528, mile: "2K+800" },
+      { id: "CCTV-N1-S-3.900-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10390", lon: 121.708844565827, lat: 25.1002425505346, mile: "3K+900" },
+      { id: "CCTV-N1-S-4.500-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10450", lon: 121.70388678209, lat: 25.0974343298115, mile: "4K+570" },
+      { id: "CCTV-N1-S-6.850-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10680", lon: 121.686974567081, lat: 25.086871187275, mile: "6K+850" },
+      { id: "CCTV-N1-S-8.000-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10800", lon: 121.675639266739, lat: 25.0853708758876, mile: "8K+000" },
+      { id: "CCTV-N1-S-8.800-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10880", lon: 121.668675177842, lat: 25.0819200947655, mile: "8K+800" },
+      { id: "CCTV-N1-S-9.075-M-汐止地磅站-指示牌", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10907", lon: 121.666552879774, lat: 25.0806115028199, mile: "9K+075" },
+      { id: "CCTV-N1-S-9.090-M-汐止地磅站", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=10900", lon: 121.666368413486, lat: 25.080523398412, mile: "9K+090" },
+      { id: "CCTV-N1-S-11.550-O-汐止系統", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=11150", lon: 121.64408510057, lat: 25.0729864268116, mile: "11K+550" },
+      { id: "CCTV-N1-S-13.000-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=11300", lon: 121.631083026022, lat: 25.0674126198759, mile: "13K+000" },
+      { id: "CCTV-N1-S-22.900-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=12290", lon: 121.534386990364, lat: 25.0727657319477, mile: "22K+900" },
+      { id: "CCTV-N1-S-26.900-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=12690", lon: 121.496306410588, lat: 25.0763422414063, mile: "26K+900" },
+      { id: "CCTV-N1-S-32.700-C", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=13270", lon: 121.440802583818, lat: 25.0695862982939, mile: "32K+700" },
+      { id: "CCTV-N1-S-32.980-L-五股交流道", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=13291", lon: 121.436772922697, lat: 25.0704056643028, mile: "32K+980" },
+      { id: "CCTV-N1-S-33.800-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=13380", lon: 121.430030175762, lat: 25.0683367124751, mile: "33K+800" },
+      { id: "CCTV-N1-S-34.018-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=13400", lon: 121.427856978395, lat: 25.0681746894578, mile: "34K+020" },
+      { id: "CCTV-N1-S-34.400-R-高公局-南向入口", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=13440", lon: 121.424454, lat: 25.067447, mile: "34K+400" },
+      { id: "CCTV-N1-S-35.160-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=13510", lon: 121.418067500076, lat: 25.0632494616859, mile: "35K+160" },
+      { id: "CCTV-N1-S-36.120-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=13610", lon: 121.410254733029, lat: 25.0586212765206, mile: "36K+120" },
+      { id: "CCTV-N1-S-38.300-M", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=13830", lon: 121.393198846394, lat: 25.0632452891446, mile: "38K+300" },
+      { id: "CCTV-N1-S-40.830-L-林口文化路", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=14080", lon: 121.368845229661, lat: 25.065645831779, mile: "40K+830" },
+      { id: "CCTV-N1-S-41.000-R-林口機房", road: "國道1號", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=14100", lon: 121.366812775764, lat: 25.0658250630398, mile: "41K+000" }
+    ];
+
+    cctvCameras.forEach(cam => {
+      const el = document.createElement('div');
+      el.style.width = '26px';
+      el.style.height = '26px';
+      el.style.borderRadius = '50%';
+      el.style.background = '#0E1A2D';
+      el.style.border = '2px solid #FFFFFF';
+      el.style.boxShadow = '0 2px 5px rgba(0,0,0,0.4)';
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+      el.style.fontSize = '13px';
+      el.style.cursor = 'pointer';
+      el.textContent = '📷';
+
+      const label = cam.road + " " + cam.mile;
+      const url = cam.url;
+
+      el.addEventListener('click', () => {
+        window.switchCctvCamera(url, label);
+      });
+
+      new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([cam.lon, cam.lat])
         .addTo(map);
     });
 
@@ -1279,10 +1404,13 @@ document.addEventListener("DOMContentLoaded", function(){
     });
   }
 
-  // ===== 📷 CCTV 即時影像:定期自動重新連線,避免串流斷掉後畫面卡住 =====
+  // ===== 📷 CCTV 即時影像:置中彈出視窗,定期自動重新連線避免串流斷掉後畫面卡住 =====
   const cctvImage = document.getElementById("cctvImage");
   const cctvStatus = document.getElementById("cctvStatus");
-  const CCTV_BASE_URL = "https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=427";
+  const cctvOverlay = document.getElementById("cctvOverlay");
+  const cctvPanelTitle = document.getElementById("cctvPanelTitle");
+  let CCTV_BASE_URL = "";
+  let CCTV_CURRENT_LABEL = "";
   const CCTV_REFRESH_INTERVAL = 8000; // 每 8 秒主動重新連線一次
 
   let cctvReloadTimer = null;
@@ -1296,15 +1424,90 @@ document.addEventListener("DOMContentLoaded", function(){
   }
 
   function reloadCctvImage(){
-    if(!cctvImage) return;
+    if(!cctvImage || !CCTV_BASE_URL) return;
     cctvImage.src = CCTV_BASE_URL + "&_t=" + Date.now();
     // 每次重連之後,重新排下一次的定期重連(不管這次是正常排程還是錯誤觸發的)
     scheduleCctvReload(CCTV_REFRESH_INTERVAL);
   }
 
+  // 切換到地圖上點選的某一支監視器,並打開置中彈出視窗
+  window.switchCctvCamera = function(url, label){
+    CCTV_BASE_URL = url;
+    CCTV_CURRENT_LABEL = label;
+    if(cctvPanelTitle) cctvPanelTitle.textContent = "📷 " + label;
+    if(cctvOverlay) cctvOverlay.classList.add("show");
+    reloadCctvImage();
+  };
+
+  // 關閉彈出視窗時,停止重連計時器,避免在背景一直跑浪費效能
+  window.closeCctvOverlay = function(){
+    if(cctvOverlay) cctvOverlay.classList.remove("show");
+    if(cctvReloadTimer){
+      clearTimeout(cctvReloadTimer);
+      cctvReloadTimer = null;
+    }
+    CCTV_BASE_URL = "";
+  };
+
+  // ===== 🖱️ 讓彈出視窗可以拖動(抓標題列當把手,滑鼠/觸控都支援) =====
+  if(cctvOverlay && cctvPanelTitle){
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let overlayStartLeft = 0;
+    let overlayStartTop = 0;
+    let dragging = false;
+
+    function getPointerXY(e){
+      if(e.touches && e.touches.length){
+        return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+      return { x: e.clientX, y: e.clientY };
+    }
+
+    function startDrag(e){
+      dragging = true;
+      const rect = cctvOverlay.getBoundingClientRect();
+      // 第一次拖動時,把定位從「置中公式」換成固定的像素座標,之後才能用 left/top 自由移動
+      cctvOverlay.style.left = rect.left + "px";
+      cctvOverlay.style.top = rect.top + "px";
+      cctvOverlay.style.transform = "none";
+
+      overlayStartLeft = rect.left;
+      overlayStartTop = rect.top;
+
+      const p = getPointerXY(e);
+      dragStartX = p.x;
+      dragStartY = p.y;
+
+      e.preventDefault();
+    }
+
+    function onDragMove(e){
+      if(!dragging) return;
+      const p = getPointerXY(e);
+      const dx = p.x - dragStartX;
+      const dy = p.y - dragStartY;
+      cctvOverlay.style.left = (overlayStartLeft + dx) + "px";
+      cctvOverlay.style.top = (overlayStartTop + dy) + "px";
+    }
+
+    function stopDrag(){
+      dragging = false;
+    }
+
+    cctvPanelTitle.addEventListener("mousedown", startDrag);
+    cctvPanelTitle.addEventListener("touchstart", startDrag, { passive: false });
+
+    document.addEventListener("mousemove", onDragMove);
+    document.addEventListener("touchmove", onDragMove, { passive: false });
+
+    document.addEventListener("mouseup", stopDrag);
+    document.addEventListener("touchend", stopDrag);
+  }
+
   if(cctvImage){
     cctvImage.addEventListener("load", function(){
-      if(cctvStatus) cctvStatus.textContent = "國道監視器 #427";
+      if(cctvStatus) cctvStatus.textContent = CCTV_CURRENT_LABEL;
     });
 
     cctvImage.addEventListener("error", function(){
@@ -1312,9 +1515,6 @@ document.addEventListener("DOMContentLoaded", function(){
       // 斷線時提前重連,並取消原本排定的那一次,避免兩邊同時觸發
       scheduleCctvReload(3000);
     });
-
-    // 立即用跟後續重連一樣的網址格式載入第一次,避免初始網址格式不同造成延遲
-    reloadCctvImage();
   }
 });
 </script>
