@@ -334,7 +334,7 @@ html, body {
 
 <div class="cctvPanel">
   <div class="cctvPanelTitle">📷 即時影像</div>
-  <img class="cctvImage" id="cctvImage" src="https://cctvc.freeway.gov.tw/abs2mjpg/bmjpg?camera=427" alt="CCTV 即時影像">
+  <img class="cctvImage" id="cctvImage" alt="CCTV 即時影像">
   <div class="cctvStatus" id="cctvStatus">國道監視器 #427</div>
 </div>
 
@@ -1256,6 +1256,9 @@ document.addEventListener("DOMContentLoaded", function(){
       // 斷線時稍等一下再重試,避免一直連續失敗洗版
       setTimeout(reloadCctvImage, 3000);
     });
+
+    // 立即用跟後續重連一樣的網址格式載入第一次,避免初始網址格式不同造成延遲
+    reloadCctvImage();
 
     // 不管串流目前狀態如何,定期主動重新整理,避免伺服器端逾時斷線後畫面卡住不動
     setInterval(reloadCctvImage, CCTV_REFRESH_INTERVAL);
