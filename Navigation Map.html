@@ -34,7 +34,7 @@ html,body{
   left:0;
   right:0;
   bottom:0;
-  height:96px;
+  height:166px;
 }
 
 .rect1{
@@ -43,7 +43,7 @@ html,body{
   left:8px;
   right:8px;
   top:0;
-  height:96px;
+  height:166px;
   border-width:1.5px 1.5px 0 1.5px;
   border-style:solid;
   border-color:#FFFFFF;
@@ -84,8 +84,8 @@ html,body{
   position:absolute;
   left:50%;
   transform:translateX(-50%);
-  bottom:106px;
-  width:174px;
+  bottom:176px;
+  width:237px;
   height:33px;
   background:#FFFFFF;
   border:1.5px solid #FFFFFF;
@@ -107,6 +107,9 @@ html,body{
   font-size:16px;
   color:#000000;
   text-shadow:0 4px 4px rgba(0,0,0,0.25);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .rect4 .icon{
@@ -115,6 +118,7 @@ html,body{
   background:url('https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/TWHW3.svg/120px-TWHW3.svg.png') center/cover no-repeat;
   filter:drop-shadow(0px 4px 4px rgba(0,0,0,0.25));
   display:none;
+  margin-left:6px;
 }
 
 .rect8{
@@ -157,6 +161,67 @@ html,body{
 .rect6 .speed-unit {
   font-size: 12px;
   font-weight: 400;
+}
+
+/* ===== 🆕 底部面板大改版新增元件 ===== */
+.arrivalText{
+  position:absolute;
+  left:50%;
+  top:35px;
+  transform:translateX(-50%);
+  font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
+  font-weight:500;
+  font-size:20px;
+  color:#404345;
+  white-space:nowrap;
+  text-shadow:0 4px 4px rgba(0,0,0,0.25);
+}
+
+.navExitBtn,.navOverviewBtn{
+  position:absolute;
+  top:40px;
+  font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
+  font-weight:500;
+  font-size:13px;
+  color:#000000;
+  background:none;
+  border:none;
+  padding:6px;
+  cursor:pointer;
+}
+
+.navExitBtn{ left:14px; }
+.navOverviewBtn{ right:14px; }
+
+.navInfoCard{
+  box-sizing:border-box;
+  position:absolute;
+  left:12px;
+  right:12px;
+  top:69px;
+  height:60px;
+  background:#FFFFFF;
+  box-shadow:0 4px 4px rgba(0,0,0,0.25);
+  border-radius:8px;
+  display:flex;
+  align-items:center;
+  overflow:hidden;
+}
+
+.navInfoCardIcon{
+  width:59px;
+  height:60px;
+  flex-shrink:0;
+  background:url('https://upload.wikimedia.org/wikipedia/zh/thumb/d/d1/ROC_Police_Broadcasting_Service_Seal.svg/1280px-ROC_Police_Broadcasting_Service_Seal.svg.png') center/contain no-repeat #FFFFFF;
+  border-radius:8px;
+}
+
+.navInfoCardText{
+  margin-left:12px;
+  font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
+  font-weight:500;
+  font-size:14px;
+  color:#000000;
 }
 
 
@@ -372,12 +437,19 @@ html, body {
 
 <div class="bottomBar">
   <div class="rect4">
-    <div class="label" id="roadLabel"></div>
+    <div class="label" id="roadLabel">正在定位道路…</div>
     <div class="icon"></div>
   </div>
   <div class="rect1"></div>
   <div class="rect3"></div>
   <div class="info">0小時0分鐘 0.00公里</div>
+  <div class="arrivalText" id="arrivalText">00:00抵達</div>
+  <button type="button" class="navExitBtn" id="navExitBtn">退出</button>
+  <button type="button" class="navOverviewBtn" id="navOverviewBtn">全覽</button>
+  <div class="navInfoCard">
+    <div class="navInfoCardIcon"></div>
+    <div class="navInfoCardText">全國治安交通網</div>
+  </div>
 </div>
 
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
@@ -501,6 +573,37 @@ geolocate.trigger();
   let routeCoordinates = [];
   let marker = null;
   let routeSource = null;
+
+  // ===== 🆕 退出 / 全覽 按鈕 =====
+  const navExitBtn = document.getElementById('navExitBtn');
+  const navOverviewBtn = document.getElementById('navOverviewBtn');
+
+  if(navExitBtn){
+    navExitBtn.addEventListener('click', () => {
+      if(confirm('要結束本次路線記錄並重新開始嗎?')){
+        location.reload();
+      }
+    });
+  }
+
+  if(navOverviewBtn){
+    navOverviewBtn.addEventListener('click', () => {
+      if(routeCoordinates.length < 2){
+        // 還沒有足夠的路線資料,直接把目前位置縮小看一下週邊
+        if(routeCoordinates.length === 1){
+          map.easeTo({ center: routeCoordinates[0], zoom: 13 });
+        }
+        return;
+      }
+      const lons = routeCoordinates.map(c => c[0]);
+      const lats = routeCoordinates.map(c => c[1]);
+      const bounds = [
+        [Math.min(...lons), Math.min(...lats)],
+        [Math.max(...lons), Math.max(...lats)]
+      ];
+      map.fitBounds(bounds, { padding: 80, duration: 800 });
+    });
+  }
 
   map.on('load', () => {
     map.addSource('route', {
