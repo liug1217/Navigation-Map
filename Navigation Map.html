@@ -1294,6 +1294,16 @@ geolocate.trigger();
       { id: "CCTV-N1-N-100.400-M", road: "國道1號 中山高速公路 北", url: "https://cctvn.freeway.gov.tw/abs2mjpg/bmjpg?camera=19990", lon: 120.98101468221, lat: 24.7501755223914, mile: "100K+400", section: "頭份交流道→新竹系統交流道" }
     ];
 
+    // 讓監視器清單可以被其他 <script> 區塊(GPS 定位更新邏輯)存取,用於判斷使用者是否經過監視器附近
+    window.cctvCameras = cctvCameras;
+
+    // 統一的標籤產生邏輯,點擊跟定位自動觸發都共用同一套,確保顯示格式一致
+    window.buildCctvLabel = function(cam){
+      return cam.section
+        ? cam.road + " " + cam.section + " " + cam.mile + "（" + cam.id + "）"
+        : cam.road + " " + cam.mile + "（" + cam.id + "）";
+    };
+
     cctvCameras.forEach(cam => {
       const el = document.createElement('div');
       el.style.width = '26px';
@@ -1309,13 +1319,12 @@ geolocate.trigger();
       el.style.cursor = 'pointer';
       el.textContent = '📷';
 
-      const label = cam.section
-        ? cam.road + " " + cam.section + " " + cam.mile + "（" + cam.id + "）"
-        : cam.road + " " + cam.mile + "（" + cam.id + "）";
+      const label = window.buildCctvLabel(cam);
       const url = cam.url;
 
       el.addEventListener('click', () => {
-        window.switchCctvCamera(url, label);
+        // 手動點擊圖示(isAuto = false),跟定位自動觸發(isAuto = true)分開標記
+        window.switchCctvCamera(url, label, cam.id, false);
       });
 
       new maplibregl.Marker({ element: el, anchor: 'center' })
@@ -1357,6 +1366,39 @@ geolocate.trigger();
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
+  }
+
+  // ===== 📷 定位經過監視器附近時自動顯示 =====
+  const CCTV_AUTO_SHOW_RADIUS_KM = 0.1; // 100 公尺內視為「經過」
+
+  function checkCctvProximity(lat, lon){
+    const cameras = window.cctvCameras;
+    if(!cameras || !cameras.length) return;
+
+    // 找出範圍內最近的一支監視器
+    let nearest = null;
+    let nearestDist = Infinity;
+    for(let i = 0; i < cameras.length; i++){
+      const cam = cameras[i];
+      const d = calculateDistance(lat, lon, cam.lat, cam.lon);
+      if(d <= CCTV_AUTO_SHOW_RADIUS_KM && d < nearestDist){
+        nearest = cam;
+        nearestDist = d;
+      }
+    }
+
+    if(nearest){
+      // 範圍內有監視器,且還沒顯示這一支的畫面,就自動切換過去
+      if(window.cctvActiveCameraId !== nearest.id){
+        const label = window.buildCctvLabel ? window.buildCctvLabel(nearest) : (nearest.road + " " + nearest.mile);
+        window.switchCctvCamera(nearest.url, label, nearest.id, true);
+      }
+    } else {
+      // 範圍外:如果目前顯示的是「自動觸發」開的,就自動關閉;手動點開的維持不動
+      if(window.cctvActiveCameraId && window.cctvActiveIsAuto){
+        window.closeCctvOverlay();
+      }
+    }
   }
 
   function formatTime(ms) {
@@ -1482,6 +1524,9 @@ geolocate.trigger();
       updateRoadName(currentLon, currentLat);
       console.log('road update trigger', currentLon, currentLat);
       updateRoadName(currentLon, currentLat);
+
+      // 定位經過監視器附近時自動顯示彈出視窗
+      checkCctvProximity(currentLat, currentLon);
 
     }, (err) => {
       console.error('GPS error:', err);
@@ -1831,11 +1876,15 @@ document.addEventListener("DOMContentLoaded", function(){
   }
 
   // 切換到地圖上點選的某一支監視器,並打開置中彈出視窗
-  window.switchCctvCamera = function(url, label){
+  // camId: 該監視器的 id(用於追蹤目前顯示中的是哪一支,避免重複觸發)
+  // isAuto: true 代表是「定位經過自動顯示」觸發的,false 代表是手動點擊圖示觸發的
+  window.switchCctvCamera = function(url, label, camId, isAuto){
     CCTV_BASE_URL = url;
     CCTV_CURRENT_LABEL = label;
     if(cctvPanelTitle) cctvPanelTitle.textContent = "📷 " + label;
     if(cctvOverlay) cctvOverlay.classList.add("show");
+    window.cctvActiveCameraId = camId || null;
+    window.cctvActiveIsAuto = !!isAuto;
     reloadCctvImage();
   };
 
@@ -1847,6 +1896,8 @@ document.addEventListener("DOMContentLoaded", function(){
       cctvReloadTimer = null;
     }
     CCTV_BASE_URL = "";
+    window.cctvActiveCameraId = null;
+    window.cctvActiveIsAuto = false;
   };
 
   // ===== 🖱️ 讓彈出視窗可以拖動(抓標題列當把手,滑鼠/觸控都支援) =====
