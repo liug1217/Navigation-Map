@@ -850,6 +850,87 @@ geolocate.trigger();
 
     window.navRouteSource = map.getSource('navRoute');
 
+    // ===== 🚇 捷運路線圖 =====
+    // 之後要加其他顏色的線,直接往這個陣列加一筆就好(name隨意命名、color用十六進位色碼、coordinates是[經度,緯度]陣列)
+    // 用Catmull-Rom樣條曲線把生硬的折線轉成平滑曲線(在原始點之間補插值點)
+    function smoothLineCoordinates(coords, segmentsPerPoint){
+      segmentsPerPoint = segmentsPerPoint || 12;
+      if (coords.length < 3) return coords; // 點太少沒有平滑的必要
+
+      function catmullRom(p0, p1, p2, p3, t){
+        const t2 = t * t;
+        const t3 = t2 * t;
+        const x = 0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * t + (2*p0[0] - 5*p1[0] + 4*p2[0] - p3[0]) * t2 + (-p0[0] + 3*p1[0] - 3*p2[0] + p3[0]) * t3);
+        const y = 0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * t + (2*p0[1] - 5*p1[1] + 4*p2[1] - p3[1]) * t2 + (-p0[1] + 3*p1[1] - 3*p2[1] + p3[1]) * t3);
+        return [x, y];
+      }
+
+      const result = [];
+      for (let i = 0; i < coords.length - 1; i++){
+        const p0 = coords[i - 1] || coords[i];
+        const p1 = coords[i];
+        const p2 = coords[i + 1];
+        const p3 = coords[i + 2] || p2;
+        for (let s = 0; s < segmentsPerPoint; s++){
+          const t = s / segmentsPerPoint;
+          result.push(catmullRom(p0, p1, p2, p3, t));
+        }
+      }
+      result.push(coords[coords.length - 1]); // 補上最後一個原始端點
+      return result;
+    }
+
+    const metroLines = [
+      {
+        name: '深藍線',
+        color: '#0066b3',
+        coordinates: [
+          [121.41784143257973, 24.958702840017146],
+          [121.42248327662851, 24.961878881512405],
+          [121.42266568962326, 24.961948200722027],
+          [121.42353943903706, 24.962230736665916],
+          [121.42507759542949, 24.962693065869225],
+          [121.42562227329897, 24.962955342353563],
+          [121.42654854346387, 24.963518357969],
+          [121.4274433417627, 24.964050676763982]
+        ]
+      }
+    ];
+
+    const metroLinesGeoJSON = {
+      type: 'FeatureCollection',
+      features: metroLines.map(line => ({
+        type: 'Feature',
+        properties: { name: line.name, color: line.color },
+        geometry: { type: 'LineString', coordinates: line.coordinates }
+      }))
+    };
+
+    map.addSource('metroLines', {
+      type: 'geojson',
+      data: metroLinesGeoJSON
+    });
+
+    // 白色外框,讓線在地圖底圖上更清楚突出
+    map.addLayer({
+      id: 'metroLines-outline',
+      type: 'line',
+      source: 'metroLines',
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': '#FFFFFF', 'line-width': 7, 'line-opacity': 0.9 }
+    });
+
+    map.addLayer({
+      id: 'metroLines-line',
+      type: 'line',
+      source: 'metroLines',
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': ['get', 'color'], 'line-width': 4 }
+    });
+
+    window.metroLinesSource = map.getSource('metroLines');
+    window.metroLines = metroLines; // 留個全域參考,方便之後用程式繼續加線段
+
     map.addSource('road-marking', {
       type: 'geojson',
       data: {
@@ -3158,6 +3239,41 @@ geolocate.trigger();
         .addTo(map);
     });
 
+    // ===== 🚦 紅綠燈標記(跟監視器/測速照相一樣用DOM Marker) =====
+    // 之後要加更多個,直接往這個陣列加一筆{lat, lon}就好
+    const trafficLights = [
+      { lat: 24.94868187321409, lon: 121.38548130182318 }
+    ];
+
+    trafficLights.forEach(tl => {
+      const el = document.createElement('div');
+      el.style.boxSizing = 'border-box';
+      el.style.width = '28px';
+      el.style.height = '14px';
+      el.style.background = '#253A63';
+      el.style.border = '2px solid #D9E6FC';
+      el.style.boxShadow = '0 4px 4px rgba(0,0,0,0.25)';
+      el.style.borderRadius = '7px';
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'space-evenly';
+
+      const colors = ['#EA5044', '#D9BE1A', '#23A72F'];
+      colors.forEach(color => {
+        const dot = document.createElement('span');
+        dot.style.width = '6px';
+        dot.style.height = '6px';
+        dot.style.borderRadius = '50%';
+        dot.style.flexShrink = '0';
+        dot.style.background = color;
+        el.appendChild(dot);
+      });
+
+      new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([tl.lon, tl.lat])
+        .addTo(map);
+    });
+
 
 
     routeSource = map.getSource('route');
@@ -4332,4 +4448,4 @@ document.addEventListener("DOMContentLoaded", function(){
 
 </body>
 </html>
-  
+
