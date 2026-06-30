@@ -933,6 +933,136 @@ geolocate.trigger();
     window.metroLinesSource = map.getSource('metroLines');
     window.metroLines = metroLines; // 留個全域參考,方便之後用程式繼續加線段
 
+    // ===== 🚌 公車站牌(直接連線新北市開放資料API,即時翻頁抓取全部站牌,不是預先包進檔案裡) =====
+    map.addSource('busStops', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] }
+    });
+
+    map.addLayer({
+      id: 'busStops-circle',
+      type: 'circle',
+      source: 'busStops',
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 3, 16, 7],
+        'circle-color': '#FF9500',
+        'circle-stroke-width': 1,
+        'circle-stroke-color': '#FFFFFF',
+        'circle-opacity': 0.9
+      }
+    });
+
+    map.on('click', 'busStops-circle', (e) => {
+      const f = e.features[0];
+      const p = f.properties;
+      new maplibregl.Popup({ closeButton: true, maxWidth: '260px' })
+        .setLngLat(f.geometry.coordinates)
+        .setHTML(
+          '<div style="font-family:-apple-system,sans-serif; font-size:13px; line-height:1.6;">' +
+          '<div style="font-weight:700; color:#FF9500;">🚌 ' + (p.name || '公車站') + '</div>' +
+          '<div>' + (p.address || '') + '</div>' +
+          '</div>'
+        )
+        .addTo(map);
+    });
+    map.on('mouseenter', 'busStops-circle', () => { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'busStops-circle', () => { map.getCanvas().style.cursor = ''; });
+
+    // 簡易CSV逐行解析(處理雙引號包住的欄位,欄位內容本身不含逗號,符合這份資料的格式)
+    function parseCsvLine(line){
+      const result = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++){
+        const ch = line[i];
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) {
+          result.push(cur);
+          cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+      result.push(cur);
+      return result;
+    }
+
+    // 即時連線API,自動翻頁抓取全部公車站牌資料(不是一次抓死的靜態檔案)
+    async function loadAllBusStops(){
+      const baseUrl = 'https://data.ntpc.gov.tw/api/datasets/34b402a8-53d9-483d-9406-24a682c2d6dc/csv';
+      const pageSize = 1000;
+      let page = 0;
+      const seenStopIds = new Set();
+      const features = [];
+      let lastFirstId = null;
+      const MAX_PAGES = 300; // 安全上限,避免API分頁異常時無限迴圈
+
+      console.log('[公車站牌] 開始連線新北市開放資料API,即時抓取全部站牌...');
+
+      while (page < MAX_PAGES) {
+        let rows;
+        try {
+          const res = await fetch(baseUrl + '?page=' + page + '&size=' + pageSize);
+          const text = await res.text();
+          rows = text.trim().split(/\r?\n/);
+        } catch (e) {
+          console.error('[公車站牌] API請求失敗:', e);
+          break;
+        }
+
+        if (rows.length <= 1) break; // 只剩表頭,代表沒資料了
+
+        const dataLines = rows.slice(1); // 跳過表頭
+        const firstId = dataLines[0] ? parseCsvLine(dataLines[0])[0] : null;
+
+        // 如果這一頁的第一筆id跟上一頁完全一樣,代表API分頁沒有真的往前翻,停止避免無限迴圈
+        if (firstId !== null && firstId === lastFirstId) {
+          console.warn('[公車站牌] 偵測到翻頁沒有變化,停止在第' + page + '頁,目前已取得' + features.length + '筆');
+          break;
+        }
+        lastFirstId = firstId;
+
+        for (const line of dataLines) {
+          if (!line.trim()) continue;
+          const cols = parseCsvLine(line);
+          // 欄位順序: id, routeid, namezh, nameen, seqno, pgp, goback, longitude, latitude, address, stoplocationid, showlon, showlat, vector
+          const stopLocationId = cols[10];
+          const lon = parseFloat(cols[7]);
+          const lat = parseFloat(cols[8]);
+          if (isNaN(lon) || isNaN(lat)) continue;
+          if (!(119.0 <= lon && lon <= 122.5 && 21.5 <= lat && lat <= 25.6)) continue;
+
+          // 同一個實體站牌會被多條路線重複引用(stoplocationid相同),只留一筆避免地圖上疊一堆重複點
+          const dedupeKey = stopLocationId || (lon + ',' + lat);
+          if (seenStopIds.has(dedupeKey)) continue;
+          seenStopIds.add(dedupeKey);
+
+          features.push({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [lon, lat] },
+            properties: { name: cols[2] || '公車站', address: cols[9] || '' }
+          });
+        }
+
+        if (dataLines.length < pageSize) {
+          // 這頁資料筆數小於要求的size,代表已經是最後一頁
+          break;
+        }
+        page++;
+      }
+
+      console.log('[公車站牌] 載入完成,共' + features.length + '筆(去重後)');
+
+      if (window.busStopsSource) {
+        window.busStopsSource.setData({ type: 'FeatureCollection', features: features });
+      }
+      window.busStopsData = features;
+    }
+
+    window.busStopsSource = map.getSource('busStops');
+    loadAllBusStops(); // 地圖載入後立刻在背景開始抓取,不會卡住地圖其他功能
+
     map.addSource('road-marking', {
       type: 'geojson',
       data: {
