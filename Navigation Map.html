@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Navigation Map</title>
 <style>
 /* ===== OpenStreetMap Layer ===== */
@@ -3653,6 +3653,18 @@ geolocate.trigger();
       }
 
       speakText(startupText);
+
+      // 先讓使用者看一眼整條路線的鳥瞰圖,1.8秒後自動拉近到正常導航視角,不然會一直停在縮小狀態看不清楚路
+      setTimeout(() => {
+        if (!isNavigating) return; // 如果這段時間使用者已經退出導航,就不要再拉近
+        map.easeTo({
+          center: [origin.lon, origin.lat],
+          zoom: 17,
+          duration: 1200,
+          padding: getUserCameraPadding(),
+          bearing: (window.compassHeading != null ? window.compassHeading : 0)
+        });
+      }, 1800);
     } catch (e) {
       console.error('路線規劃失敗:', e);
       alert('路線規劃失敗,請檢查網路連線');
