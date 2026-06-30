@@ -3037,10 +3037,10 @@ geolocate.trigger();
         // 進入100公尺範圍,第一次播報預告(距離用實際算出來的,不是寫死100)
         const limit = p.limit;
         const meters = Math.max(10, Math.round((d * 1000) / 10) * 10); // 四捨五入到最近10公尺,且最少講10公尺
-        let text = '前方' + meters + '公尺有測速照相';
-        if (limit) text += ',速限' + limit + '公里';
+        let text = '前方' + meters + '公尺後有固定測速照相';
+        if (limit) text += '限速' + limit + '公里';
         if (currentSpeedKmh && limit && currentSpeedKmh > Number(limit)) {
-          text = '您已超速。' + text;
+          text += ' 您已超速';
         }
         speakText(text);
         speedCameraVoiceState[idx] = 'warned';
@@ -3097,10 +3097,10 @@ geolocate.trigger();
     const meters = (distanceMeters !== undefined && distanceMeters !== null && distanceMeters !== '')
       ? Math.round(Number(distanceMeters))
       : 100;
-    let text = '前方' + meters + '公尺有測速照相';
-    if (limit) text += ',速限' + limit + '公里';
+    let text = '前方' + meters + '公尺後有固定測速照相';
+    if (limit) text += '限速' + limit + '公里';
     if (speedKmh && limit && Number(speedKmh) > Number(limit)) {
-      text = '您已超速。' + text;
+      text += ' 您已超速';
     }
     speakText(text);
   }
@@ -3658,3 +3658,4 @@ document.addEventListener("DOMContentLoaded", function(){
 
 </body>
 </html>
+  
