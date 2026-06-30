@@ -3618,12 +3618,40 @@ geolocate.trigger();
       if (rect8) rect8.style.display = 'flex';
       updateRect8Display();
 
-      // 開始導航時播報全程距離跟預估時間
+      // 開始導航時播報全程距離跟預估時間,並直接帶出第一個轉彎指示(不用等GPS靠近才講)
       const startH = Math.floor(durationMin / 60);
       const startM = durationMin % 60;
       let startupText = '開始導航,全程' + distanceKm + '公里,大約需要';
       if (startH > 0) startupText += startH + '小時';
       startupText += startM + '分鐘';
+
+      // 加上預計到達時間
+      const startupEta = new Date(Date.now() + route.duration * 1000);
+      const startupEtaH = startupEta.getHours();
+      const startupEtaM = startupEta.getMinutes();
+      startupText += ',預計' + startupEtaH + '點' + startupEtaM + '分到達';
+
+      // 找出第一個真正的轉彎(跳過出發點depart),把指示一併講出來
+      const firstTurnIndex = navSteps.findIndex(s => s.maneuver && s.maneuver.type !== 'depart');
+      if (firstTurnIndex !== -1) {
+        const firstStep = navSteps[firstTurnIndex];
+        const firstText = maneuverToChinese(firstStep.maneuver);
+        const firstRoadPart = firstStep.name ? ('進入' + firstStep.name) : '';
+        // 用上一步(通常是出發點)的距離,算出離第一個轉彎還有多遠
+        const prevStep = navSteps[firstTurnIndex - 1];
+        const firstStepDistanceMeters = prevStep ? prevStep.distance : null;
+        if (firstStepDistanceMeters != null) {
+          const meters = Math.max(10, Math.round(firstStepDistanceMeters / 10) * 10);
+          startupText += ',前方' + meters + '公尺' + firstText + firstRoadPart;
+        } else {
+          startupText += ',' + firstText + firstRoadPart;
+        }
+        // 標記這一步已經播報過,避免GPS之後在200公尺/30公尺門檻又重複講一次
+        currentStepIndex = firstTurnIndex;
+        navStepVoiceState[firstTurnIndex] = 'warned200';
+        updateRect8Display(firstStepDistanceMeters);
+      }
+
       speakText(startupText);
     } catch (e) {
       console.error('路線規劃失敗:', e);
@@ -3786,7 +3814,11 @@ geolocate.trigger();
 
   function updateDisplay(speed, elapsedMs) {
     rect6SpeedValue.innerText = Math.round(speed);
-    infoElement.innerText = `${formatTime(elapsedMs)} ${totalDistance.toFixed(2)}公里`;
+    // 導航中(已經規劃好真實路線)時,.info要顯示「全程距離/時間」,
+    // 不能被這裡的GPS行程記錄(從0開始算)覆蓋掉
+    if (!isNavigating) {
+      infoElement.innerText = `${formatTime(elapsedMs)} ${totalDistance.toFixed(2)}公里`;
+    }
   }
 
   // ===== 平滑移動定位點(用動畫插值,不要瞬間跳轉) =====
