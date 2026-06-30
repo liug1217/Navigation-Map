@@ -3242,7 +3242,7 @@ geolocate.trigger();
       window.speechSynthesis.cancel(); // 避免播報堆疊、搶話
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = 'zh-TW';
-      utter.rate = 1.25;
+      utter.rate = 1.00;
       window.speechSynthesis.speak(utter);
     } catch(e) {
       console.error('語音播報失敗:', e);
@@ -3261,7 +3261,7 @@ geolocate.trigger();
       if (i >= list.length) return;
       const utter = new SpeechSynthesisUtterance(list[i]);
       utter.lang = 'zh-TW';
-      utter.rate = 1.25;
+      utter.rate = 1.00;
       utter.onend = () => {
         if (i + 1 < list.length) {
           setTimeout(() => playAt(i + 1), 250); // 真正的0.25秒停頓
