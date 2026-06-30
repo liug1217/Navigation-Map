@@ -117,6 +117,7 @@ html,body{
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+  padding:5px 0;
 }
 
 .rect4 .icon{
@@ -4277,51 +4278,6 @@ async function updateRoadName(lng, lat, seq){
 }
 </script>
 
-<!-- Rectangle 10 -->
-<div class="traffic-light"></div>
-<div class="light red"></div>
-<div class="light yellow"></div>
-<div class="light green"></div>
-
-<style>
-.traffic-light{
-  box-sizing:border-box;
-  position:absolute;
-  width:28px;
-  height:14px;
-  left:206px;
-  top:612px;
-  background:#253A63;
-  border:2px solid #D9E6FC;
-  box-shadow:0px 4px 4px rgba(0,0,0,0.25);
-  border-radius:7px;
-}
-
-.light{
-  position:absolute;
-  width:6px;
-  height:6px;
-  border-radius:50%;
-}
-
-.red{
-  left:210px;
-  top:616px;
-  background:#EA5044;
-}
-
-.yellow{
-  left:217px;
-  top:616px;
-  background:#D9BE1A;
-}
-
-.green{
-  left:224px;
-  top:616px;
-  background:#23A72F;
-}
-</style>
 <script>
 document.addEventListener("DOMContentLoaded", function(){
 
@@ -4448,4 +4404,4 @@ document.addEventListener("DOMContentLoaded", function(){
 
 </body>
 </html>
-
+  
