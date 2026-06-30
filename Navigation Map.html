@@ -137,6 +137,154 @@ html,body{
   background:#0E1A2D;
   border-radius:12px;
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
+  z-index:5;
+  display:flex;
+  align-items:center;
+  padding:0 18px;
+  gap:14px;
+  box-sizing:border-box;
+}
+.rect8Icon{
+  font-size:30px;
+  color:#FFFFFF;
+  line-height:1;
+  width:36px;
+  text-align:center;
+  flex-shrink:0;
+}
+.rect8TextWrap{
+  flex:1;
+  min-width:0;
+}
+.rect8Distance{
+  color:#9FB3D1;
+  font-size:12px;
+  margin-bottom:2px;
+}
+.rect8Instruction{
+  color:#FFFFFF;
+  font-size:16px;
+  font-weight:700;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* ===== 🔍 搜尋地點 ===== */
+.searchBarWrap{
+  position:absolute;
+  left:8px;
+  right:8px;
+  top:50px;
+  z-index:5;
+}
+.searchBar{
+  display:flex;
+  align-items:center;
+  background:#FFFFFF;
+  border-radius:24px;
+  box-shadow:0 4px 4px rgba(0,0,0,0.25);
+  padding:0 8px 0 16px;
+  height:48px;
+}
+.searchBar input{
+  flex:1;
+  border:none;
+  outline:none;
+  background:transparent;
+  font-size:15px;
+  font-family:inherit;
+  color:#000;
+}
+.searchBar input::placeholder{ color:#999; }
+.searchIconBtn{
+  border:none;
+  background:transparent;
+  font-size:18px;
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  cursor:pointer;
+}
+.searchResultsList{
+  margin-top:8px;
+  background:#FFFFFF;
+  border-radius:14px;
+  box-shadow:0 4px 4px rgba(0,0,0,0.25);
+  max-height:260px;
+  overflow-y:auto;
+  display:none;
+}
+.searchResultItem{
+  padding:10px 14px;
+  border-bottom:1px solid #eee;
+  cursor:pointer;
+}
+.searchResultItem:last-child{ border-bottom:none; }
+.searchResultItem:active{ background:#f2f2f2; }
+.searchResultItem .name{
+  font-weight:700;
+  font-size:14px;
+  color:#000;
+}
+.searchResultItem .addr{
+  font-size:12px;
+  color:#666;
+  margin-top:2px;
+}
+.searchResultsEmpty{
+  padding:14px;
+  font-size:13px;
+  color:#888;
+  text-align:center;
+}
+
+/* ===== 📍 選定地點後的導航面板 ===== */
+.destPanel{
+  position:absolute;
+  left:8px;
+  right:8px;
+  bottom:180px;
+  z-index:5;
+  background:#FFFFFF;
+  border-radius:14px;
+  box-shadow:0 4px 4px rgba(0,0,0,0.25);
+  padding:12px 14px;
+  display:none;
+}
+.destName{
+  font-weight:700;
+  font-size:15px;
+  color:#000;
+}
+.destAddr{
+  font-size:12px;
+  color:#666;
+  margin:4px 0 10px;
+}
+.destButtons{
+  display:flex;
+  gap:8px;
+}
+.navigateBtn{
+  flex:1;
+  background:#2F80FF;
+  color:#FFFFFF;
+  border:none;
+  border-radius:10px;
+  padding:11px 0;
+  font-weight:700;
+  font-size:14px;
+  cursor:pointer;
+}
+.closeDestBtn{
+  background:#EEEEEE;
+  color:#333;
+  border:none;
+  border-radius:10px;
+  padding:11px 16px;
+  font-size:14px;
+  cursor:pointer;
 }
 
 .rect6{
@@ -338,6 +486,25 @@ html, body {
 
 <div id="map"></div>
 
+<!-- 🔍 搜尋地點 -->
+<div class="searchBarWrap" id="searchBarWrap">
+  <div class="searchBar">
+    <input type="text" id="searchInput" placeholder="搜尋地點、地址" autocomplete="off" />
+    <button type="button" class="searchIconBtn" id="searchBtn">🔍</button>
+  </div>
+  <div class="searchResultsList" id="searchResultsList"></div>
+</div>
+
+<!-- 📍 選定地點後的導航面板 -->
+<div class="destPanel" id="destPanel">
+  <div class="destName" id="destName"></div>
+  <div class="destAddr" id="destAddr"></div>
+  <div class="destButtons">
+    <button type="button" class="navigateBtn" id="navigateBtn">開始導航</button>
+    <button type="button" class="closeDestBtn" id="closeDestBtn">✕</button>
+  </div>
+</div>
+
 <!-- 🧪 測速照相語音播報測試面板 -->
 <div id="speedCamTestPanel" style="
   position: fixed;
@@ -398,9 +565,29 @@ html, body {
     font-weight: 700;
     cursor: pointer;
   ">播報測試</button>
+
+  <div style="height:1px; background:#444; margin:10px 0;"></div>
+
+  <div style="font-weight:700; margin-bottom:6px;">🧭 轉彎語音測試</div>
+  <button id="turnByTurnTestBtn" style="
+    width: 100%;
+    padding: 6px 0;
+    border-radius: 6px;
+    border: none;
+    background: #2F80FF;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+  ">測試轉彎播報</button>
 </div>
 
-<div class="rect8"></div>
+<div class="rect8" id="rect8" style="display:none;">
+  <div class="rect8Icon" id="rect8Icon">↑</div>
+  <div class="rect8TextWrap">
+    <div class="rect8Distance" id="rect8Distance"></div>
+    <div class="rect8Instruction" id="rect8Instruction"></div>
+  </div>
+</div>
 
 <div class="rect6">
   <div class="speed-value">0</div>
@@ -424,7 +611,7 @@ html, body {
   <div class="rect1">
     <div class="rect3"></div>
     <div class="info">0小時0分鐘 0.00公里</div>
-    <div class="arrivalText" id="arrivalText">00:00抵達</div>
+    <div class="arrivalText" id="arrivalText">00:00到達</div>
     <button type="button" class="navExitBtn" id="navExitBtn">退出</button>
     <button type="button" class="navOverviewBtn" id="navOverviewBtn">全覽</button>
     <div class="navInfoCard">
@@ -444,6 +631,9 @@ function updateUserLocation(position) {
   const lng = position.coords.longitude;
   const lat = position.coords.latitude;
 
+  window.currentLat = lat; // 讓搜尋導航功能盡早就能取得目前位置
+  window.currentLon = lng;
+
   const el = document.createElement('div');
   el.style.width = '16px';
   el.style.height = '16px';
@@ -458,7 +648,7 @@ function updateUserLocation(position) {
     .setLngLat([lng, lat])
     .addTo(map);
 
-  map.easeTo({ center: [lng, lat], zoom: 16 });
+  map.easeTo({ center: [lng, lat], zoom: 16, padding: getUserCameraPadding(), bearing: (window.compassHeading != null ? window.compassHeading : 0) });
 }
 
 if (navigator.geolocation) {
@@ -570,6 +760,19 @@ geolocate.trigger();
 
   if(navOverviewBtn){
     navOverviewBtn.addEventListener('click', () => {
+      // 優先顯示規劃中的真實導航路線,沒有規劃路線時才退回GPS軌跡記錄
+      const planned = window.plannedRouteCoordinates;
+      if (planned && planned.length >= 2) {
+        const lons = planned.map(c => c[0]);
+        const lats = planned.map(c => c[1]);
+        const bounds = [
+          [Math.min(...lons), Math.min(...lats)],
+          [Math.max(...lons), Math.max(...lats)]
+        ];
+        map.fitBounds(bounds, { padding: 80, duration: 800 });
+        return;
+      }
+
       if(routeCoordinates.length < 2){
         // 還沒有足夠的路線資料,直接把目前位置縮小看一下週邊
         if(routeCoordinates.length === 1){
@@ -622,6 +825,30 @@ geolocate.trigger();
         'line-opacity': 1
       }
     });
+
+    // ===== 🧭 搜尋地點 → 真實路線規劃用的圖層(跟上面GPS軌跡記錄的route圖層分開) =====
+    map.addSource('navRoute', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] }
+    });
+
+    map.addLayer({
+      id: 'navRoute-outline',
+      type: 'line',
+      source: 'navRoute',
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': '#FFFFFF', 'line-width': 10, 'line-opacity': 0.9 }
+    });
+
+    map.addLayer({
+      id: 'navRoute-line',
+      type: 'line',
+      source: 'navRoute',
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': '#2F80FF', 'line-width': 6, 'line-opacity': 0.95 }
+    });
+
+    window.navRouteSource = map.getSource('navRoute');
 
     map.addSource('road-marking', {
       type: 'geojson',
@@ -3015,7 +3242,7 @@ geolocate.trigger();
       window.speechSynthesis.cancel(); // 避免播報堆疊、搶話
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = 'zh-TW';
-      utter.rate = 1.00;
+      utter.rate = 1.25;
       window.speechSynthesis.speak(utter);
     } catch(e) {
       console.error('語音播報失敗:', e);
@@ -3034,7 +3261,7 @@ geolocate.trigger();
       if (i >= list.length) return;
       const utter = new SpeechSynthesisUtterance(list[i]);
       utter.lang = 'zh-TW';
-      utter.rate = 1.00;
+      utter.rate = 1.25;
       utter.onend = () => {
         if (i + 1 < list.length) {
           setTimeout(() => playAt(i + 1), 250); // 真正的0.25秒停頓
@@ -3044,6 +3271,378 @@ geolocate.trigger();
     }
     playAt(0);
   }
+
+  // ===== 🔍 搜尋地點(地理編碼,用OpenStreetMap的Nominatim服務,免費不用API金鑰)=====
+  let destMarker = null;
+  let selectedDest = null; // { lat, lon, name, addr }
+
+  const searchInput = document.getElementById('searchInput');
+  const searchBtn = document.getElementById('searchBtn');
+  const searchResultsList = document.getElementById('searchResultsList');
+  const destPanel = document.getElementById('destPanel');
+  const destName = document.getElementById('destName');
+  const destAddr = document.getElementById('destAddr');
+  const navigateBtn = document.getElementById('navigateBtn');
+  const closeDestBtn = document.getElementById('closeDestBtn');
+
+  async function searchPlaces(query){
+    if (!query || !query.trim()) return;
+    searchResultsList.innerHTML = '<div class="searchResultsEmpty">搜尋中...</div>';
+    searchResultsList.style.display = 'block';
+    try {
+      const url = 'https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=8&countrycodes=tw&accept-language=zh-TW&q=' + encodeURIComponent(query);
+      const res = await fetch(url);
+      const list = await res.json();
+      renderSearchResults(list);
+    } catch (e) {
+      console.error('搜尋地點失敗:', e);
+      searchResultsList.innerHTML = '<div class="searchResultsEmpty">搜尋失敗,請檢查網路連線</div>';
+    }
+  }
+
+  function renderSearchResults(list){
+    if (!list || !list.length) {
+      searchResultsList.innerHTML = '<div class="searchResultsEmpty">找不到符合的地點</div>';
+      return;
+    }
+    searchResultsList.innerHTML = '';
+    list.forEach(item => {
+      const el = document.createElement('div');
+      el.className = 'searchResultItem';
+      const mainName = (item.display_name || '').split(',')[0];
+      el.innerHTML = '<div class="name">' + mainName + '</div><div class="addr">' + (item.display_name || '') + '</div>';
+      el.addEventListener('click', () => {
+        selectDestination(parseFloat(item.lat), parseFloat(item.lon), mainName, item.display_name);
+      });
+      searchResultsList.appendChild(el);
+    });
+  }
+
+  function selectDestination(lat, lon, name, addr){
+    selectedDest = { lat, lon, name, addr };
+
+    if (destMarker) destMarker.remove();
+    const el = document.createElement('div');
+    el.style.width = '28px';
+    el.style.height = '28px';
+    el.style.borderRadius = '50% 50% 50% 0';
+    el.style.background = '#2F80FF';
+    el.style.border = '3px solid #FFFFFF';
+    el.style.boxShadow = '0 2px 5px rgba(0,0,0,0.4)';
+    el.style.transform = 'rotate(-45deg)';
+    destMarker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+      .setLngLat([lon, lat])
+      .addTo(map);
+
+    map.easeTo({ center: [lon, lat], zoom: 15, duration: 800 });
+
+    searchResultsList.style.display = 'none';
+    destName.innerText = name || '選定地點';
+    destAddr.innerText = addr || '';
+    destPanel.style.display = 'block';
+  }
+
+  if (searchBtn) {
+    searchBtn.addEventListener('click', () => searchPlaces(searchInput.value));
+  }
+  if (searchInput) {
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') searchPlaces(searchInput.value);
+    });
+  }
+  if (closeDestBtn) {
+    closeDestBtn.addEventListener('click', () => {
+      destPanel.style.display = 'none';
+      if (destMarker) { destMarker.remove(); destMarker = null; }
+      selectedDest = null;
+    });
+  }
+
+  // ===== 🧭 真實路線規劃(用OSRM路徑引擎,免費公開服務,沿實際道路規劃路線)=====
+  let plannedRouteCoordinates = [];
+
+  // ===== 🧭 逐步轉彎導航狀態 =====
+  let isNavigating = false;
+  let navSteps = [];
+  let currentStepIndex = 0;
+  const navStepVoiceState = {}; // key: 步驟索引, value: idle/warned200/warned30
+
+  const rect8 = document.getElementById('rect8');
+  const rect8Icon = document.getElementById('rect8Icon');
+  const rect8Instruction = document.getElementById('rect8Instruction');
+  const rect8Distance = document.getElementById('rect8Distance');
+  const searchBarWrapEl = document.getElementById('searchBarWrap');
+
+  // 把OSRM的英文轉彎類型/修飾詞,轉成中文播報用文字
+  function bindTurnByTurnTestButton(){
+    const btn = document.getElementById('turnByTurnTestBtn');
+    if (btn) {
+      btn.addEventListener('click', () => {
+        if (typeof window.testTurnByTurnVoice === 'function') {
+          window.testTurnByTurnVoice();
+        }
+      });
+    }
+  }
+
+  function maneuverToChinese(maneuver){
+    const modMap = {
+      'left':'左轉','right':'右轉',
+      'slight left':'靠左行駛','slight right':'靠右行駛',
+      'sharp left':'大幅左轉','sharp right':'大幅右轉',
+      'straight':'直行','uturn':'迴轉'
+    };
+    if (maneuver.type === 'depart') return '出發';
+    if (maneuver.type === 'arrive') return '即將到達目的地';
+    if (maneuver.type === 'roundabout' || maneuver.type === 'rotary') return '進入圓環';
+    if (maneuver.type === 'merge') return '匯入車流';
+    if (maneuver.type === 'fork') return '請靠' + (maneuver.modifier && maneuver.modifier.includes('left') ? '左' : '右') + '行駛';
+    if (maneuver.type === 'end of road') return '路底' + (maneuver.modifier && modMap[maneuver.modifier] ? modMap[maneuver.modifier] : '轉彎');
+    if (maneuver.type === 'continue' || maneuver.type === 'new name') return '繼續直行';
+    if (maneuver.modifier && modMap[maneuver.modifier]) return modMap[maneuver.modifier];
+    return '繼續前進';
+  }
+
+  // 轉彎方向對應的箭頭圖示
+  function iconForManeuver(maneuver){
+    if (maneuver.type === 'depart') return '🚗';
+    if (maneuver.type === 'arrive') return '🏁';
+    const mod = maneuver.modifier || '';
+    if (mod.includes('sharp left')) return '↰';
+    if (mod.includes('sharp right')) return '↱';
+    if (mod.includes('left')) return '↖';
+    if (mod.includes('right')) return '↗';
+    if (mod === 'uturn') return '↩';
+    return '↑';
+  }
+
+  // 更新Rectangle 8畫面顯示(圖示+距離+轉彎指示文字)
+  function updateRect8Display(distanceMeters){
+    if (!rect8 || !navSteps.length || currentStepIndex >= navSteps.length) return;
+    const step = navSteps[currentStepIndex];
+    if (!step) return;
+    const text = maneuverToChinese(step.maneuver);
+    const roadName = step.name ? ('進入' + step.name) : '';
+    if (rect8Instruction) rect8Instruction.innerText = text + (roadName ? roadName : '');
+    if (rect8Icon) rect8Icon.innerText = iconForManeuver(step.maneuver);
+    if (rect8Distance) {
+      rect8Distance.innerText = (distanceMeters != null) ? (Math.round(distanceMeters) + '公尺後') : '';
+    }
+  }
+
+  // GPS每次更新時呼叫:算出離下一個轉彎點多遠,更新畫面跟語音播報
+  function checkTurnByTurn(lat, lon){
+    if (!isNavigating || !navSteps.length) return;
+    if (currentStepIndex >= navSteps.length) {
+      isNavigating = false;
+      return;
+    }
+    const step = navSteps[currentStepIndex];
+    const loc = step.maneuver.location; // [lon, lat]
+    const meters = calculateDistance(lat, lon, loc[1], loc[0]) * 1000;
+    const isDepart = (step.maneuver.type === 'depart');
+
+    updateRect8Display(meters);
+
+    const state = navStepVoiceState[currentStepIndex] || 'idle';
+    const text = maneuverToChinese(step.maneuver);
+    const roadPart = step.name ? ('進入' + step.name) : '';
+
+    console.log('[轉彎導航] 第' + currentStepIndex + '步,距離' + Math.round(meters) + '公尺,狀態:' + state + ',指示:' + text);
+
+    // 由近到遠檢查(順序很重要),避免GPS更新間隔太大時整個跳過播報門檻
+    if (meters <= 15) {
+      // 出發點本身不用播報,直接靜默前進到第一個真正的轉彎
+      if (!isDepart && state !== 'warned30' && state !== 'passed') {
+        speakText('請' + text + roadPart);
+      }
+      currentStepIndex++;
+      navStepVoiceState[currentStepIndex] = navStepVoiceState[currentStepIndex] || 'idle';
+      if (currentStepIndex >= navSteps.length) {
+        isNavigating = false;
+        if (rect8) rect8.style.display = 'none';
+        if (searchBarWrapEl) searchBarWrapEl.style.display = '';
+        speakText('您已到達目的地');
+      } else {
+        updateRect8Display();
+      }
+    } else if (meters <= 30 && !isDepart && state !== 'warned30') {
+      speakText('請' + text + roadPart);
+      navStepVoiceState[currentStepIndex] = 'warned30';
+    } else if (meters <= 200 && !isDepart && state === 'idle') {
+      speakText('前方' + (Math.max(10, Math.round(meters / 10) * 10)) + '公尺' + text + roadPart);
+      navStepVoiceState[currentStepIndex] = 'warned200';
+    }
+  }
+
+  // ===== 🧪 測試用:不用真的開車,直接在主控台或測試面板模擬播報 =====
+  window.testTurnByTurnVoice = function(){
+    if (!navSteps.length) {
+      // 還沒有規劃路線時,先用假資料測試語音機制本身有沒有作用
+      speakText('前方一百公尺,請左轉,進入測試路');
+      console.log('[轉彎語音測試] 目前沒有規劃中的路線,改用假資料測試語音機制本身');
+      return;
+    }
+    const step = navSteps[Math.min(1, navSteps.length - 1)]; // 抓第一個真正的轉彎(跳過出發點)
+    const text = maneuverToChinese(step.maneuver);
+    const roadPart = step.name ? ('進入' + step.name) : '';
+    speakText('前方100公尺' + text + roadPart);
+  };
+  bindTurnByTurnTestButton();
+
+
+  // 螢幕高度算出來的鏡頭偏移,讓定位點顯示在畫面中下方、Rectangle 4正上方,而不是螢幕正中央
+  function getUserCameraPadding(){
+    const H = window.innerHeight || 800;
+    const OFFSET_FROM_BOTTOM = 240; // rect4頂端距螢幕底部約209px,這裡抓240px留一點間距
+    const T = Math.max(0, H - 2 * OFFSET_FROM_BOTTOM);
+    return { top: T, bottom: 0, left: 0, right: 0 };
+  }
+
+  // ===== 🧭 手機羅盤方向偵測,讓地圖跟著手機旋轉(360度)而不是固定北方朝上 =====
+  window.compassHeading = null;
+
+  function handleDeviceOrientation(event){
+    let heading = null;
+    if (typeof event.webkitCompassHeading === 'number') {
+      heading = event.webkitCompassHeading; // iOS Safari,已經是指北的角度
+    } else if (typeof event.alpha === 'number') {
+      heading = 360 - event.alpha; // Android,alpha是逆時針從北方算起,轉換成順時針
+    }
+    if (heading != null && !isNaN(heading)) {
+      window.compassHeading = heading;
+    }
+  }
+
+  function requestOrientationPermission(){
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      // iOS 13+ 需要使用者手勢觸發才能要求羅盤權限
+      DeviceOrientationEvent.requestPermission().then(state => {
+        if (state === 'granted') {
+          window.addEventListener('deviceorientationabsolute', handleDeviceOrientation, true);
+          window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+        }
+      }).catch(() => {});
+    } else {
+      window.addEventListener('deviceorientationabsolute', handleDeviceOrientation, true);
+      window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+    }
+  }
+  document.addEventListener('click', requestOrientationPermission, { once: true });
+  document.addEventListener('touchstart', requestOrientationPermission, { once: true });
+
+
+  function getCurrentPositionPromise(){
+    // 優先用已經在追蹤的GPS座標(window.currentLat/Lon),沒有的話現抓一次
+    if (window.currentLat != null && window.currentLon != null) {
+      return Promise.resolve({ lat: window.currentLat, lon: window.currentLon });
+    }
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) { reject(new Error('瀏覽器不支援定位')); return; }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+        (err) => reject(err)
+      );
+    });
+  }
+
+  async function planRouteTo(destLat, destLon){
+    let origin;
+    try {
+      origin = await getCurrentPositionPromise();
+    } catch (e) {
+      alert('無法取得目前位置,請確認已允許定位權限');
+      return;
+    }
+
+    navigateBtn.disabled = true;
+    navigateBtn.innerText = '規劃路線中...';
+
+    try {
+      const url = 'https://router.project-osrm.org/route/v1/driving/' +
+        origin.lon + ',' + origin.lat + ';' + destLon + ',' + destLat +
+        '?overview=full&geometries=geojson&steps=true';
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (!data.routes || !data.routes.length) {
+        alert('找不到可行的路線');
+        return;
+      }
+
+      const route = data.routes[0];
+      plannedRouteCoordinates = route.geometry.coordinates;
+      window.plannedRouteCoordinates = plannedRouteCoordinates;
+
+      if (window.navRouteSource) {
+        window.navRouteSource.setData({
+          type: 'FeatureCollection',
+          features: [{ type: 'Feature', geometry: route.geometry }]
+        });
+      }
+
+      // 更新底部面板的時間/距離/到達時間顯示
+      const durationMin = Math.round(route.duration / 60);
+      const distanceKm = (route.distance / 1000).toFixed(1);
+      const infoEl = document.querySelector('.info');
+      if (infoEl) {
+        const h = Math.floor(durationMin / 60);
+        const m = durationMin % 60;
+        infoEl.innerText = (h > 0 ? h + '小時' : '') + m + '分鐘 ' + distanceKm + '公里';
+      }
+      const arrivalEl = document.getElementById('arrivalText');
+      if (arrivalEl) {
+        const eta = new Date(Date.now() + route.duration * 1000);
+        const hh = String(eta.getHours()).padStart(2, '0');
+        const mm = String(eta.getMinutes()).padStart(2, '0');
+        arrivalEl.innerText = hh + ':' + mm + '到達';
+      }
+
+      // 縮放地圖顯示整條路線
+      const lons = plannedRouteCoordinates.map(c => c[0]);
+      const lats = plannedRouteCoordinates.map(c => c[1]);
+      const bounds = [
+        [Math.min(...lons), Math.min(...lats)],
+        [Math.max(...lons), Math.max(...lats)]
+      ];
+      map.fitBounds(bounds, { padding: 80, duration: 800 });
+
+      destPanel.style.display = 'none';
+
+      // ===== 🧭 啟動逐步轉彎導航模式 =====
+      navSteps = (route.legs && route.legs[0] && route.legs[0].steps) ? route.legs[0].steps : [];
+      currentStepIndex = 0;
+      Object.keys(navStepVoiceState).forEach(k => delete navStepVoiceState[k]);
+      isNavigating = true;
+      if (searchBarWrapEl) searchBarWrapEl.style.display = 'none';
+      if (rect8) rect8.style.display = 'flex';
+      updateRect8Display();
+
+      // 開始導航時播報全程距離跟預估時間
+      const startH = Math.floor(durationMin / 60);
+      const startM = durationMin % 60;
+      let startupText = '開始導航,全程' + distanceKm + '公里,大約需要';
+      if (startH > 0) startupText += startH + '小時';
+      startupText += startM + '分鐘';
+      speakText(startupText);
+    } catch (e) {
+      console.error('路線規劃失敗:', e);
+      alert('路線規劃失敗,請檢查網路連線');
+    } finally {
+      navigateBtn.disabled = false;
+      navigateBtn.innerText = '開始導航';
+    }
+  }
+
+  if (navigateBtn) {
+    navigateBtn.addEventListener('click', () => {
+      if (!selectedDest) return;
+      planRouteTo(selectedDest.lat, selectedDest.lon);
+    });
+  }
+
+  // 全覽按鈕也要考慮目前是否有規劃中的真實導航路線(優先顯示這個,而不是GPS軌跡)
+  window.plannedRouteCoordinates = plannedRouteCoordinates;
 
   function checkSpeedCameraVoice(lat, lon, currentSpeedKmh){
     const data = window.speedCameraData;
@@ -3274,8 +3873,14 @@ geolocate.trigger();
       map.easeTo({
         center: [currentLon, currentLat],
         zoom: 15,
-        duration: 1000
+        duration: 1000,
+        padding: getUserCameraPadding(),
+        bearing: (window.compassHeading != null ? window.compassHeading : 0)
       });
+
+      if (typeof checkTurnByTurn === 'function') {
+        checkTurnByTurn(currentLat, currentLon);
+      }
 
       if (!marker) {
         const el = document.createElement('div');
@@ -3296,6 +3901,8 @@ geolocate.trigger();
       const elapsedMs = now - startTime;
       const speedKmh = currentSpeed * 3.6;
       window.currentSpeedKmh = speedKmh; // 讓測試面板可以讀取目前真實車速
+      window.currentLat = currentLat; // 讓搜尋導航功能可以取得目前位置
+      window.currentLon = currentLon;
 
       updateDisplay(speedKmh, elapsedMs);
       requestRoadNameUpdate(currentLon, currentLat);
@@ -3362,7 +3969,9 @@ map.on('load', () => {
 
     map.easeTo({
       center: [lng, lat],
-      duration: 800
+      duration: 800,
+      padding: getUserCameraPadding(),
+      bearing: (window.compassHeading != null ? window.compassHeading : 0)
     });
 
   }, (err) => {
@@ -3679,3 +4288,4 @@ document.addEventListener("DOMContentLoaded", function(){
 
 </body>
 </html>
+  
