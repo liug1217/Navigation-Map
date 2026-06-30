@@ -3015,11 +3015,34 @@ geolocate.trigger();
       window.speechSynthesis.cancel(); // 避免播報堆疊、搶話
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = 'zh-TW';
-      utter.rate = 1.05;
+      utter.rate = 1.00;
       window.speechSynthesis.speak(utter);
     } catch(e) {
       console.error('語音播報失敗:', e);
     }
+  }
+
+  // 分段播放,段落之間用setTimeout插入真正1秒的靜音停頓,不依賴標點符號
+  function speakSegments(segments){
+    if (!('speechSynthesis' in window)) return;
+    const list = segments.filter(s => s && s.length > 0);
+    if (!list.length) return;
+
+    window.speechSynthesis.cancel(); // 避免播報堆疊、搶話
+
+    function playAt(i){
+      if (i >= list.length) return;
+      const utter = new SpeechSynthesisUtterance(list[i]);
+      utter.lang = 'zh-TW';
+      utter.rate = 1.00;
+      utter.onend = () => {
+        if (i + 1 < list.length) {
+          setTimeout(() => playAt(i + 1), 250); // 真正的0.25秒停頓
+        }
+      };
+      window.speechSynthesis.speak(utter);
+    }
+    playAt(0);
   }
 
   function checkSpeedCameraVoice(lat, lon, currentSpeedKmh){
@@ -3037,11 +3060,10 @@ geolocate.trigger();
         // 進入100公尺範圍,第一次播報預告(距離用實際算出來的,不是寫死100)
         const limit = p.limit;
         const meters = Math.max(10, Math.round((d * 1000) / 10) * 10); // 四捨五入到最近10公尺,且最少講10公尺
+        const isOverSpeed = !!(currentSpeedKmh && limit && currentSpeedKmh > Number(limit));
         let text = '前方' + meters + '公尺後有固定測速照相';
         if (limit) text += '限速' + limit + '公里';
-        if (currentSpeedKmh && limit && currentSpeedKmh > Number(limit)) {
-          text += ' 您已超速';
-        }
+        if (isOverSpeed) text += '您已超速';
         speakText(text);
         speedCameraVoiceState[idx] = 'warned';
 
@@ -3097,11 +3119,10 @@ geolocate.trigger();
     const meters = (distanceMeters !== undefined && distanceMeters !== null && distanceMeters !== '')
       ? Math.round(Number(distanceMeters))
       : 100;
+    const isOverSpeed = !!(speedKmh && limit && Number(speedKmh) > Number(limit));
     let text = '前方' + meters + '公尺後有固定測速照相';
     if (limit) text += '限速' + limit + '公里';
-    if (speedKmh && limit && Number(speedKmh) > Number(limit)) {
-      text += ' 您已超速';
-    }
+    if (isOverSpeed) text += '您已超速';
     speakText(text);
   }
   window.forceTestSpeedCameraAnnounce = forceTestSpeedCameraAnnounce;
@@ -3658,4 +3679,3 @@ document.addEventListener("DOMContentLoaded", function(){
 
 </body>
 </html>
-  
