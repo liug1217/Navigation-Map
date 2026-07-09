@@ -6393,6 +6393,9 @@ geolocate.trigger();
 
     updateRect8Display(meters);
 
+    // ===== 🚨 偏航偵測 =====
+    checkOffRoute(lat, lon);
+
     const state = navStepVoiceState[currentStepIndex] || 'idle';
     const text = maneuverToChinese(step.maneuver);
     const roadPart = step.name ? ('進入' + step.name) : '';
@@ -6411,6 +6414,7 @@ geolocate.trigger();
         isNavigating = false;
         if (rect8) rect8.style.display = 'none';
         if (searchBarWrapEl) searchBarWrapEl.style.display = '';
+        togglePoiLayers(true); // 恢復POI地標
         speakText('您已到達目的地');
       } else {
         updateRect8Display();
@@ -6421,6 +6425,67 @@ geolocate.trigger();
     } else if (meters <= 200 && !isDepart && state === 'idle') {
       speakText('前方' + (Math.max(10, Math.round(meters / 10) * 10)) + '公尺' + text + roadPart);
       navStepVoiceState[currentStepIndex] = 'warned200';
+    }
+  }
+
+  // ===== 🚨 偏航偵測與重新規劃 =====
+  let offRouteCount = 0;          // 連續偏航偵測次數
+  let isRerouting = false;        // 是否正在重新規劃中
+  const OFF_ROUTE_THRESHOLD = 50; // 距路線超過50公尺視為偏航
+  const OFF_ROUTE_CONFIRM = 3;    // 連續3次GPS更新都偏航才確認
+
+  function checkOffRoute(lat, lon) {
+    if (!isNavigating || isRerouting || !window.plannedRouteCoordinates) return;
+
+    // 計算使用者目前位置距離規劃路線上最近點的距離
+    const minDist = getMinDistanceToRoute(lat, lon, window.plannedRouteCoordinates);
+
+    if (minDist > OFF_ROUTE_THRESHOLD) {
+      offRouteCount++;
+      console.log('[偏航] 距路線' + Math.round(minDist) + '公尺,連續' + offRouteCount + '次');
+
+      if (offRouteCount >= OFF_ROUTE_CONFIRM) {
+        // 確認偏航，開始重新規劃
+        offRouteCount = 0;
+        triggerReroute(lat, lon);
+      }
+    } else {
+      // 回到路線上，重置計數
+      offRouteCount = 0;
+    }
+  }
+
+  // 計算使用者位置到路線上最近點的距離(公尺)
+  function getMinDistanceToRoute(lat, lon, routeCoords) {
+    let minDist = Infinity;
+    for (const coord of routeCoords) {
+      const d = calculateDistance(lat, lon, coord[1], coord[0]) * 1000;
+      if (d < minDist) minDist = d;
+    }
+    return minDist;
+  }
+
+  // 觸發重新規劃路線
+  async function triggerReroute(lat, lon) {
+    if (isRerouting || !selectedDest) return;
+    isRerouting = true;
+
+    speakText('您已偏航,正在重新規劃路線');
+
+    if (rect8) {
+      rect8Instruction.innerText = '重新規劃路線中...';
+      rect8Icon.innerText = '🔄';
+      rect8Distance.innerText = '';
+    }
+
+    try {
+      await planRouteTo(selectedDest.lat, selectedDest.lon, { lat, lon });
+      speakText('路線已重新規劃');
+    } catch (e) {
+      console.error('[偏航] 重新規劃失敗:', e);
+      speakText('重新規劃失敗，請手動搜尋目的地');
+    } finally {
+      isRerouting = false;
     }
   }
 
@@ -6440,6 +6505,23 @@ geolocate.trigger();
   bindTurnByTurnTestButton();
 
 
+  // 導航時隱藏/恢復POI地標圖層
+  function togglePoiLayers(show) {
+    const visibility = show ? 'visible' : 'none';
+    const poiLayerPatterns = ['poi', 'label', 'place', 'symbol', 'icon'];
+    const style = map.getStyle();
+    if (!style || !style.layers) return;
+    style.layers.forEach(layer => {
+      const id = layer.id.toLowerCase();
+      const isPoi = poiLayerPatterns.some(p => id.includes(p));
+      if (isPoi) {
+        try {
+          map.setLayoutProperty(layer.id, 'visibility', visibility);
+        } catch(e) {}
+      }
+    });
+  }
+
   // 螢幕高度算出來的鏡頭偏移,讓定位點顯示在畫面中下方、Rectangle 4正上方,而不是螢幕正中央
   function getUserCameraPadding(){
     const H = window.innerHeight || 800;
@@ -6454,12 +6536,13 @@ geolocate.trigger();
   function handleDeviceOrientation(event){
     let heading = null;
     if (typeof event.webkitCompassHeading === 'number') {
-      heading = event.webkitCompassHeading; // iOS Safari,已經是指北的角度
+      heading = event.webkitCompassHeading;
     } else if (typeof event.alpha === 'number') {
-      heading = 360 - event.alpha; // Android,alpha是逆時針從北方算起,轉換成順時針
+      heading = 360 - event.alpha;
     }
     if (heading != null && !isNaN(heading)) {
       window.compassHeading = heading;
+      updateUserMarkerHeading(); // 同步更新車子圖示方向
     }
   }
 
@@ -6495,17 +6578,25 @@ geolocate.trigger();
     });
   }
 
-  async function planRouteTo(destLat, destLon){
+  async function planRouteTo(destLat, destLon, fromPosition = null){
     let origin;
     try {
-      origin = await getCurrentPositionPromise();
+      if (fromPosition) {
+        // 偏航重新規劃：直接用傳入的GPS位置當起點，不用重新取得
+        origin = { lat: fromPosition.lat, lon: fromPosition.lon };
+      } else {
+        origin = await getCurrentPositionPromise();
+      }
     } catch (e) {
       alert('無法取得目前位置,請確認已允許定位權限');
       return;
     }
 
-    navigateBtn.disabled = true;
-    navigateBtn.innerText = '規劃路線中...';
+    if (!fromPosition) {
+      // 正常導航才更新按鈕狀態
+      navigateBtn.disabled = true;
+      navigateBtn.innerText = '規劃路線中...';
+    }
 
     try {
       const url = 'https://router.project-osrm.org/route/v1/driving/' +
@@ -6566,6 +6657,7 @@ geolocate.trigger();
       if (searchBarWrapEl) searchBarWrapEl.style.display = 'none';
       if (rect8) rect8.style.display = 'flex';
       updateRect8Display();
+      togglePoiLayers(false); // 導航時隱藏POI地標
 
       // 開始導航時播報全程距離跟預估時間,並直接帶出第一個轉彎指示(不用等GPS靠近才講)
       const startH = Math.floor(durationMin / 60);
@@ -6616,10 +6708,12 @@ geolocate.trigger();
       }, 1800);
     } catch (e) {
       console.error('路線規劃失敗:', e);
-      alert('路線規劃失敗,請檢查網路連線');
+      if (!fromPosition) alert('路線規劃失敗,請檢查網路連線');
     } finally {
-      navigateBtn.disabled = false;
-      navigateBtn.innerText = '開始導航';
+      if (!fromPosition) {
+        navigateBtn.disabled = false;
+        navigateBtn.innerText = '開始導航';
+      }
     }
   }
 
@@ -6938,18 +7032,45 @@ map.on('load', () => {
   function createUserDot(lng, lat) {
     const el = document.createElement('div');
 
-    el.style.width = '16px';
-    el.style.height = '16px';
-    el.style.borderRadius = '50%';
-    el.style.background = '#2F80FF';
-    el.style.border = '3px solid white';
-    el.style.boxShadow = '0 0 12px rgba(47,128,255,0.8)';
-    el.style.animation = 'pulse 1.4s infinite';
+    if (isNavigating) {
+      // 導航模式：顯示車子 SVG，方向跟著羅盤旋轉
+      el.style.width = '32px';
+      el.style.height = '32px';
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+      el.style.transition = 'transform 0.3s ease';
+      const heading = window.compassHeading != null ? window.compassHeading : 0;
+      el.style.transform = `rotate(${heading}deg)`;
+      el.innerHTML = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="16" cy="16" r="15" fill="white" fill-opacity="0.9"/>
+        <path d="M16 4 L22 24 L16 20 L10 24 Z" fill="#2F80FF"/>
+        <circle cx="16" cy="16" r="3" fill="white"/>
+      </svg>`;
+    } else {
+      // 一般模式：藍色圓點
+      el.style.width = '16px';
+      el.style.height = '16px';
+      el.style.borderRadius = '50%';
+      el.style.background = '#2F80FF';
+      el.style.border = '3px solid white';
+      el.style.boxShadow = '0 0 12px rgba(47,128,255,0.8)';
+      el.style.animation = 'pulse 1.4s infinite';
+    }
 
     return new maplibregl.Marker({
       element: el,
       anchor: 'center'
     }).setLngLat([lng, lat]);
+  }
+
+  // 更新車子圖示的旋轉方向
+  function updateUserMarkerHeading() {
+    if (!isNavigating || !userMarker) return;
+    const el = userMarker.getElement();
+    if (!el) return;
+    const heading = window.compassHeading != null ? window.compassHeading : 0;
+    el.style.transform = `rotate(${heading}deg)`;
   }
 
   navigator.geolocation.watchPosition((pos) => {
