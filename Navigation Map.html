@@ -6508,13 +6508,12 @@ geolocate.trigger();
   // 導航時隱藏/恢復POI地標圖層
   function togglePoiLayers(show) {
     const visibility = show ? 'visible' : 'none';
-    const poiLayerPatterns = ['poi', 'label', 'place', 'symbol', 'icon'];
     const style = map.getStyle();
     if (!style || !style.layers) return;
     style.layers.forEach(layer => {
-      const id = layer.id.toLowerCase();
-      const isPoi = poiLayerPatterns.some(p => id.includes(p));
-      if (isPoi) {
+      // 隱藏所有 symbol 類型圖層（包含 POI marker、地名、圖示）
+      // 只保留 line（道路）、fill（區域填色）、background
+      if (layer.type === 'symbol') {
         try {
           map.setLayoutProperty(layer.id, 'visibility', visibility);
         } catch(e) {}
