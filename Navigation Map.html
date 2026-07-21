@@ -650,7 +650,9 @@ function updateUserLocation(position) {
     .setLngLat([lng, lat])
     .addTo(map);
 
-  map.easeTo({ center: [lng, lat], zoom: 16, padding: getUserCameraPadding(), bearing: (window.compassHeading != null ? window.compassHeading : 0) });
+  if (typeof followUser === 'undefined' || followUser) {
+    map.easeTo({ center: [lng, lat], zoom: 16, padding: getUserCameraPadding(), bearing: (window.compassHeading != null ? window.compassHeading : 0) });
+  }
 }
 
 if (navigator.geolocation) {
@@ -677,6 +679,11 @@ if (navigator.geolocation) {
     map.dragPan.enable();
   });
 
+  // 使用者手動拖曳地圖時,暫停自動跟隨定位點,避免地圖被強制拉回;
+  // 點擊定位按鈕(GeolocateControl)恢復跟隨。
+  let followUser = true;
+  map.on('dragstart', () => { followUser = false; });
+
   map.on('load',()=>{
 
 const geolocate = new maplibregl.GeolocateControl({
@@ -688,6 +695,7 @@ const geolocate = new maplibregl.GeolocateControl({
 });
 
 map.addControl(geolocate);
+geolocate.on('trackuserlocationstart', () => { followUser = true; });
 geolocate.trigger();
     const layers = map.getStyle().layers;
     let labelLayerId;
@@ -6956,13 +6964,15 @@ geolocate.trigger();
         });
       }
 
-      map.easeTo({
-        center: [currentLon, currentLat],
-        zoom: 15,
-        duration: 1000,
-        padding: getUserCameraPadding(),
-        bearing: (window.compassHeading != null ? window.compassHeading : 0)
-      });
+      if (followUser) {
+        map.easeTo({
+          center: [currentLon, currentLat],
+          zoom: 15,
+          duration: 1000,
+          padding: getUserCameraPadding(),
+          bearing: (window.compassHeading != null ? window.compassHeading : 0)
+        });
+      }
 
       if (typeof checkTurnByTurn === 'function') {
         checkTurnByTurn(currentLat, currentLon);
@@ -7080,12 +7090,14 @@ map.on('load', () => {
 
     userMarker = createUserDot(lng, lat).addTo(map);
 
-    map.easeTo({
-      center: [lng, lat],
-      duration: 800,
-      padding: getUserCameraPadding(),
-      bearing: (window.compassHeading != null ? window.compassHeading : 0)
-    });
+    if (followUser) {
+      map.easeTo({
+        center: [lng, lat],
+        duration: 800,
+        padding: getUserCameraPadding(),
+        bearing: (window.compassHeading != null ? window.compassHeading : 0)
+      });
+    }
 
   }, (err) => {
     console.log("GPS error:", err);
