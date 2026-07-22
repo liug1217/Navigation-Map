@@ -481,11 +481,34 @@ html, body {
   overflow: hidden;
   touch-action: none;
 }
+
+/* ===== 🌩️ 中央氣象署天氣特報橫幅 ===== */
+.weatherAlert{
+  position:absolute;
+  left:50%;
+  top:8px;
+  transform:translateX(-50%);
+  z-index:6;
+  max-width:calc(100% - 32px);
+  background:rgba(211,47,47,0.92);
+  color:#FFFFFF;
+  padding:8px 16px;
+  border-radius:12px;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Arial,sans-serif;
+  font-size:14px;
+  font-weight:600;
+  box-shadow:0 4px 8px rgba(0,0,0,0.3);
+  text-align:center;
+  display:none;
+}
 </style>
 </head>
 <body>
 
 <div id="map"></div>
+
+<!-- 🌩️ 天氣特報橫幅(目前所在縣市有特報時顯示) -->
+<div class="weatherAlert" id="weatherAlert"></div>
 
 <!-- 🔍 搜尋地點 -->
 <div class="searchBarWrap" id="searchBarWrap">
@@ -7364,6 +7387,158 @@ document.addEventListener("DOMContentLoaded", function(){
     });
   }
 });
+</script>
+
+<script>
+// ===== 🚇 TDX 捷運路網圖層 =====
+// 資料來自 /api/tdx-metro(後端代理,見 api/tdx-metro.js),
+// 不直接在前端呼叫 TDX,避免 Client Secret 外洩。
+// 本機用純靜態伺服器(沒有 /api 這個後端路由)開啟時會 fetch 失敗,
+// 屬於預期情況,不影響地圖其他功能,所以只在 console 記錄、不彈錯誤訊息。
+map.on('load', async () => {
+  try {
+    const res = await fetch('/api/tdx-metro?railSystem=TRTC');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { lines, stations } = await res.json();
+
+    map.addSource('tdx-metro-lines', { type: 'geojson', data: lines });
+    map.addLayer({
+      id: 'tdx-metro-lines',
+      type: 'line',
+      source: 'tdx-metro-lines',
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-width': 4,
+        'line-opacity': 0.9
+      }
+    });
+
+    map.addSource('tdx-metro-stations', { type: 'geojson', data: stations });
+    map.addLayer({
+      id: 'tdx-metro-stations',
+      type: 'circle',
+      source: 'tdx-metro-stations',
+      paint: {
+        'circle-radius': 4,
+        'circle-color': '#ffffff',
+        'circle-stroke-color': '#333333',
+        'circle-stroke-width': 1.5
+      }
+    });
+
+    map.on('click', 'tdx-metro-stations', (e) => {
+      const name = e.features[0].properties.name;
+      new maplibregl.Popup()
+        .setLngLat(e.features[0].geometry.coordinates)
+        .setHTML(`<strong>${name}</strong>`)
+        .addTo(map);
+    });
+    map.on('mouseenter', 'tdx-metro-stations', () => { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'tdx-metro-stations', () => { map.getCanvas().style.cursor = ''; });
+  } catch (err) {
+    console.log('[tdx-metro] 捷運路網圖層載入失敗(需要 /api/tdx-metro 後端代理與 TDX 憑證):', err);
+  }
+});
+</script>
+
+<script>
+// ===== 🌩️ 中央氣象署(CWA)天氣特報 =====
+// W-C0033-001:各縣市天氣特報。用使用者目前位置反查所在縣市,
+// 該縣市有生效中的特報時,在地圖上方顯示紅色橫幅提醒。
+//
+// 注意:CWA_AUTH_KEY 是 CWA 開放資料平台的個人金鑰,直接寫在前端(不像 TDX
+// 需要 OAuth2 client_secret 那樣機密),但因為這個 repo 是公開的 GitHub repo,
+// 任何人都看得到這把 key、也可能被拿去用掉你的請求額度。如果介意的話之後可以
+// 比照 TDX 的做法,改成用後端代理包起來。
+const CWA_AUTH_KEY = "CWA-FFED18F8-F95F-423F-AA3E-5C18BDE89DA1";
+const CWA_UPDATE_INTERVAL_MS = 5 * 60 * 1000; // 天氣特報不是秒級變化的資料,5分鐘查一次就夠
+const weatherAlertEl = document.getElementById("weatherAlert");
+
+let cwaWarningsByCounty = null; // { "臺北市": [{phenomena, significance, ...}], ... }
+let lastKnownCounty = null;
+
+// CWA 用「臺」,但 Nominatim 反查地址常常回「台」,比對前先統一寫法。
+function normalizeCountyName(name){
+  return (name || "").replace(/台/g, "臺");
+}
+
+async function fetchCwaWarnings(){
+  try{
+    const res = await fetch(`https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0033-001?Authorization=${CWA_AUTH_KEY}`);
+    if(!res.ok){
+      console.log("CWA API http error", res.status);
+      return;
+    }
+    const data = await res.json();
+    const locations = data?.records?.location || [];
+
+    const byCounty = {};
+    for(const loc of locations){
+      const hazards = loc?.hazardConditions?.hazards || [];
+      if(hazards.length > 0){
+        byCounty[normalizeCountyName(loc.locationName)] = hazards;
+      }
+    }
+    cwaWarningsByCounty = byCounty;
+    updateWeatherAlertDisplay();
+  } catch(err){
+    console.log("CWA fetch failed", err);
+  }
+}
+
+async function updateCurrentCounty(lat, lng){
+  try{
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&accept-language=zh-TW`);
+    if(!res.ok) return;
+    const data = await res.json();
+    const addr = data?.address || {};
+    const county = addr.county || addr.city || addr.state || null;
+    if(county){
+      lastKnownCounty = normalizeCountyName(county);
+      updateWeatherAlertDisplay();
+    }
+  } catch(err){
+    console.log("reverse geocode (county) failed", err);
+  }
+}
+
+function updateWeatherAlertDisplay(){
+  if(!weatherAlertEl || !cwaWarningsByCounty || !lastKnownCounty){
+    return;
+  }
+
+  const hazards = cwaWarningsByCounty[lastKnownCounty];
+  if(!hazards || hazards.length === 0){
+    weatherAlertEl.style.display = "none";
+    return;
+  }
+
+  const text = hazards
+    .map(h => `${h.phenomena || ""}${h.significance || ""}`)
+    .join("、");
+
+  weatherAlertEl.textContent = `⚠️ ${lastKnownCounty}${text}`;
+  weatherAlertEl.style.display = "block";
+}
+
+fetchCwaWarnings();
+setInterval(fetchCwaWarnings, CWA_UPDATE_INTERVAL_MS);
+
+// 縣市不會因為使用者移動幾公尺就變,查詢頻率跟天氣特報更新頻率一樣即可,
+// 不需要每次 GPS 定位更新都查一次。
+setInterval(() => {
+  if(window.currentLat != null && window.currentLon != null){
+    updateCurrentCounty(window.currentLat, window.currentLon);
+  }
+}, CWA_UPDATE_INTERVAL_MS);
+
+// 頁面剛載入、還沒等到第一次 interval 前,先用目前位置查一次(如果已經拿到定位)
+setTimeout(() => {
+  if(window.currentLat != null && window.currentLon != null){
+    updateCurrentCounty(window.currentLat, window.currentLon);
+  }
+}, 3000);
 </script>
 
 </body>
