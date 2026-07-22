@@ -501,6 +501,26 @@ html, body {
   text-align:center;
   display:none;
 }
+
+/* ===== 🌋 中央氣象署地震報告橫幅 ===== */
+.earthquakeAlert{
+  position:absolute;
+  left:50%;
+  top:52px;
+  transform:translateX(-50%);
+  z-index:6;
+  max-width:calc(100% - 32px);
+  background:rgba(230,126,0,0.92);
+  color:#FFFFFF;
+  padding:8px 16px;
+  border-radius:12px;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Arial,sans-serif;
+  font-size:14px;
+  font-weight:600;
+  box-shadow:0 4px 8px rgba(0,0,0,0.3);
+  text-align:center;
+  display:none;
+}
 </style>
 </head>
 <body>
@@ -509,6 +529,9 @@ html, body {
 
 <!-- 🌩️ 天氣特報橫幅(目前所在縣市有特報時顯示) -->
 <div class="weatherAlert" id="weatherAlert"></div>
+
+<!-- 🌋 地震報告橫幅(目前所在縣市在最新地震有感範圍內時顯示) -->
+<div class="earthquakeAlert" id="earthquakeAlert"></div>
 
 <!-- 🔍 搜尋地點 -->
 <div class="searchBarWrap" id="searchBarWrap">
@@ -7497,6 +7520,7 @@ async function updateCurrentCounty(lat, lng){
     if(county){
       lastKnownCounty = normalizeCountyName(county);
       updateWeatherAlertDisplay();
+      if(typeof updateEarthquakeAlertDisplay === 'function') updateEarthquakeAlertDisplay();
     }
   } catch(err){
     console.log("reverse geocode (county) failed", err);
@@ -7539,6 +7563,65 @@ setTimeout(() => {
     updateCurrentCounty(window.currentLat, window.currentLon);
   }
 }, 3000);
+</script>
+
+<script>
+// ===== 🌋 中央氣象署(CWA)地震報告 =====
+// E-A0016-001:近期地震報告列表(依時間新到舊排序,第一筆永遠是最新的)。
+// 跟天氣特報不同,這份資料沒有「現在有沒有生效中」的欄位——它只是歷史事件列表,
+// 所以要自己判斷「多新算新」(EARTHQUAKE_RECENCY_MS),避免舊地震一直掛在畫面上。
+// 只有「使用者目前所在縣市」出現在最新一筆地震的有感範圍(Intensity.ShakingArea)
+// 而且時間夠新,才會顯示提醒。
+const CWA_EQ_AUTH_KEY = "CWA-FFED18F8-F95F-423F-AA3E-5C18BDE89DA1";
+const CWA_EQ_UPDATE_INTERVAL_MS = 2 * 60 * 1000; // 地震是突發事件,查詢頻率比天氣特報高一點
+const EARTHQUAKE_RECENCY_MS = 30 * 60 * 1000; // 超過30分鐘的舊地震報告不再提醒
+const earthquakeAlertEl = document.getElementById("earthquakeAlert");
+
+let latestEarthquake = null;
+
+async function fetchCwaEarthquake(){
+  try{
+    const res = await fetch(`https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0016-001?Authorization=${CWA_EQ_AUTH_KEY}`);
+    if(!res.ok){
+      console.log("CWA earthquake API http error", res.status);
+      return;
+    }
+    const data = await res.json();
+    const list = data?.records?.Earthquake || [];
+    latestEarthquake = list[0] || null;
+    updateEarthquakeAlertDisplay();
+  } catch(err){
+    console.log("CWA earthquake fetch failed", err);
+  }
+}
+
+function updateEarthquakeAlertDisplay(){
+  if(!earthquakeAlertEl) return;
+
+  if(!latestEarthquake || !lastKnownCounty){
+    earthquakeAlertEl.style.display = "none";
+    return;
+  }
+
+  const issueTime = new Date(latestEarthquake.IssueTime).getTime();
+  const isRecent = !isNaN(issueTime) && (Date.now() - issueTime) < EARTHQUAKE_RECENCY_MS;
+
+  const shakingAreas = latestEarthquake?.Intensity?.ShakingArea || [];
+  const affectsCurrentCounty = shakingAreas.some(
+    area => normalizeCountyName(area.CountyName) === lastKnownCounty
+  );
+
+  if(!isRecent || !affectsCurrentCounty){
+    earthquakeAlertEl.style.display = "none";
+    return;
+  }
+
+  earthquakeAlertEl.textContent = `🌋 ${latestEarthquake.ReportContent || "有感地震"}`;
+  earthquakeAlertEl.style.display = "block";
+}
+
+fetchCwaEarthquake();
+setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 </script>
 
 </body>
