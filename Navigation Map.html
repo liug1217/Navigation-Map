@@ -2745,6 +2745,11 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     });
   };
 
+  window.addRoad = function(coords) {
+    drawnRoads.push(coords);
+    updateSources();
+  };
+
   window.toggleDrawVisibility = function() {
     layersVisible = !layersVisible;
     const v = layersVisible ? 'visible' : 'none';
@@ -2883,8 +2888,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     coords.push(coords[0]); // close ring
 
     // Push into drawnRoads and refresh
-    drawnRoads.push(coords);
-    updateSources();
+    window.addRoad(coords);
   }
 })();
 </script>
