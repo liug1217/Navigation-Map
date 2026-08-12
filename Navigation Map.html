@@ -2431,6 +2431,33 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   display: none;
   white-space: nowrap;
 }
+
+/* ===== GPS 定位車 ===== */
+#gpsBtn {
+  position: fixed;
+  right: 10px;
+  top: calc(50% + 46px);
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #fff;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  cursor: pointer;
+  z-index: 10;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#gpsBtn.active { background: #2F80FF; color: #fff; }
+
+.car-marker {
+  width: 32px;
+  height: 48px;
+  cursor: default;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
 </style>
 
 <button id="drawToggleBtn" title="繪製工具">✏️</button>
@@ -2469,6 +2496,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   <button id="drawClearBtn" onclick="clearAllDrawings()">🗑 清除全部</button>
 </div>
 <div id="drawHint"></div>
+<button id="gpsBtn" title="GPS 定位">🚗</button>
 
 <script>
 (function(){
@@ -2730,6 +2758,95 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       updateSources();
     }
   });
+})();
+</script>
+
+<!-- ===== GPS 定位車 ===== -->
+<script>
+(function(){
+  const btn = document.getElementById('gpsBtn');
+  let watchId = null;
+  let carMarker = null;
+  let lastHeading = 0;
+  let active = false;
+
+  function makeCarEl() {
+    const el = document.createElement('div');
+    el.className = 'car-marker';
+    el.innerHTML = `<svg viewBox="0 0 32 48" width="32" height="48" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="8" width="24" height="34" rx="7" fill="#1976D2" stroke="#fff" stroke-width="2"/>
+      <rect x="6.5" y="11" width="19" height="10" rx="3" fill="rgba(255,255,255,0.65)"/>
+      <rect x="6.5" y="29" width="19" height="9" rx="3" fill="rgba(255,255,255,0.4)"/>
+      <rect x="1" y="10" width="5" height="8" rx="2" fill="#222"/>
+      <rect x="26" y="10" width="5" height="8" rx="2" fill="#222"/>
+      <rect x="1" y="30" width="5" height="8" rx="2" fill="#222"/>
+      <rect x="26" y="30" width="5" height="8" rx="2" fill="#222"/>
+      <polygon points="16,1 11,10 21,10" fill="#FFC107"/>
+    </svg>`;
+    return el;
+  }
+
+  function circleCoords(lat, lng, radiusM) {
+    const pts = 64, R = 6378137, coords = [];
+    for (let i = 0; i <= pts; i++) {
+      const a = (i / pts) * 2 * Math.PI;
+      const dlat = (radiusM * Math.cos(a)) / R * (180 / Math.PI);
+      const dlng = (radiusM * Math.sin(a)) / (R * Math.cos(lat * Math.PI / 180)) * (180 / Math.PI);
+      coords.push([lng + dlng, lat + dlat]);
+    }
+    return coords;
+  }
+
+  function onPosition(pos) {
+    const { latitude: lat, longitude: lng, heading, accuracy } = pos.coords;
+    if (heading !== null && !isNaN(heading)) lastHeading = heading;
+
+    if (!carMarker) {
+      carMarker = new maplibregl.Marker({ element: makeCarEl(), anchor: 'center', rotationAlignment: 'map' })
+        .setLngLat([lng, lat])
+        .setRotation(lastHeading)
+        .addTo(map);
+    } else {
+      carMarker.setLngLat([lng, lat]).setRotation(lastHeading);
+    }
+
+    map.easeTo({ center: [lng, lat], duration: 600 });
+
+    const accData = { type: 'FeatureCollection', features: [{
+      type: 'Feature',
+      geometry: { type: 'Polygon', coordinates: [circleCoords(lat, lng, accuracy)] }
+    }]};
+    const src = map.getSource('gps-acc');
+    if (src) src.setData(accData);
+  }
+
+  function start() {
+    if (!map.getSource('gps-acc')) {
+      map.addSource('gps-acc', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      const before = map.getLayer('draw-road-fill') ? 'draw-road-fill' : undefined;
+      map.addLayer({ id: 'gps-acc-fill', type: 'fill', source: 'gps-acc',
+        paint: { 'fill-color': '#2196F3', 'fill-opacity': 0.12 } }, before);
+      map.addLayer({ id: 'gps-acc-line', type: 'line', source: 'gps-acc',
+        paint: { 'line-color': '#2196F3', 'line-width': 1.5, 'line-opacity': 0.5 } }, before);
+    }
+    watchId = navigator.geolocation.watchPosition(onPosition,
+      e => console.warn('GPS:', e.message),
+      { enableHighAccuracy: true, maximumAge: 1000 });
+    active = true;
+    btn.classList.add('active');
+  }
+
+  function stop() {
+    if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+    if (carMarker) { carMarker.remove(); carMarker = null; }
+    if (map.getLayer('gps-acc-fill')) map.removeLayer('gps-acc-fill');
+    if (map.getLayer('gps-acc-line')) map.removeLayer('gps-acc-line');
+    if (map.getSource('gps-acc')) map.removeSource('gps-acc');
+    active = false;
+    btn.classList.remove('active');
+  }
+
+  btn.addEventListener('click', () => active ? stop() : start());
 })();
 </script>
 
