@@ -2951,28 +2951,21 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   function buildRoute() {
     const d = window.getDrawings ? window.getDrawings() : { markings: [] };
     if (!d.markings.length) return [];
-    // Greedy chain: start from first marking, repeatedly attach the unused
-    // marking whose nearest endpoint is closest to the current tail.
-    // Reverse a marking if its end is the closer endpoint.
-    const pool = d.markings.map(m => ({ coords: m.coords.slice() }));
-    const chain = [pool.shift()];
-    while (pool.length) {
-      const tail = chain[chain.length - 1].coords;
-      const lastPt = tail[tail.length - 1];
-      let bi = 0, bd = Infinity, brev = false;
-      pool.forEach((m, i) => {
-        const ds = mDist(lastPt, m.coords[0]);
-        const de = mDist(lastPt, m.coords[m.coords.length - 1]);
-        if (ds < bd) { bd = ds; bi = i; brev = false; }
-        if (de < bd) { bd = de; bi = i; brev = true; }
-      });
-      if (bd > 80) break; // gap too large — stop chaining
-      const m = pool.splice(bi, 1)[0];
-      chain.push({ coords: brev ? m.coords.reverse() : m.coords });
-    }
-    const pts = [];
-    chain.forEach(o => o.coords.forEach(c => pts.push(c.slice())));
-    return pts.filter((p, i) => i === 0 || hav(p, pts[i-1]) > 0.05);
+    // Pick the marking that sits in the densest cluster of other markings.
+    // Score = number of other-marking points within 6 m × own point count.
+    let best = d.markings[0], bestScore = -1;
+    d.markings.forEach((m, mi) => {
+      let near = 0;
+      m.coords.forEach(c =>
+        d.markings.forEach((m2, mi2) => {
+          if (mi2 !== mi) m2.coords.forEach(c2 => { if (mDist(c, c2) < 6) near++; });
+        })
+      );
+      const score = near * m.coords.length;
+      if (score > bestScore) { bestScore = score; best = m; }
+    });
+    const coords = best.coords;
+    return coords.filter((p, i) => i === 0 || hav(p, coords[i-1]) > 0.05);
   }
 
   function makeCarEl() {
