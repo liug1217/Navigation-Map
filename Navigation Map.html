@@ -2435,6 +2435,60 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 }
 
 /* ===== GPS 定位車 ===== */
+#simBtn {
+  position: fixed;
+  right: 10px;
+  top: calc(50% + 94px);
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #fff;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  cursor: pointer;
+  z-index: 10;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#simBtn.active { background: #FF6600; color: #fff; }
+
+#simPanel {
+  position: fixed;
+  right: 54px;
+  top: calc(50% + 70px);
+  background: rgba(255,255,255,0.97);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  padding: 12px 14px;
+  z-index: 10;
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 160px;
+}
+#simPanel.open { display: flex; }
+
+#simHUD {
+  position: fixed;
+  bottom: 186px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.72);
+  color: #fff;
+  border-radius: 14px;
+  padding: 6px 22px 8px;
+  z-index: 20;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+#simHUD .spd { font-size: 38px; font-weight: 700; line-height: 1; }
+#simHUD .unit { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+
 #aiTraceBtn {
   position: fixed;
   right: 10px;
@@ -2482,6 +2536,20 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 </style>
 
 <button id="aiTraceBtn" title="AI 描邊道路">🪄</button>
+<button id="simBtn" title="模擬導航">🚙</button>
+<div id="simPanel">
+  <div style="font-size:11px;color:#888;font-weight:600;letter-spacing:.5px;">導航模擬</div>
+  <button id="simStartBtn" style="padding:7px;border-radius:8px;background:#FF6600;color:#fff;border:none;cursor:pointer;font-size:13px;font-weight:600;">▶ 開始</button>
+  <label style="font-size:12px;color:#333;">速度：<span id="simSpeedLabel">40 km/h</span></label>
+  <input type="range" id="simSpeedSlider" min="5" max="120" value="40" style="width:100%;accent-color:#FF6600;">
+  <label style="font-size:12px;color:#333;display:flex;align-items:center;gap:6px;">
+    <input type="checkbox" id="simLoopChk" checked> 循環播放
+  </label>
+</div>
+<div id="simHUD">
+  <div class="spd" id="simSpeedVal">40</div>
+  <div class="unit">km/h</div>
+</div>
 <button id="drawToggleBtn" title="繪製工具">✏️</button>
 <div id="drawPanel">
   <div class="draw-section-title">繪製模式</div>
@@ -2807,6 +2875,10 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     updateSources();
   };
 
+  window.getDrawings = function() {
+    return { roads: drawnRoads, markings: drawnMarkings };
+  };
+
   window.toggleDrawVisibility = function() {
     layersVisible = !layersVisible;
     const v = layersVisible ? 'visible' : 'none';
@@ -2840,6 +2912,129 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       hideHint();
       updateSources();
     }
+  });
+})();
+</script>
+
+<!-- ===== 模擬導航 ===== -->
+<script>
+(function(){
+  let running = false, route = [], idx = 0, frac = 0;
+  let lastTs = null, rafId = null, speedKmh = 40, loopRoute = true;
+  let simMarker = null;
+
+  function hav(a, b) {
+    const R = 6371000;
+    const f1 = a[1]*Math.PI/180, f2 = b[1]*Math.PI/180;
+    const df = (b[1]-a[1])*Math.PI/180, dl = (b[0]-a[0])*Math.PI/180;
+    const x = Math.sin(df/2)**2 + Math.cos(f1)*Math.cos(f2)*Math.sin(dl/2)**2;
+    return R*2*Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+  }
+
+  function brng(a, b) {
+    const dl = (b[0]-a[0])*Math.PI/180;
+    const f1 = a[1]*Math.PI/180, f2 = b[1]*Math.PI/180;
+    return (Math.atan2(Math.sin(dl)*Math.cos(f2),
+      Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl))*180/Math.PI+360)%360;
+  }
+
+  function buildRoute() {
+    const d = window.getDrawings ? window.getDrawings() : { markings: [] };
+    const pts = [];
+    d.markings.forEach(m => m.coords.forEach(c => pts.push(c.slice())));
+    return pts.filter((p, i) => i === 0 || hav(p, pts[i-1]) > 0.05);
+  }
+
+  function makeCarEl() {
+    const el = document.createElement('div');
+    el.className = 'car-marker';
+    el.innerHTML = `<svg viewBox="0 0 32 48" width="32" height="48" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="8" width="24" height="34" rx="7" fill="#FF6600" stroke="#fff" stroke-width="2"/>
+      <rect x="6.5" y="11" width="19" height="10" rx="3" fill="rgba(255,255,255,0.65)"/>
+      <rect x="6.5" y="29" width="19" height="9" rx="3" fill="rgba(255,255,255,0.4)"/>
+      <rect x="1" y="10" width="5" height="8" rx="2" fill="#222"/>
+      <rect x="26" y="10" width="5" height="8" rx="2" fill="#222"/>
+      <rect x="1" y="30" width="5" height="8" rx="2" fill="#222"/>
+      <rect x="26" y="30" width="5" height="8" rx="2" fill="#222"/>
+      <polygon points="16,1 11,10 21,10" fill="#FFC107"/>
+    </svg>`;
+    return el;
+  }
+
+  function startSim() {
+    route = buildRoute();
+    if (route.length < 2) { alert('請先畫道路標線（至少兩個點）'); return; }
+    idx = 0; frac = 0; lastTs = null;
+    if (!simMarker) {
+      simMarker = new maplibregl.Marker({ element: makeCarEl(), anchor: 'center', rotationAlignment: 'map' })
+        .setLngLat(route[0]).addTo(map);
+    } else {
+      simMarker.setLngLat(route[0]);
+    }
+    running = true;
+    document.getElementById('simStartBtn').textContent = '⏹ 停止';
+    document.getElementById('simHUD').style.display = 'flex';
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function stopSim() {
+    running = false;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    if (simMarker) { simMarker.remove(); simMarker = null; }
+    document.getElementById('simStartBtn').textContent = '▶ 開始';
+    document.getElementById('simHUD').style.display = 'none';
+  }
+
+  function tick(ts) {
+    if (!running) return;
+    if (!lastTs) { lastTs = ts; rafId = requestAnimationFrame(tick); return; }
+    const dt = Math.min((ts - lastTs) / 1000, 0.1);
+    lastTs = ts;
+    let dist = speedKmh / 3.6 * dt;
+
+    while (dist > 0 && idx < route.length - 1) {
+      const seg = hav(route[idx], route[idx+1]);
+      if (seg < 0.001) { idx++; continue; }
+      const rem = seg * (1 - frac);
+      if (dist >= rem) { dist -= rem; idx++; frac = 0; }
+      else { frac += dist / seg; dist = 0; }
+    }
+
+    if (idx >= route.length - 1) {
+      if (loopRoute) { idx = 0; frac = 0; }
+      else { stopSim(); return; }
+    }
+
+    const a = route[idx], b = route[Math.min(idx+1, route.length-1)];
+    const lng = a[0] + (b[0]-a[0])*frac;
+    const lat = a[1] + (b[1]-a[1])*frac;
+    const h = brng(a, b);
+
+    simMarker.setLngLat([lng, lat]).setRotation(h);
+    document.getElementById('simSpeedVal').textContent = speedKmh;
+    map.easeTo({ center: [lng, lat], bearing: h, pitch: 65, duration: 150 });
+
+    rafId = requestAnimationFrame(tick);
+  }
+
+  // Panel toggle
+  document.getElementById('simBtn').addEventListener('click', function() {
+    const panel = document.getElementById('simPanel');
+    const open = panel.classList.toggle('open');
+    this.classList.toggle('active', open);
+    if (!open && running) stopSim();
+  });
+
+  document.getElementById('simStartBtn').addEventListener('click', () => running ? stopSim() : startSim());
+
+  document.getElementById('simSpeedSlider').addEventListener('input', function() {
+    speedKmh = +this.value;
+    document.getElementById('simSpeedLabel').textContent = speedKmh + ' km/h';
+    document.getElementById('simSpeedVal').textContent = speedKmh;
+  });
+
+  document.getElementById('simLoopChk').addEventListener('change', function() {
+    loopRoute = this.checked;
   });
 })();
 </script>
