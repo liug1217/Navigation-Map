@@ -2298,6 +2298,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   justify-content: center;
 }
 #drawToggleBtn.active { background: #2F80FF; color: #fff; }
+#bezierBtn.active { background: #7B2FFF; color: #fff; }
 
 #drawPanel {
   position: fixed;
@@ -2491,6 +2492,8 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     <span class="swatch" style="background:#fff; border-color:#aaa;"></span>標線
   </button>
 
+  <button id="bezierBtn" onclick="toggleBezier()" style="padding:6px;border-radius:8px;background:#f0f0f0;border:none;cursor:pointer;font-size:12px;">〜 貝茲曲線</button>
+
   <div class="draw-divider"></div>
   <div class="draw-section-title" id="colorLabel" style="display:none;">標線顏色</div>
   <div id="drawColorRow" style="display:none;">
@@ -2526,6 +2529,46 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   let markingWidth = 4;
   let currentPoints = [];
   let layersVisible = true;
+  let bezierMode = false;
+
+  function catmullRom(pts, steps) {
+    steps = steps || 16;
+    if (pts.length < 2) return pts;
+    const out = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[Math.max(0, i-1)];
+      const p1 = pts[i];
+      const p2 = pts[i+1];
+      const p3 = pts[Math.min(pts.length-1, i+2)];
+      for (let s = 0; s < steps; s++) {
+        const t = s/steps, t2 = t*t, t3 = t2*t;
+        out.push([
+          0.5*((2*p1[0])+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
+          0.5*((2*p1[1])+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3)
+        ]);
+      }
+    }
+    out.push(pts[pts.length-1]);
+    return out;
+  }
+
+  function catmullRomClosed(pts, steps) {
+    steps = steps || 16;
+    const n = pts.length, out = [];
+    for (let i = 0; i < n; i++) {
+      const p0 = pts[(i-1+n)%n], p1 = pts[i];
+      const p2 = pts[(i+1)%n],   p3 = pts[(i+2)%n];
+      for (let s = 0; s < steps; s++) {
+        const t = s/steps, t2 = t*t, t3 = t2*t;
+        out.push([
+          0.5*((2*p1[0])+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
+          0.5*((2*p1[1])+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3)
+        ]);
+      }
+    }
+    out.push(out[0]);
+    return out;
+  }
 
   let drawnRoads = [[[121.52660791322137,24.96731073746308],[121.52648438750623,24.967218052449837],[121.5267812531635,24.966866210975297],[121.52775517511833,24.96572919331952],[121.52828781458174,24.965108894286686],[121.5286350476618,24.964701714358796],[121.52878814024416,24.9645197060119],[121.5289108315244,24.96437879668379],[121.52920953758394,24.96402470678302],[121.5295117686079,24.96366761527176],[121.52957182733644,24.963597739463154],[121.52993903455814,24.963169755518493],[121.53021763746324,24.962840014645195],[121.53027759742355,24.96277216882943],[121.53041354813763,24.962862748056935],[121.52970958831884,24.963685173162318],[121.52936871147597,24.964085551834074],[121.52911690677377,24.96438640822973],[121.52879459305086,24.964789149790562],[121.52813475996919,24.965561858414205],[121.52805661871975,24.965659558465433],[121.5279634263909,24.965779954819638],[121.52782861362641,24.96594999678196],[121.52780026248308,24.965985471090278],[121.52772443827206,24.96608748525685],[121.52756011049655,24.966316628590775],[121.52736388402292,24.966605416237414],[121.52714434330437,24.966443496522814],[121.52660791322137,24.96731073746308]],[[121.52714434330437,24.966443496522814],[121.52729100559907,24.966551034747226],[121.52717972915946,24.96667810232256],[121.52699279839442,24.96688096709407],[121.52674349912115,24.96715169075172],[121.52660791322137,24.96731073746308],[121.52714434330437,24.966443496522814]],[[121.52660791322137,24.96731073746308],[121.52497029287775,24.969254867178336],[121.52481456867497,24.96917059270028],[121.52648438750623,24.967218052449837],[121.52660791322137,24.96731073746308]],[[121.52729100559907,24.966551034747226],[121.52727153327112,24.966572472474837],[121.52728493472551,24.96658325894012],[121.52730447676078,24.966561807982202],[121.52729100559907,24.966551034747226]],[[121.52728493472551,24.96658325894012],[121.5273464712431,24.96663204387096],[121.52736388402292,24.966605416237414],[121.52728493472551,24.96658325894012]],[[121.52730686547892,24.966572929776902],[121.52728493472551,24.96658325894012],[121.52730681998537,24.966559884282404],[121.52736388402292,24.966605416237414],[121.52728493472551,24.96658325894012],[121.52730686547892,24.966572929776902]],[[121.52728558467624,24.966577656390584],[121.52730725164491,24.96655492597222],[121.52730985193057,24.96656191738913],[121.52729109514075,24.966581538354745],[121.52728464402884,24.966576665478087],[121.52728558467624,24.966577656390584]],[[121.52728493472551,24.96658325894012],[121.52718786079168,24.966731157753372],[121.52713637497368,24.96680863544904],[121.52703743241653,24.966961982297008],[121.5269550686873,24.967091034993246],[121.52692904073399,24.967134891776155],[121.52672229611153,24.967466450298588],[121.52665312492985,24.967576334046925],[121.52672469145767,24.96762798260579],[121.52676686797037,24.96754873747048],[121.52684828386742,24.96740806857875],[121.52696231923159,24.967228971693075],[121.52703301052975,24.96711495138608],[121.52713744808852,24.96695366678722],[121.5273464712431,24.96663204387096],[121.52728493472551,24.96658325894012]]];
 
@@ -2552,8 +2595,9 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   }
   function toPreviewGeoJSON() {
     if (currentPoints.length < 2) return { type:'FeatureCollection', features:[] };
+    const coords = bezierMode ? catmullRom(currentPoints) : currentPoints;
     return { type:'FeatureCollection', features:[{
-      type:'Feature', geometry:{ type:'LineString', coordinates:currentPoints }
+      type:'Feature', geometry:{ type:'LineString', coordinates:coords }
     }]};
   }
   // 蒐集所有已確認幾何的頂點（用於繪製時顯示延伸點）
@@ -2653,8 +2697,10 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     const snap = findSnapPoint(e.lngLat);
     const tip = snap ? snap : [e.lngLat.lng, e.lngLat.lat];
     map.getCanvas().style.cursor = snap ? 'pointer' : 'crosshair';
+    const previewPts = [...currentPoints, tip];
+    const previewCoords = bezierMode && previewPts.length >= 2 ? catmullRom(previewPts) : previewPts;
     map.getSource(PREVIEW_SOURCE).setData({ type:'FeatureCollection', features:[{
-      type:'Feature', geometry:{ type:'LineString', coordinates:[...currentPoints, tip] }
+      type:'Feature', geometry:{ type:'LineString', coordinates:previewCoords }
     }]});
   });
 
@@ -2692,9 +2738,15 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   window.finishDrawing = function() {
     if (currentPoints.length < 2) return;
     if (drawMode === 'road') {
-      drawnRoads.push([...currentPoints, currentPoints[0]]);
+      const ring = bezierMode && currentPoints.length >= 3
+        ? catmullRomClosed(currentPoints)
+        : [...currentPoints, currentPoints[0]];
+      drawnRoads.push(ring);
     } else if (drawMode === 'marking') {
-      drawnMarkings.push({ coords:[...currentPoints], color:markingColor, width:markingWidth });
+      const coords = bezierMode && currentPoints.length >= 3
+        ? catmullRom(currentPoints)
+        : [...currentPoints];
+      drawnMarkings.push({ coords, color:markingColor, width:markingWidth });
     }
     currentPoints = [];
     updateSources();
@@ -2743,6 +2795,11 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
         alert('格式錯誤，請確認複製的是正確的繪製資料。');
       }
     });
+  };
+
+  window.toggleBezier = function() {
+    bezierMode = !bezierMode;
+    document.getElementById('bezierBtn').classList.toggle('active', bezierMode);
   };
 
   window.addRoad = function(coords) {
