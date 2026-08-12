@@ -2948,27 +2948,15 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     return Math.sqrt(dx*dx + dy*dy);
   }
 
+  let routeMarking = null; // the marking used as the primary route
+
   function buildRoute() {
     const d = window.getDrawings ? window.getDrawings() : { markings: [] };
-    const pts = [];
-    // For each point on each marking, snap to midpoint with the nearest
-    // point on any OTHER marking within 10 m (= lane-centre between two lines)
-    d.markings.forEach((m, mi) => {
-      m.coords.forEach(c => {
-        let best = null, bestD = Infinity;
-        d.markings.forEach((m2, mi2) => {
-          if (mi2 === mi) return;
-          m2.coords.forEach(c2 => {
-            const dist = mDist(c, c2);
-            if (dist < bestD) { bestD = dist; best = c2; }
-          });
-        });
-        pts.push(best && bestD < 10
-          ? [(c[0]+best[0])/2, (c[1]+best[1])/2]
-          : c.slice());
-      });
-    });
-    return pts.filter((p, i) => i === 0 || hav(p, pts[i-1]) > 0.05);
+    if (!d.markings.length) return [];
+    // Pick the marking with the most coordinates as the primary route
+    routeMarking = d.markings.reduce((a, b) => b.coords.length > a.coords.length ? b : a);
+    const coords = routeMarking.coords;
+    return coords.filter((p, i) => i === 0 || hav(p, coords[i-1]) > 0.05);
   }
 
   function makeCarEl() {
@@ -3063,9 +3051,23 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     const lat = a[1] + (b[1]-a[1])*frac;
     const h = brng(a, b);
 
-    simMarker.setLngLat([lng, lat]).setRotation(h);
+    // Visually shift car to midpoint with nearest other marking (≤10 m)
+    let dLng = lng, dLat = lat;
+    if (routeMarking && window.getDrawings) {
+      const d = window.getDrawings();
+      let best = null, bestD = Infinity;
+      d.markings.forEach(m => {
+        if (m === routeMarking) return;
+        m.coords.forEach(c => {
+          const dist = mDist([lng, lat], c);
+          if (dist < bestD) { bestD = dist; best = c; }
+        });
+      });
+      if (best && bestD < 10) { dLng = (lng+best[0])/2; dLat = (lat+best[1])/2; }
+    }
+    simMarker.setLngLat([dLng, dLat]).setRotation(h);
     document.querySelector('.rect6 .speed-value').innerText = speedKmh;
-    if (followCam) map.easeTo({ center: [lng, lat], bearing: h, pitch: 65, duration: 150 });
+    if (followCam) map.easeTo({ center: [dLng, dLat], bearing: h, pitch: 65, duration: 150 });
 
     rafId = requestAnimationFrame(tick);
   }
