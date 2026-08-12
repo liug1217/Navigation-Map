@@ -2542,8 +2542,8 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 <div id="simPanel">
   <div style="font-size:11px;color:#888;font-weight:600;letter-spacing:.5px;">導航模擬</div>
   <button id="simStartBtn" style="padding:7px;border-radius:8px;background:#FF6600;color:#fff;border:none;cursor:pointer;font-size:13px;font-weight:600;">▶ 開始</button>
-  <label style="font-size:12px;color:#333;">速度：<span id="simSpeedLabel">40 km/h</span></label>
-  <input type="range" id="simSpeedSlider" min="5" max="120" value="40" style="width:100%;accent-color:#FF6600;">
+  <label style="font-size:12px;color:#333;">速度：<span id="simSpeedLabel">100 km/h</span></label>
+  <input type="range" id="simSpeedSlider" min="5" max="200" value="100" style="width:100%;accent-color:#FF6600;">
   <label style="font-size:12px;color:#333;display:flex;align-items:center;gap:6px;">
     <input type="checkbox" id="simLoopChk" checked> 循環播放
   </label>
@@ -2922,7 +2922,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 <script>
 (function(){
   let running = false, route = [], idx = 0, frac = 0;
-  let lastTs = null, rafId = null, speedKmh = 40, loopRoute = true;
+  let lastTs = null, rafId = null, speedKmh = 100, loopRoute = true;
   let simMarker = null;
   let followCam = true, resumeTimer = null;
 
@@ -2987,15 +2987,27 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     return el;
   }
 
+  // Find the route index closest to the densest cluster of markings
+  function findDensestIdx(route) {
+    const d = window.getDrawings ? window.getDrawings() : { markings: [] };
+    let bestIdx = 0, bestCount = 0;
+    route.forEach((pt, i) => {
+      let count = 0;
+      d.markings.forEach(m => m.coords.forEach(c => { if (mDist(pt, c) < 6) count++; }));
+      if (count > bestCount) { bestCount = count; bestIdx = i; }
+    });
+    return bestIdx;
+  }
+
   function startSim() {
     route = buildRoute();
     if (route.length < 2) { alert('請先畫道路標線（至少兩個點）'); return; }
-    idx = 0; frac = 0; lastTs = null;
+    idx = findDensestIdx(route); frac = 0; lastTs = null;
     if (!simMarker) {
       simMarker = new maplibregl.Marker({ element: makeCarEl(), anchor: 'center', rotationAlignment: 'map' })
-        .setLngLat(route[0]).addTo(map);
+        .setLngLat(route[idx]).addTo(map);
     } else {
-      simMarker.setLngLat(route[0]);
+      simMarker.setLngLat(route[idx]);
     }
     running = true; followCam = true; window.simRunning = true;
     document.getElementById('simStartBtn').textContent = '⏹ 停止';
