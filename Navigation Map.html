@@ -739,7 +739,8 @@ if (navigator.geolocation) {
     zoom: 16,
     pitch: 60,
     bearing: -20,
-    antialias: false
+    antialias: false,
+    preserveDrawingBuffer: true
   });
 
   map.on('load', () => {
@@ -2433,6 +2434,25 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 }
 
 /* ===== GPS 定位車 ===== */
+#aiTraceBtn {
+  position: fixed;
+  right: 10px;
+  top: calc(50% - 46px);
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #fff;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  cursor: pointer;
+  z-index: 10;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#aiTraceBtn.active { background: #7B2FFF; color: #fff; }
+
 #gpsBtn {
   position: fixed;
   right: 10px;
@@ -2460,6 +2480,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 }
 </style>
 
+<button id="aiTraceBtn" title="AI 描邊道路">🪄</button>
 <button id="drawToggleBtn" title="繪製工具">✏️</button>
 <div id="drawPanel">
   <div class="draw-section-title">繪製模式</div>
@@ -2758,6 +2779,113 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       updateSources();
     }
   });
+})();
+</script>
+
+<!-- ===== AI 衛星描邊 ===== -->
+<script>
+(function(){
+  const btn = document.getElementById('aiTraceBtn');
+  let traceMode = false;
+
+  btn.addEventListener('click', () => {
+    traceMode = !traceMode;
+    btn.classList.toggle('active', traceMode);
+    map.getCanvas().style.cursor = traceMode ? 'crosshair' : '';
+  });
+
+  map.on('click', function(e) {
+    if (!traceMode) return;
+    e.preventDefault();
+    runTrace(e.point.x, e.point.y);
+  });
+
+  function runTrace(cssX, cssY) {
+    const canvas = map.getCanvas();
+    const dpr = window.devicePixelRatio || 1;
+
+    // Capture WebGL canvas into 2D temp canvas
+    const tmp = document.createElement('canvas');
+    tmp.width = canvas.width;
+    tmp.height = canvas.height;
+    const ctx = tmp.getContext('2d');
+    ctx.drawImage(canvas, 0, 0);
+
+    const cx = Math.round(cssX * dpr);
+    const cy = Math.round(cssY * dpr);
+
+    // Crop a patch around click (±250 canvas px)
+    const R = Math.round(250 * dpr);
+    const px = Math.max(0, cx - R), py = Math.max(0, cy - R);
+    const pw = Math.min(canvas.width - px, R * 2);
+    const ph = Math.min(canvas.height - py, R * 2);
+
+    const imgData = ctx.getImageData(px, py, pw, ph);
+    const d = imgData.data;
+    const W = pw, H = ph;
+
+    // Seed in patch coords
+    const sx = cx - px, sy = cy - py;
+    if (sx < 0 || sx >= W || sy < 0 || sy >= H) return;
+
+    const sidx = (sy * W + sx) * 4;
+    const sr = d[sidx], sg = d[sidx+1], sb = d[sidx+2];
+
+    // BFS region grow (4-connected, color distance < tolerance)
+    const TOL = 40;
+    const MAX_PX = 100000;
+    const region = new Uint8Array(W * H);
+    const q = [sy * W + sx];
+    region[sy * W + sx] = 1;
+    let head = 0;
+
+    while (head < q.length && head < MAX_PX) {
+      const idx = q[head++];
+      const x = idx % W, y = (idx / W) | 0;
+      const steps = [[-1,0],[1,0],[0,-1],[0,1]];
+      for (const [dx, dy] of steps) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+        const ni = ny * W + nx;
+        if (region[ni]) continue;
+        const pi = ni * 4;
+        const dr = d[pi]-sr, dg = d[pi+1]-sg, db = d[pi+2]-sb;
+        if (Math.sqrt(dr*dr + dg*dg + db*db) < TOL) {
+          region[ni] = 1;
+          q.push(ni);
+        }
+      }
+    }
+
+    // Scanline → polygon (left column top→bottom, right column bottom→top)
+    const leftPts = [], rightPts = [];
+    for (let y = 0; y < H; y++) {
+      let l = -1, r = -1;
+      for (let x = 0; x < W; x++) {
+        if (region[y * W + x]) { if (l < 0) l = x; r = x; }
+      }
+      if (l >= 0) { leftPts.push([l, y]); rightPts.push([r, y]); }
+    }
+
+    if (leftPts.length < 4) return;
+
+    const poly = [...leftPts, ...rightPts.reverse()];
+
+    // Subsample to ≤ 120 points
+    const step = Math.max(1, Math.ceil(poly.length / 120));
+    const sampled = poly.filter((_, i) => i % step === 0);
+
+    // Convert patch pixels → LngLat
+    const coords = sampled.map(([bx, by]) => {
+      const ll = map.unproject([(px + bx) / dpr, (py + by) / dpr]);
+      return [ll.lng, ll.lat];
+    });
+    coords.push(coords[0]); // close ring
+
+    // Push into drawnRoads and refresh
+    drawnRoads.push(coords);
+    updateSources();
+  }
 })();
 </script>
 
