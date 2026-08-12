@@ -2941,6 +2941,15 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl))*180/Math.PI+360)%360;
   }
 
+  // Offset a [lng,lat] point N metres to the right of the given bearing
+  function rightOffset(lng, lat, bearing, meters) {
+    const R = 6371000;
+    const br = (bearing + 90) * Math.PI / 180;
+    const dlat = (meters / R) * Math.cos(br) * 180 / Math.PI;
+    const dlng = (meters / R) * Math.sin(br) / Math.cos(lat * Math.PI / 180) * 180 / Math.PI;
+    return [lng + dlng, lat + dlat];
+  }
+
   function buildRoute() {
     const d = window.getDrawings ? window.getDrawings() : { markings: [] };
     const pts = [];
@@ -3028,9 +3037,10 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     const lat = a[1] + (b[1]-a[1])*frac;
     const h = brng(a, b);
 
-    simMarker.setLngLat([lng, lat]).setRotation(h);
+    const [oLng, oLat] = rightOffset(lng, lat, h, 3);
+    simMarker.setLngLat([oLng, oLat]).setRotation(h);
     document.querySelector('.rect6 .speed-value').innerText = speedKmh;
-    if (followCam) map.easeTo({ center: [lng, lat], bearing: h, pitch: 65, duration: 150 });
+    if (followCam) map.easeTo({ center: [oLng, oLat], bearing: h, pitch: 65, duration: 150 });
 
     rafId = requestAnimationFrame(tick);
   }
