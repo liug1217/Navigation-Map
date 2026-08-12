@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Navigation Map</title>
 <style>
 /* ===== OpenStreetMap Layer ===== */
@@ -2974,6 +2974,12 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     running = true;
     document.getElementById('simStartBtn').textContent = '⏹ 停止';
     document.getElementById('simHUD').style.display = 'flex';
+    // Auto-hide panel so car isn't blocked on mobile
+    document.getElementById('simPanel').classList.remove('open');
+    const sb = document.getElementById('simBtn');
+    sb.textContent = '⏹';
+    sb.classList.add('active');
+    sb.title = '停止導航';
     rafId = requestAnimationFrame(tick);
   }
 
@@ -2983,6 +2989,12 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     if (simMarker) { simMarker.remove(); simMarker = null; }
     document.getElementById('simStartBtn').textContent = '▶ 開始';
     document.getElementById('simHUD').style.display = 'none';
+    // Restore panel and button
+    document.getElementById('simPanel').classList.add('open');
+    const sb = document.getElementById('simBtn');
+    sb.textContent = '🚙';
+    sb.classList.add('active');
+    sb.title = '模擬導航';
   }
 
   function tick(ts) {
@@ -3017,12 +3029,12 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     rafId = requestAnimationFrame(tick);
   }
 
-  // Panel toggle
+  // Panel toggle — if running, clicking the button stops the sim
   document.getElementById('simBtn').addEventListener('click', function() {
+    if (running) { stopSim(); return; }
     const panel = document.getElementById('simPanel');
     const open = panel.classList.toggle('open');
     this.classList.toggle('active', open);
-    if (!open && running) stopSim();
   });
 
   document.getElementById('simStartBtn').addEventListener('click', () => running ? stopSim() : startSim());
