@@ -2948,15 +2948,31 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     return Math.sqrt(dx*dx + dy*dy);
   }
 
-  let routeMarking = null; // the marking used as the primary route
-
   function buildRoute() {
     const d = window.getDrawings ? window.getDrawings() : { markings: [] };
     if (!d.markings.length) return [];
-    // Pick the marking with the most coordinates as the primary route
-    routeMarking = d.markings.reduce((a, b) => b.coords.length > a.coords.length ? b : a);
-    const coords = routeMarking.coords;
-    return coords.filter((p, i) => i === 0 || hav(p, coords[i-1]) > 0.05);
+    // Greedy chain: start from first marking, repeatedly attach the unused
+    // marking whose nearest endpoint is closest to the current tail.
+    // Reverse a marking if its end is the closer endpoint.
+    const pool = d.markings.map(m => ({ coords: m.coords.slice() }));
+    const chain = [pool.shift()];
+    while (pool.length) {
+      const tail = chain[chain.length - 1].coords;
+      const lastPt = tail[tail.length - 1];
+      let bi = 0, bd = Infinity, brev = false;
+      pool.forEach((m, i) => {
+        const ds = mDist(lastPt, m.coords[0]);
+        const de = mDist(lastPt, m.coords[m.coords.length - 1]);
+        if (ds < bd) { bd = ds; bi = i; brev = false; }
+        if (de < bd) { bd = de; bi = i; brev = true; }
+      });
+      if (bd > 80) break; // gap too large — stop chaining
+      const m = pool.splice(bi, 1)[0];
+      chain.push({ coords: brev ? m.coords.reverse() : m.coords });
+    }
+    const pts = [];
+    chain.forEach(o => o.coords.forEach(c => pts.push(c.slice())));
+    return pts.filter((p, i) => i === 0 || hav(p, pts[i-1]) > 0.05);
   }
 
   function makeCarEl() {
@@ -3051,19 +3067,17 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     const lat = a[1] + (b[1]-a[1])*frac;
     const h = brng(a, b);
 
-    // Visually shift car to midpoint with nearest other marking (≤10 m)
+    // Place car at midpoint of two nearest points from DIFFERENT markings (≤10 m)
     let dLng = lng, dLat = lat;
-    if (routeMarking && window.getDrawings) {
-      const d = window.getDrawings();
-      let best = null, bestD = Infinity;
-      d.markings.forEach(m => {
-        if (m === routeMarking) return;
-        m.coords.forEach(c => {
-          const dist = mDist([lng, lat], c);
-          if (dist < bestD) { bestD = dist; best = c; }
-        });
-      });
-      if (best && bestD < 10) { dLng = (lng+best[0])/2; dLat = (lat+best[1])/2; }
+    if (window.getDrawings) {
+      const allM = window.getDrawings().markings;
+      let b1 = null, b1mi = -1, b1d = Infinity, b2 = null, b2d = Infinity;
+      allM.forEach((m, mi) => m.coords.forEach(c => {
+        const dist = mDist([lng, lat], c);
+        if (dist < b1d) { b2 = b1; b2d = b1d; b1 = c; b1mi = mi; b1d = dist; }
+        else if (mi !== b1mi && dist < b2d) { b2 = c; b2d = dist; }
+      }));
+      if (b1 && b2 && b2d < 10) { dLng = (b1[0]+b2[0])/2; dLat = (b1[1]+b2[1])/2; }
     }
     simMarker.setLngLat([dLng, dLat]).setRotation(h);
     document.querySelector('.rect6 .speed-value').innerText = speedKmh;
