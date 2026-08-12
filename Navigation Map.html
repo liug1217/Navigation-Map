@@ -2941,19 +2941,33 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl))*180/Math.PI+360)%360;
   }
 
-  // Offset a [lng,lat] point N metres to the right of the given bearing
-  function rightOffset(lng, lat, bearing, meters) {
-    const R = 6371000;
-    const br = (bearing + 90) * Math.PI / 180;
-    const dlat = (meters / R) * Math.cos(br) * 180 / Math.PI;
-    const dlng = (meters / R) * Math.sin(br) / Math.cos(lat * Math.PI / 180) * 180 / Math.PI;
-    return [lng + dlng, lat + dlat];
+  // Metres between two [lng,lat] points (fast planar approx)
+  function mDist(a, b) {
+    const dx = (b[0]-a[0]) * 111320 * Math.cos(a[1]*Math.PI/180);
+    const dy = (b[1]-a[1]) * 110540;
+    return Math.sqrt(dx*dx + dy*dy);
   }
 
   function buildRoute() {
     const d = window.getDrawings ? window.getDrawings() : { markings: [] };
     const pts = [];
-    d.markings.forEach(m => m.coords.forEach(c => pts.push(c.slice())));
+    // For each point on each marking, snap to midpoint with the nearest
+    // point on any OTHER marking within 10 m (= lane-centre between two lines)
+    d.markings.forEach((m, mi) => {
+      m.coords.forEach(c => {
+        let best = null, bestD = Infinity;
+        d.markings.forEach((m2, mi2) => {
+          if (mi2 === mi) return;
+          m2.coords.forEach(c2 => {
+            const dist = mDist(c, c2);
+            if (dist < bestD) { bestD = dist; best = c2; }
+          });
+        });
+        pts.push(best && bestD < 10
+          ? [(c[0]+best[0])/2, (c[1]+best[1])/2]
+          : c.slice());
+      });
+    });
     return pts.filter((p, i) => i === 0 || hav(p, pts[i-1]) > 0.05);
   }
 
@@ -3037,10 +3051,9 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     const lat = a[1] + (b[1]-a[1])*frac;
     const h = brng(a, b);
 
-    const [oLng, oLat] = rightOffset(lng, lat, h, 3);
-    simMarker.setLngLat([oLng, oLat]).setRotation(h);
+    simMarker.setLngLat([lng, lat]).setRotation(h);
     document.querySelector('.rect6 .speed-value').innerText = speedKmh;
-    if (followCam) map.easeTo({ center: [oLng, oLat], bearing: h, pitch: 65, duration: 150 });
+    if (followCam) map.easeTo({ center: [lng, lat], bearing: h, pitch: 65, duration: 150 });
 
     rafId = requestAnimationFrame(tick);
   }
