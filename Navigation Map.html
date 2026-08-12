@@ -1625,6 +1625,7 @@ geolocate.trigger();
   }
 
   function updateDisplay(speed, elapsedMs) {
+    if (window.simRunning) return;   // sim 已接管速度計
     rect6SpeedValue.innerText = Math.round(speed);
     // 導航中(已經規劃好真實路線)時,.info要顯示「全程距離/時間」,
     // 不能被這裡的GPS行程記錄(從0開始算)覆蓋掉
@@ -1761,8 +1762,10 @@ geolocate.trigger();
 
     }, (err) => {
       console.error('GPS error:', err);
-      rect6SpeedValue.innerText = '×';
-      rect6SpeedUnit.innerText = 'GPS';
+      if (!window.simRunning) {
+        rect6SpeedValue.innerText = '×';
+        rect6SpeedUnit.innerText = 'GPS';
+      }
     }, {
       enableHighAccuracy: true,
       maximumAge: 1000,
@@ -2971,9 +2974,10 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     } else {
       simMarker.setLngLat(route[0]);
     }
-    running = true; followCam = true;
+    running = true; followCam = true; window.simRunning = true;
     document.getElementById('simStartBtn').textContent = '⏹ 停止';
-    document.getElementById('simHUD').style.display = 'flex';
+    // rect6 speedometer taken over by sim — show km/h unit
+    document.querySelector('.rect6 .speed-unit').innerText = 'km/h';
     // Auto-hide panel so car isn't blocked on mobile
     document.getElementById('simPanel').classList.remove('open');
     const sb = document.getElementById('simBtn');
@@ -2984,11 +2988,13 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   }
 
   function stopSim() {
-    running = false;
+    running = false; window.simRunning = false;
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
     if (simMarker) { simMarker.remove(); simMarker = null; }
     document.getElementById('simStartBtn').textContent = '▶ 開始';
-    document.getElementById('simHUD').style.display = 'none';
+    // Release rect6 back to GPS (reset to 0 until GPS fires again)
+    document.querySelector('.rect6 .speed-value').innerText = '0';
+    document.querySelector('.rect6 .speed-unit').innerText = 'km/h';
     // Restore panel and button
     document.getElementById('simPanel').classList.add('open');
     const sb = document.getElementById('simBtn');
@@ -3023,7 +3029,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     const h = brng(a, b);
 
     simMarker.setLngLat([lng, lat]).setRotation(h);
-    document.getElementById('simSpeedVal').textContent = speedKmh;
+    document.querySelector('.rect6 .speed-value').innerText = speedKmh;
     if (followCam) map.easeTo({ center: [lng, lat], bearing: h, pitch: 65, duration: 150 });
 
     rafId = requestAnimationFrame(tick);
