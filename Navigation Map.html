@@ -2473,9 +2473,8 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
 #simHUD {
   position: fixed;
-  bottom: 186px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 10px;
+  left: 10px;
   background: rgba(0,0,0,0.72);
   color: #fff;
   border-radius: 14px;
@@ -2922,6 +2921,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   let running = false, route = [], idx = 0, frac = 0;
   let lastTs = null, rafId = null, speedKmh = 40, loopRoute = true;
   let simMarker = null;
+  let followCam = true, resumeTimer = null;
 
   function hav(a, b) {
     const R = 6371000;
@@ -2971,7 +2971,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     } else {
       simMarker.setLngLat(route[0]);
     }
-    running = true;
+    running = true; followCam = true;
     document.getElementById('simStartBtn').textContent = '⏹ 停止';
     document.getElementById('simHUD').style.display = 'flex';
     // Auto-hide panel so car isn't blocked on mobile
@@ -3024,7 +3024,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
     simMarker.setLngLat([lng, lat]).setRotation(h);
     document.getElementById('simSpeedVal').textContent = speedKmh;
-    map.easeTo({ center: [lng, lat], bearing: h, pitch: 65, duration: 150 });
+    if (followCam) map.easeTo({ center: [lng, lat], bearing: h, pitch: 65, duration: 150 });
 
     rafId = requestAnimationFrame(tick);
   }
@@ -3047,6 +3047,14 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
   document.getElementById('simLoopChk').addEventListener('change', function() {
     loopRoute = this.checked;
+  });
+
+  // Pause camera follow when user manually pans/zooms; resume after 3 s
+  map.on('movestart', function(e) {
+    if (!running || !e.originalEvent) return;
+    followCam = false;
+    clearTimeout(resumeTimer);
+    resumeTimer = setTimeout(() => { followCam = true; }, 3000);
   });
 })();
 </script>
