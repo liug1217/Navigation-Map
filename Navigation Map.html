@@ -375,7 +375,7 @@ html,body{
 }
 
 .navInfoCardMeta{
-  flex:1;
+  flex:0 0 auto;
   margin-left:12px;
   display:flex;
   flex-direction:column;
@@ -389,13 +389,91 @@ html,body{
   text-shadow:0 4px 4px rgba(0,0,0,0.25);
   line-height:1;
 }
+.navInfoCardFreq{
+  font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
+  font-size:11px;
+  font-weight:600;
+  color:#2F80FF;
+  line-height:1;
+  margin-top:3px;
+  letter-spacing:0.3px;
+}
 .navInfoCardStatus{
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
-  font-size:12px;
+  font-size:11px;
   color:#6E6E73;
   line-height:1;
-  margin-top:5px;
+  margin-top:3px;
 }
+/* FM 刻度盤：flex item，在文字右邊 */
+.fmDial{
+  flex:1;
+  height:40px;
+  overflow:hidden;
+  cursor:grab;
+  user-select:none;
+  align-self:center;
+  position:relative;
+}
+.fmDial:active{ cursor:grabbing; }
+.fmNeedle{
+  position:absolute;
+  left:50%;
+  top:0;
+  bottom:0;
+  width:2px;
+  margin-left:-1px;
+  background:#2F80FF;
+  border-radius:1px;
+  z-index:2;
+  pointer-events:none;
+}
+.fmNeedle::after{
+  content:'';
+  position:absolute;
+  top:-1px;
+  left:50%;
+  transform:translateX(-50%);
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#2F80FF;
+}
+.fmTrack{
+  position:absolute;
+  top:0;
+  height:100%;
+  display:flex;
+  align-items:center;
+  transition:transform 0.25s cubic-bezier(.4,0,.2,1);
+  will-change:transform;
+}
+.fmTick{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-end;
+  width:60px;
+  height:100%;
+  flex-shrink:0;
+  position:relative;
+}
+.fmTick .tick-line{
+  width:1px;
+  height:10px;
+  background:#C7C7CC;
+  border-radius:1px;
+  margin-bottom:2px;
+}
+.fmTick .tick-label{
+  font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
+  font-size:10px;
+  color:#8E8E93;
+  line-height:1;
+  white-space:nowrap;
+}
+.fmTick.active .tick-line{ background:#2F80FF; height:14px; }
+.fmTick.active .tick-label{ color:#2F80FF; font-weight:700; }
 .navInfoCardArrow{
   width:28px;
   height:28px;
@@ -732,7 +810,13 @@ html, body {
       <button class="navInfoCardArrow" id="radioPrev">‹</button>
       <div class="navInfoCardMeta">
         <div class="navInfoCardText" id="radioName">全國治安交通網</div>
+        <div class="navInfoCardFreq" id="radioFreq">104.9 MHz</div>
         <div class="navInfoCardStatus" id="radioStatus">點擊收聽</div>
+      </div>
+      <!-- FM 刻度盤：在文字右邊 -->
+      <div class="fmDial" id="fmDial">
+        <div class="fmNeedle"></div>
+        <div class="fmTrack" id="fmTrack"></div>
       </div>
       <button class="navInfoCardArrow" id="radioNext">›</button>
       <button class="navInfoCardPlayBtn" id="radioPlayBtn">
@@ -3385,29 +3469,52 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 (function(){
   var BASE = 'https://stream.pbs.gov.tw:443/live/';
   var STATIONS = [
-    { code:'mp3:PBS', name:'全國治安交通網' },
-    { code:'TPS',     name:'台北廣播電台' },
-    { code:'TCS',     name:'台中廣播電台' },
-    { code:'KSS',     name:'高雄廣播電台' },
-    { code:'ELS',     name:'花蓮廣播電台' },
-    { code:'HLS',     name:'嘉義廣播電台' },
-    { code:'TTS',     name:'台東廣播電台' },
-    { code:'SCS',     name:'新竹廣播電台' },
-    { code:'TNS',     name:'台南廣播電台' },
+    { code:'mp3:PBS', name:'全國治安交通網', freq:'104.9' },
+    { code:'SCS',     name:'新竹廣播電台',   freq:'94.3'  },
+    { code:'HLS',     name:'嘉義廣播電台',   freq:'97.1'  },
+    { code:'KSS',     name:'高雄廣播電台',   freq:'99.9'  },
+    { code:'TNS',     name:'台南廣播電台',   freq:'100.1' },
+    { code:'TPS',     name:'台北廣播電台',   freq:'103.3' },
+    { code:'ELS',     name:'花蓮廣播電台',   freq:'103.7' },
+    { code:'TCS',     name:'台中廣播電台',   freq:'107.7' },
+    { code:'TTS',     name:'台東廣播電台',   freq:'107.7' },
   ];
+  var TICK_W = 60;
   var idx = 0;
   var playing = false;
 
   var vjs      = videojs('bgMusic', { controls:false, autoplay:false, muted:false, preload:'auto' });
   var nameEl   = document.getElementById('radioName');
+  var freqEl   = document.getElementById('radioFreq');
   var statusEl = document.getElementById('radioStatus');
   var playBtn  = document.getElementById('radioPlayBtn');
   var prevBtn  = document.getElementById('radioPrev');
   var nextBtn  = document.getElementById('radioNext');
+  var track    = document.getElementById('fmTrack');
+  var dial     = document.getElementById('fmDial');
+
+  /* 建立刻度 */
+  STATIONS.forEach(function(s, i){
+    var tick = document.createElement('div');
+    tick.className = 'fmTick' + (i === 0 ? ' active' : '');
+    tick.innerHTML = '<div class="tick-line"></div><div class="tick-label">' + s.freq + '</div>';
+    track.appendChild(tick);
+  });
+
+  function getDialCenter(){ return dial ? dial.offsetWidth / 2 : 0; }
+
+  function updateDial(){
+    var offset = getDialCenter() - idx * TICK_W - TICK_W / 2;
+    track.style.transform = 'translateX(' + offset + 'px)';
+    track.querySelectorAll('.fmTick').forEach(function(t, i){
+      t.classList.toggle('active', i === idx);
+    });
+    if(nameEl)  nameEl.textContent  = STATIONS[idx].name;
+    if(freqEl)  freqEl.textContent  = STATIONS[idx].freq + ' MHz';
+  }
 
   function setStatus(t){ if(statusEl) statusEl.textContent = t; }
   function setPlaying(v){ playing = v; if(playBtn) playBtn.classList.toggle('playing', v); }
-  function updateName(){ if(nameEl) nameEl.textContent = STATIONS[idx].name; }
 
   function startPlay(){
     setStatus('連線中…');
@@ -3418,7 +3525,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
   function switchStation(delta){
     idx = (idx + delta + STATIONS.length) % STATIONS.length;
-    updateName();
+    updateDial();
     if(playing){ vjs.pause(); startPlay(); }
     else { setStatus('點擊收聽'); }
   }
@@ -3427,13 +3534,43 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   if(nextBtn) nextBtn.addEventListener('click', function(e){ e.stopPropagation(); switchStation(1); });
   if(playBtn) playBtn.addEventListener('click', function(e){ e.stopPropagation(); playing ? pausePlay() : startPlay(); });
 
+  /* 拖曳刻度盤換台 */
+  if(dial){
+    var dragStart = null, dragIdx = null;
+    function onDown(e){
+      dragStart = e.touches ? e.touches[0].clientX : e.clientX;
+      dragIdx = idx;
+      track.style.transition = 'none';
+      e.stopPropagation();
+    }
+    function onMove(e){
+      if(dragStart === null) return;
+      var x = e.touches ? e.touches[0].clientX : e.clientX;
+      var delta = Math.round((dragStart - x) / TICK_W);
+      var newIdx = Math.max(0, Math.min(STATIONS.length - 1, dragIdx + delta));
+      if(newIdx !== idx){ idx = newIdx; updateDial(); if(playing){ vjs.pause(); startPlay(); } else setStatus('點擊收聽'); }
+      e.preventDefault();
+    }
+    function onUp(){
+      if(dragStart === null) return;
+      dragStart = null;
+      track.style.transition = 'transform 0.25s cubic-bezier(.4,0,.2,1)';
+    }
+    dial.addEventListener('mousedown',  onDown);
+    dial.addEventListener('touchstart', onDown, { passive:true });
+    window.addEventListener('mousemove',  onMove);
+    window.addEventListener('touchmove',  onMove, { passive:false });
+    window.addEventListener('mouseup',  onUp);
+    window.addEventListener('touchend', onUp);
+  }
+
   vjs.on('playing', function(){ setPlaying(true); setStatus('直播中'); });
   vjs.on('waiting', function(){ if(playing) setStatus('緩衝中…'); });
   vjs.on('error',   function(){ setPlaying(false); setStatus('點擊重試'); });
   vjs.on('pause',   function(){ if(playing){ setPlaying(false); setStatus('已暫停'); } });
   window.addEventListener('pagehide', function(){ if(playing) pausePlay(); });
 
-  updateName();
+  updateDial();
 })();
 </script>
 </body>
