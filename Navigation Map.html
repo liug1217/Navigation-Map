@@ -374,13 +374,42 @@ html,body{
   filter:drop-shadow(0px 4px 4px rgba(0,0,0,0.25));
 }
 
-.navInfoCardText{
+.navInfoCardMeta{
+  flex:1;
   margin-left:12px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+.navInfoCardText{
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
   font-weight:500;
   font-size:14px;
   color:#000000;
   text-shadow:0 4px 4px rgba(0,0,0,0.25);
+  line-height:1;
+}
+.navInfoCardStatus{
+  font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
+  font-size:12px;
+  color:#6E6E73;
+  line-height:1;
+  margin-top:5px;
+}
+.navInfoCardPlayBtn{
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  background:#2F80FF;
+  border:none;
+  color:white;
+  font-size:13px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  flex-shrink:0;
+  margin-right:12px;
 }
 
 
@@ -662,9 +691,13 @@ html, body {
     <div class="arrivalText" id="arrivalText">00:00到達</div>
     <button type="button" class="navExitBtn" id="navExitBtn">退出</button>
     <button type="button" class="navOverviewBtn" id="navOverviewBtn">全覽</button>
-    <div class="navInfoCard">
+    <div class="navInfoCard" id="radioCard">
       <div class="navInfoCardIcon"></div>
-      <div class="navInfoCardText">全國治安交通網</div>
+      <div class="navInfoCardMeta">
+        <div class="navInfoCardText">全國治安交通網</div>
+        <div class="navInfoCardStatus" id="radioStatus">點擊收聽</div>
+      </div>
+      <button class="navInfoCardPlayBtn" id="radioPlayBtn">▶</button>
     </div>
   </div>
 </div>
@@ -3304,6 +3337,39 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 })();
 </script>
 
+<link href="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.21.0/video-js.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.21.0/video.min.js"></script>
+<video id="bgMusic" class="video-js" style="display:none!important" preload="auto" playsinline></video>
+<script>
+(function(){
+  var STREAM = 'https://stream.pbs.gov.tw:443/live/mp3:PBS/playlist.m3u8';
+  var vjs = videojs('bgMusic', { controls:false, autoplay:false, muted:false, preload:'auto' });
+  var playing = false;
+  var statusEl = document.getElementById('radioStatus');
+  var playBtn  = document.getElementById('radioPlayBtn');
+
+  function setStatus(t){ if(statusEl) statusEl.textContent = t; }
+  function setPlaying(v){
+    playing = v;
+    if(playBtn) playBtn.textContent = v ? '⏸' : '▶';
+  }
+  function startPlay(){
+    setStatus('連線中…');
+    vjs.src([{ src: STREAM, type:'application/x-mpegURL' }]);
+    vjs.play().catch(function(){ setPlaying(false); setStatus('點擊收聽'); });
+  }
+  function pausePlay(){ vjs.pause(); setPlaying(false); setStatus('已暫停'); }
+
+  var card = document.getElementById('radioCard');
+  if(card) card.addEventListener('click', function(){ playing ? pausePlay() : startPlay(); });
+
+  vjs.on('playing', function(){ setPlaying(true); setStatus('直播中'); });
+  vjs.on('waiting', function(){ if(playing) setStatus('緩衝中…'); });
+  vjs.on('error',   function(){ setPlaying(false); setStatus('點擊重試'); });
+  vjs.on('pause',   function(){ if(playing){ setPlaying(false); setStatus('已暫停'); } });
+  window.addEventListener('pagehide', function(){ if(playing) pausePlay(); });
+})();
+</script>
 </body>
 </html>
   
