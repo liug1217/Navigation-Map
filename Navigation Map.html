@@ -396,6 +396,21 @@ html,body{
   line-height:1;
   margin-top:5px;
 }
+.navInfoCardArrow{
+  width:28px;
+  height:28px;
+  flex-shrink:0;
+  background:none;
+  border:none;
+  color:#8E8E93;
+  font-size:22px;
+  line-height:1;
+  cursor:pointer;
+  padding:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
 .navInfoCardPlayBtn{
   width:32px;
   height:32px;
@@ -693,10 +708,12 @@ html, body {
     <button type="button" class="navOverviewBtn" id="navOverviewBtn">全覽</button>
     <div class="navInfoCard" id="radioCard">
       <div class="navInfoCardIcon"></div>
+      <button class="navInfoCardArrow" id="radioPrev">‹</button>
       <div class="navInfoCardMeta">
-        <div class="navInfoCardText">全國治安交通網</div>
+        <div class="navInfoCardText" id="radioName">全國治安交通網</div>
         <div class="navInfoCardStatus" id="radioStatus">點擊收聽</div>
       </div>
+      <button class="navInfoCardArrow" id="radioNext">›</button>
       <button class="navInfoCardPlayBtn" id="radioPlayBtn">▶</button>
     </div>
   </div>
@@ -3342,32 +3359,57 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 <video id="bgMusic" class="video-js" style="display:none!important" preload="auto" playsinline></video>
 <script>
 (function(){
-  var STREAM = 'https://stream.pbs.gov.tw:443/live/mp3:PBS/playlist.m3u8';
-  var vjs = videojs('bgMusic', { controls:false, autoplay:false, muted:false, preload:'auto' });
+  var BASE = 'https://stream.pbs.gov.tw:443/live/';
+  var STATIONS = [
+    { code:'mp3:PBS', name:'全國治安交通網' },
+    { code:'TPS',     name:'台北廣播電台' },
+    { code:'TCS',     name:'台中廣播電台' },
+    { code:'KSS',     name:'高雄廣播電台' },
+    { code:'ELS',     name:'花蓮廣播電台' },
+    { code:'HLS',     name:'嘉義廣播電台' },
+    { code:'TTS',     name:'台東廣播電台' },
+    { code:'SCS',     name:'新竹廣播電台' },
+    { code:'TNS',     name:'台南廣播電台' },
+  ];
+  var idx = 0;
   var playing = false;
+
+  var vjs      = videojs('bgMusic', { controls:false, autoplay:false, muted:false, preload:'auto' });
+  var nameEl   = document.getElementById('radioName');
   var statusEl = document.getElementById('radioStatus');
   var playBtn  = document.getElementById('radioPlayBtn');
+  var prevBtn  = document.getElementById('radioPrev');
+  var nextBtn  = document.getElementById('radioNext');
 
   function setStatus(t){ if(statusEl) statusEl.textContent = t; }
-  function setPlaying(v){
-    playing = v;
-    if(playBtn) playBtn.textContent = v ? '⏸' : '▶';
-  }
+  function setPlaying(v){ playing = v; if(playBtn) playBtn.textContent = v ? '⏸' : '▶'; }
+  function updateName(){ if(nameEl) nameEl.textContent = STATIONS[idx].name; }
+
   function startPlay(){
     setStatus('連線中…');
-    vjs.src([{ src: STREAM, type:'application/x-mpegURL' }]);
+    vjs.src([{ src: BASE + STATIONS[idx].code + '/playlist.m3u8', type:'application/x-mpegURL' }]);
     vjs.play().catch(function(){ setPlaying(false); setStatus('點擊收聽'); });
   }
   function pausePlay(){ vjs.pause(); setPlaying(false); setStatus('已暫停'); }
 
-  var card = document.getElementById('radioCard');
-  if(card) card.addEventListener('click', function(){ playing ? pausePlay() : startPlay(); });
+  function switchStation(delta){
+    idx = (idx + delta + STATIONS.length) % STATIONS.length;
+    updateName();
+    if(playing){ vjs.pause(); startPlay(); }
+    else { setStatus('點擊收聽'); }
+  }
+
+  if(prevBtn) prevBtn.addEventListener('click', function(e){ e.stopPropagation(); switchStation(-1); });
+  if(nextBtn) nextBtn.addEventListener('click', function(e){ e.stopPropagation(); switchStation(1); });
+  if(playBtn) playBtn.addEventListener('click', function(e){ e.stopPropagation(); playing ? pausePlay() : startPlay(); });
 
   vjs.on('playing', function(){ setPlaying(true); setStatus('直播中'); });
   vjs.on('waiting', function(){ if(playing) setStatus('緩衝中…'); });
   vjs.on('error',   function(){ setPlaying(false); setStatus('點擊重試'); });
   vjs.on('pause',   function(){ if(playing){ setPlaying(false); setStatus('已暫停'); } });
   window.addEventListener('pagehide', function(){ if(playing) pausePlay(); });
+
+  updateName();
 })();
 </script>
 </body>
