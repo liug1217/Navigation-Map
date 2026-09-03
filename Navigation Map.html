@@ -3513,11 +3513,32 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     if(freqEl)  freqEl.textContent  = STATIONS[idx].freq + ' MHz';
   }
 
+  var PBS_ART = 'https://upload.wikimedia.org/wikipedia/zh/thumb/d/d1/ROC_Police_Broadcasting_Service_Seal.svg/512px-ROC_Police_Broadcasting_Service_Seal.svg.png';
+
   function setStatus(t){ if(statusEl) statusEl.textContent = t; }
-  function setPlaying(v){ playing = v; if(playBtn) playBtn.classList.toggle('playing', v); }
+  function setPlaying(v){
+    playing = v;
+    if(playBtn) playBtn.classList.toggle('playing', v);
+    if('mediaSession' in navigator)
+      navigator.mediaSession.playbackState = v ? 'playing' : 'paused';
+  }
+
+  function updateMediaSession(){
+    if(!('mediaSession' in navigator)) return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: STATIONS[idx].name,
+      artist: '警察廣播電台',
+      album: STATIONS[idx].freq + ' MHz',
+      artwork: [{ src: PBS_ART, sizes:'512x512', type:'image/png' }]
+    });
+    navigator.mediaSession.setActionHandler('play',  function(){ startPlay(); });
+    navigator.mediaSession.setActionHandler('pause', function(){ pausePlay(); });
+    navigator.mediaSession.setActionHandler('stop',  function(){ pausePlay(); });
+  }
 
   function startPlay(){
     setStatus('連線中…');
+    updateMediaSession();
     vjs.src([{ src: BASE + STATIONS[idx].code + '/playlist.m3u8', type:'application/x-mpegURL' }]);
     vjs.play().catch(function(){ setPlaying(false); setStatus('點擊收聽'); });
   }
@@ -3562,6 +3583,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
         idx = newIdx;
         if(nameEl) nameEl.textContent = STATIONS[idx].name;
         if(freqEl) freqEl.textContent = STATIONS[idx].freq + ' MHz';
+        updateMediaSession();
         if(playing){ vjs.pause(); startPlay(); }
       }
       e.preventDefault();
