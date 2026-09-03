@@ -3562,6 +3562,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
         idx = newIdx;
         if(nameEl) nameEl.textContent = STATIONS[idx].name;
         if(freqEl) freqEl.textContent = STATIONS[idx].freq + ' MHz';
+        if(playing){ vjs.pause(); startPlay(); }
       }
       e.preventDefault();
     }
@@ -3572,8 +3573,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       /* snap 動畫 */
       track.style.transition = 'transform 0.2s cubic-bezier(.4,0,.2,1)';
       track.style.transform = 'translateX(' + getOffset(idx) + 'px)';
-      if(playing){ vjs.pause(); startPlay(); }
-      else setStatus('點擊收聽');
+      if(!playing) setStatus('點擊收聽');
     }
     dial.addEventListener('mousedown',  onDown);
     dial.addEventListener('touchstart', onDown, { passive:false });
