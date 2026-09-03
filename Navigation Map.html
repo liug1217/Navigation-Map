@@ -3534,30 +3534,49 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   if(nextBtn) nextBtn.addEventListener('click', function(e){ e.stopPropagation(); switchStation(1); });
   if(playBtn) playBtn.addEventListener('click', function(e){ e.stopPropagation(); playing ? pausePlay() : startPlay(); });
 
-  /* 拖曳刻度盤換台 */
+  /* 拖曳刻度盤換台：手指跟著動，放開才 snap */
   if(dial){
-    var dragStart = null, dragIdx = null;
+    var dragStart = null, baseOffset = null, dragging = false;
+
+    function getOffset(i){ return getDialCenter() - i * TICK_W - TICK_W / 2; }
+
     function onDown(e){
       dragStart = e.touches ? e.touches[0].clientX : e.clientX;
-      dragIdx = idx;
+      baseOffset = getOffset(idx);
+      dragging = true;
       track.style.transition = 'none';
       e.stopPropagation();
     }
     function onMove(e){
-      if(dragStart === null) return;
+      if(!dragging) return;
       var x = e.touches ? e.touches[0].clientX : e.clientX;
-      var delta = Math.round((dragStart - x) / TICK_W);
-      var newIdx = Math.max(0, Math.min(STATIONS.length - 1, dragIdx + delta));
-      if(newIdx !== idx){ idx = newIdx; updateDial(); if(playing){ vjs.pause(); startPlay(); } else setStatus('點擊收聽'); }
+      var dx = x - dragStart;
+      track.style.transform = 'translateX(' + (baseOffset + dx) + 'px)';
+      /* 即時高亮最近的刻度 */
+      var newIdx = Math.round((getDialCenter() - TICK_W / 2 - (baseOffset + dx)) / TICK_W);
+      newIdx = Math.max(0, Math.min(STATIONS.length - 1, newIdx));
+      track.querySelectorAll('.fmTick').forEach(function(t, i){
+        t.classList.toggle('active', i === newIdx);
+      });
+      if(newIdx !== idx){
+        idx = newIdx;
+        if(nameEl) nameEl.textContent = STATIONS[idx].name;
+        if(freqEl) freqEl.textContent = STATIONS[idx].freq + ' MHz';
+      }
       e.preventDefault();
     }
     function onUp(){
-      if(dragStart === null) return;
+      if(!dragging) return;
+      dragging = false;
       dragStart = null;
-      track.style.transition = 'transform 0.25s cubic-bezier(.4,0,.2,1)';
+      /* snap 動畫 */
+      track.style.transition = 'transform 0.2s cubic-bezier(.4,0,.2,1)';
+      track.style.transform = 'translateX(' + getOffset(idx) + 'px)';
+      if(playing){ vjs.pause(); startPlay(); }
+      else setStatus('點擊收聽');
     }
     dial.addEventListener('mousedown',  onDown);
-    dial.addEventListener('touchstart', onDown, { passive:true });
+    dial.addEventListener('touchstart', onDown, { passive:false });
     window.addEventListener('mousemove',  onMove);
     window.addEventListener('touchmove',  onMove, { passive:false });
     window.addEventListener('mouseup',  onUp);
