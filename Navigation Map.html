@@ -134,7 +134,7 @@ html,body{
   width:calc(100% - 16px);
   height:69px;
   left:8px;
-  top:54px;
+  top:calc(54px + env(safe-area-inset-top));
   background:#0E1A2D;
   border-radius:12px;
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
@@ -176,7 +176,7 @@ html,body{
   position:absolute;
   left:8px;
   right:8px;
-  top:50px;
+  top:calc(50px + env(safe-area-inset-top));
   z-index:5;
 }
 .searchBar{
@@ -325,7 +325,7 @@ html,body{
 /* ===== 時鐘 ===== */
 .mapClock{
   position:fixed;
-  top:106px;
+  top:calc(106px + env(safe-area-inset-top));
   right:8px;
   background:rgba(0,0,0,0.45);
   backdrop-filter:blur(8px);
@@ -351,7 +351,7 @@ html,body{
   width:76px;
   height:76px;
   left:8px;
-  top:132px;
+  top:calc(132px + env(safe-area-inset-top));
   background:#FFFFFF;
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
   border-radius:38px;
