@@ -17,8 +17,8 @@
   position:fixed;
   top:0;
   left:0;
-  width:100%;
-  height:100%;
+  width:100vw;
+  height:100vh;
   z-index:0;
 } 
 
@@ -1036,6 +1036,9 @@ if (navigator.geolocation) {
     map.boxZoom.disable();
     map.scrollZoom.enable();
     map.dragPan.enable();
+    /* 確保 safe area 計算完成後地圖重繪至正確尺寸 */
+    setTimeout(() => map.resize(), 100);
+    setTimeout(() => map.resize(), 500);
   });
 
   // 使用者手動拖曳地圖時,暫停自動跟隨定位點,避免地圖被強制拉回;
