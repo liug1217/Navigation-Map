@@ -36,8 +36,6 @@ body{
   width:100%;
   height:100%;
   background:#C5DCF0;
-  padding-bottom:env(safe-area-inset-top,0px);
-  box-sizing:content-box;
   overflow:hidden;
 }
 
@@ -740,6 +738,39 @@ html, body {
 </style>
 </head>
 <body>
+<script>
+/* iOS PWA black-translucent bottom gap fix:
+   window.innerHeight = screen.height - statusBarHeight, so bottom:0 falls short.
+   Stretching body to screen.height lets position:absolute;bottom:0 reach physical bottom. */
+(function() {
+  if (window.navigator.standalone !== true) return;
+  function applyFix() {
+    var gap = screen.height - window.innerHeight;
+    if (gap > 0 && gap < 120) {
+      document.documentElement.style.height = screen.height + 'px';
+      document.body.style.height = screen.height + 'px';
+    }
+  }
+  applyFix();
+  window.addEventListener('resize', applyFix);
+})();
+</script>
+<script>
+/* TEMP DEBUG OVERLAY — remove after confirming bottom gap is fixed */
+window.addEventListener('load', function() {
+  var gap = screen.height - window.innerHeight;
+  var d = document.createElement('div');
+  d.style.cssText = 'position:fixed;top:80px;left:10px;right:10px;background:rgba(0,0,0,0.88);color:#4f4;padding:12px 14px;font-size:13px;z-index:9999;border-radius:12px;font-family:monospace;line-height:1.8;';
+  d.innerHTML =
+    'screen.h=' + screen.height + 'px<br>' +
+    'innerH=' + window.innerHeight + 'px<br>' +
+    'gap=' + gap + 'px<br>' +
+    'standalone=' + (navigator.standalone || 'false') + '<br>' +
+    '<button onclick="document.getElementById(\'dbgDiv\').remove()" style="margin-top:6px;padding:4px 14px;font-size:12px;border-radius:6px;cursor:pointer;">close</button>';
+  d.id = 'dbgDiv';
+  document.body.appendChild(d);
+});
+</script>
 
 <div id="map"></div>
 
