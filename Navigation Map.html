@@ -4,23 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <link rel="manifest" href="manifest.json">
 <title>Navigation Map</title>
 <style>
-/* ===== OpenStreetMap Layer ===== */
-#map{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:calc(var(--vh,1vh) * 100);
-  z-index:0;
-} 
-
-/* UI must be above map */
-.rect2,.bottomBar,.rect4{
-  z-index:2;
+/* ===== Safe Area Variables ===== */
+:root{
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
 }
 
 html,body{
@@ -34,12 +25,25 @@ html,body{
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Arial,sans-serif;
 }
 
+/* ===== OpenStreetMap Layer ===== */
+#map{
+  position:fixed;
+  inset:0;
+  z-index:0;
+}
+
+/* UI must be above map */
+.rect2,.bottomBar,.rect4{
+  z-index:2;
+}
+
 .bottomBar{
   position:fixed;
   left:0;
   right:0;
   bottom:0;
-  height:calc(166px + env(safe-area-inset-bottom,0px));
+  height:calc(166px + var(--sab));
+  z-index:2;
 }
 
 .rect1{
@@ -48,8 +52,8 @@ html,body{
   left:8px;
   right:8px;
   top:0;
-  height:calc(166px + env(safe-area-inset-bottom,0px));
-  padding-bottom:env(safe-area-inset-bottom,0px);
+  height:calc(166px + var(--sab));
+  padding-bottom:var(--sab);
   border-width:1.5px 1.5px 0 1.5px;
   border-style:solid;
   border-color:#FFFFFF;
@@ -140,7 +144,7 @@ html,body{
   width:calc(100% - 16px);
   height:69px;
   left:8px;
-  top:54px;
+  top:calc(54px + var(--sat));
   background:#0E1A2D;
   border-radius:12px;
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
@@ -182,7 +186,7 @@ html,body{
   position:absolute;
   left:8px;
   right:8px;
-  top:50px;
+  top:calc(50px + var(--sat));
   z-index:5;
 }
 .searchBar{
@@ -331,7 +335,7 @@ html,body{
 /* ===== 時鐘 ===== */
 .mapClock{
   position:fixed;
-  top:106px;
+  top:calc(106px + var(--sat));
   right:8px;
   background:rgba(0,0,0,0.45);
   backdrop-filter:blur(8px);
@@ -357,7 +361,7 @@ html,body{
   width:76px;
   height:76px;
   left:8px;
-  top:132px;
+  top:calc(132px + var(--sat));
   background:#FFFFFF;
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
   border-radius:38px;
@@ -686,7 +690,7 @@ html,body{
 .weatherAlert{
   position:absolute;
   left:50%;
-  top:8px;
+  top:calc(8px + var(--sat));
   transform:translateX(-50%);
   z-index:6;
   max-width:calc(100% - 32px);
@@ -706,7 +710,7 @@ html,body{
 .earthquakeAlert{
   position:absolute;
   left:50%;
-  top:52px;
+  top:calc(52px + var(--sat));
   transform:translateX(-50%);
   z-index:6;
   max-width:calc(100% - 32px);
@@ -764,7 +768,7 @@ window.addEventListener('orientationchange', function(){ setTimeout(setVH, 300);
 <!-- 🧪 測速照相語音播報測試面板 -->
 <div id="speedCamTestPanel" style="
   position: fixed;
-  top: 80px;
+  top: calc(80px + var(--sat));
   right: 12px;
   z-index: 9999;
   background: rgba(0,0,0,0.75);
