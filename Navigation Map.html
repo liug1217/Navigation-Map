@@ -45,9 +45,6 @@ body{
   right:0;
   bottom:0;
   height:166px;
-  background:rgba(255,255,255,0.8);
-  backdrop-filter:blur(20px);
-  -webkit-backdrop-filter:blur(20px);
 }
 
 .rect1{
@@ -756,19 +753,27 @@ html, body {
 })();
 </script>
 <script>
-/* TEMP DEBUG OVERLAY — remove after confirming bottom gap is fixed */
+/* TEMP DEBUG OVERLAY — remove after identifying bottom gap cause */
 window.addEventListener('load', function() {
-  var gap = screen.height - window.innerHeight;
-  var d = document.createElement('div');
-  d.style.cssText = 'position:fixed;top:80px;left:10px;right:10px;background:rgba(0,0,0,0.88);color:#4f4;padding:12px 14px;font-size:13px;z-index:9999;border-radius:12px;font-family:monospace;line-height:1.8;';
-  d.innerHTML =
-    'screen.h=' + screen.height + 'px<br>' +
-    'innerH=' + window.innerHeight + 'px<br>' +
-    'gap=' + gap + 'px<br>' +
-    'standalone=' + (navigator.standalone || 'false') + '<br>' +
-    '<button onclick="document.getElementById(\'dbgDiv\').remove()" style="margin-top:6px;padding:4px 14px;font-size:12px;border-radius:6px;cursor:pointer;">close</button>';
-  d.id = 'dbgDiv';
-  document.body.appendChild(d);
+  requestAnimationFrame(function() {
+    var bb = document.querySelector('.bottomBar');
+    var r1 = document.querySelector('.rect1');
+    var bbRect = bb.getBoundingClientRect();
+    var r1Rect = r1.getBoundingClientRect();
+    var gap = screen.height - window.innerHeight;
+    var d = document.createElement('div');
+    d.id = 'dbgDiv';
+    d.style.cssText = 'position:fixed;top:80px;left:10px;right:10px;background:rgba(0,0,0,0.88);color:#4f4;padding:12px 14px;font-size:13px;z-index:9999;border-radius:12px;font-family:monospace;line-height:1.8;';
+    d.innerHTML =
+      'screen.h=' + screen.height + '<br>' +
+      'innerH=' + window.innerHeight + '<br>' +
+      'gap=' + gap + '<br>' +
+      'bb.bottom=' + Math.round(bbRect.bottom) + '<br>' +
+      'bb.h=' + Math.round(bbRect.height) + '<br>' +
+      'r1.bottom=' + Math.round(r1Rect.bottom) + '<br>' +
+      '<button onclick="document.getElementById(\'dbgDiv\').remove()" style="margin-top:6px;padding:4px 14px;font-size:12px;border-radius:6px;cursor:pointer;">close</button>';
+    document.body.appendChild(d);
+  });
 });
 </script>
 
