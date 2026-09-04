@@ -341,9 +341,11 @@ html,body{
   white-space:nowrap;
 }
 
-/* ===== 隱藏 MapLibre 預設按鈕 ===== */
+/* ===== 隱藏 MapLibre 預設控制按鈕 ===== */
 .maplibregl-ctrl-top-right,
-.maplibregl-ctrl-bottom-right{ display:none!important; }
+.maplibregl-ctrl-bottom-right,
+.maplibregl-ctrl-top-left,
+.maplibregl-ctrl-bottom-left{ display:none!important; }
 
 .rect6{
   position:absolute;
@@ -996,6 +998,7 @@ if (navigator.geolocation) {
   // 使用者手動拖曳地圖時,暫停自動跟隨定位點,避免地圖被強制拉回;
   // 點擊定位按鈕(GeolocateControl)恢復跟隨。
   let followUser = true;
+  window._setFollowUser = function(v){ followUser = v; };
   map.on('dragstart', () => { followUser = false; });
 
   map.on('load',()=>{
@@ -2566,7 +2569,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     if(locateBtn) locateBtn.addEventListener('click', function(){
       if(window.currentLat !== undefined && window.currentLon !== undefined){
         map.easeTo({ center:[window.currentLon, window.currentLat], zoom:17, duration:600 });
-        window.followUser = true;
+        if(window._setFollowUser) window._setFollowUser(true);
       } else {
         navigator.geolocation.getCurrentPosition(function(pos){
           map.easeTo({ center:[pos.coords.longitude, pos.coords.latitude], zoom:17, duration:600 });
