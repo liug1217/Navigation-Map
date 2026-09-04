@@ -3,8 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Navigation Map</title>
 <style>
+/* ===== iOS PWA 全螢幕：safe area CSS 變數（JS 會動態覆寫成實測值）===== */
+:root{
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+}
 /* ===== OpenStreetMap Layer ===== */
 #map{
   position:fixed;
@@ -16,7 +23,7 @@
 } 
 
 /* UI must be above map */
-.rect2,.bottomBar,.rect4{
+.rect2,.bottomBar,.rect4,.rect1{
   z-index:2;
 }
 
@@ -24,26 +31,25 @@ html,body{
   margin:0;
   padding:0;
   width:100%;
-  height:100%;
+  height:100vh;
   background:#C5DCF0;
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Arial,sans-serif;
+  overflow:hidden;
+}
+html{
+  min-height:calc(100% + env(safe-area-inset-top));
 }
 
-.bottomBar{
-  position:absolute;
-  left:0;
-  right:0;
-  bottom:0;
-  height:166px;
-}
+.bottomBar{}
 
 .rect1{
   box-sizing:border-box;
-  position:absolute;
+  position:fixed;
   left:8px;
   right:8px;
-  top:0;
-  height:166px;
+  bottom:0;
+  height:calc(166px + var(--sab));
+  padding-bottom:var(--sab);
   border-width:1.5px 1.5px 0 1.5px;
   border-style:solid;
   border-color:#FFFFFF;
@@ -81,7 +87,7 @@ html,body{
 
 .rect4{
   box-sizing:border-box;
-  position:absolute;
+  position:fixed;
   left:50%;
   transform:translateX(-50%);
   bottom:176px;
@@ -134,7 +140,7 @@ html,body{
   width:calc(100% - 16px);
   height:69px;
   left:8px;
-  top:54px;
+  top:calc(54px + var(--sat));
   background:#0E1A2D;
   border-radius:12px;
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
@@ -176,7 +182,7 @@ html,body{
   position:absolute;
   left:8px;
   right:8px;
-  top:50px;
+  top:calc(50px + var(--sat));
   z-index:5;
 }
 .searchBar{
@@ -325,7 +331,7 @@ html,body{
 /* ===== 時鐘 ===== */
 .mapClock{
   position:fixed;
-  top:106px;
+  top:calc(106px + var(--sat));
   right:8px;
   background:rgba(0,0,0,0.45);
   backdrop-filter:blur(8px);
@@ -340,6 +346,18 @@ html,body{
   white-space:nowrap;
 }
 
+/* ===== iOS PWA 底部安全填充（防止 home indicator 露出底色）===== */
+.iosBottomFill{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  height:60px;
+  background:rgba(255,255,255,0.8);
+  z-index:1;
+  pointer-events:none;
+}
+
 /* ===== 隱藏 MapLibre 預設控制按鈕 ===== */
 .maplibregl-ctrl-top-right,
 .maplibregl-ctrl-bottom-right,
@@ -351,7 +369,7 @@ html,body{
   width:76px;
   height:76px;
   left:8px;
-  top:132px;
+  top:calc(132px + var(--sat));
   background:#FFFFFF;
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
   border-radius:38px;
@@ -723,6 +741,31 @@ html, body {
   display:none;
 }
 </style>
+<script>
+/* iOS PWA safe area 探針：用實際量測值覆寫 CSS 變數，修正 cold start 時 env() = 0 的 bug */
+(function(){
+  function setInsets(){
+    var root = document.documentElement;
+    function probe(prop){
+      var el = document.createElement('div');
+      el.style.cssText = 'position:fixed;top:0;left:0;width:0;height:env('+prop+',0px);pointer-events:none;visibility:hidden;';
+      root.appendChild(el);
+      var val = el.offsetHeight;
+      el.remove();
+      return val;
+    }
+    var sat = probe('safe-area-inset-top');
+    var sab = probe('safe-area-inset-bottom');
+    if(sat > 0) root.style.setProperty('--sat', sat + 'px');
+    if(sab > 0) root.style.setProperty('--sab', sab + 'px');
+  }
+  /* staggered timing：0ms 捕初始值，100/500/1000ms 捕 iOS cold start 延遲計算 */
+  setInsets();
+  [100, 500, 1000].forEach(function(ms){ setTimeout(setInsets, ms); });
+  window.addEventListener('resize', setInsets);
+  window.addEventListener('orientationchange', setInsets);
+})();
+</script>
 </head>
 <body>
 
@@ -756,7 +799,7 @@ html, body {
 <!-- 🧪 測速照相語音播報測試面板 -->
 <div id="speedCamTestPanel" style="
   position: fixed;
-  top: 80px;
+  top: calc(80px + var(--sat, 0px));
   right: 12px;
   z-index: 9999;
   background: rgba(0,0,0,0.75);
@@ -877,6 +920,7 @@ html, body {
   <button class="mapCtrlBtn" id="styleBtn" title="切換地圖">🛰</button>
 </div>
 
+<div class="iosBottomFill"></div>
 <div class="bottomBar">
   <div class="rect4">
     <div class="rect4-inner">
