@@ -2781,6 +2781,32 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   updateDial();
 })();
 </script>
+
+<script>
+// ===== 即時路況 (TomTom Traffic Flow Tiles) =====
+const TOMTOM_KEY = 'YOUR_TOMTOM_API_KEY'; // 至 developer.tomtom.com 免費申請
+
+map.on('load', function() {
+  if (!TOMTOM_KEY || TOMTOM_KEY === 'YOUR_TOMTOM_API_KEY') return;
+
+  map.addSource('tomtom-traffic', {
+    type: 'raster',
+    tiles: [
+      'https://api.tomtom.com/traffic/map/4/tile/flow/{z}/{x}/{y}.png' +
+      '?key=' + TOMTOM_KEY + '&style=absolute&tileSize=256'
+    ],
+    tileSize: 256,
+    attribution: '© TomTom'
+  });
+
+  map.addLayer({
+    id: 'tomtom-traffic-layer',
+    type: 'raster',
+    source: 'tomtom-traffic',
+    paint: { 'raster-opacity': 0.75 }
+  });
+});
+</script>
 </body>
 </html>
   
