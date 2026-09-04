@@ -13,7 +13,7 @@
   top:0;
   left:0;
   width:100%;
-  height:100%;
+  height:calc(var(--vh,1vh) * 100);
   z-index:0;
 } 
 
@@ -26,7 +26,7 @@ html,body{
   margin:0;
   padding:0;
   width:100%;
-  height:100%;
+  height:calc(var(--vh,1vh) * 100);
   overflow:hidden;
   touch-action:none;
   background:#C5DCF0;
@@ -721,6 +721,15 @@ html,body{
   display:none;
 }
 </style>
+<script>
+// 修正 iOS PWA 全螢幕高度不穩定：用 window.innerHeight 設定 --vh
+function setVH() {
+  document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+}
+setVH();
+window.addEventListener('resize', setVH);
+window.addEventListener('orientationchange', function(){ setTimeout(setVH, 300); });
+</script>
 </head>
 <body>
 
