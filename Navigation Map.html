@@ -247,7 +247,7 @@ html,body{
   position:absolute;
   left:8px;
   right:8px;
-  bottom:180px;
+  bottom:calc(180px + var(--sab));
   z-index:5;
   background:#FFFFFF;
   border-radius:14px;
@@ -689,7 +689,7 @@ html, body {
 .weatherAlert{
   position:absolute;
   left:50%;
-  top:8px;
+  top:calc(8px + var(--sat));
   transform:translateX(-50%);
   z-index:6;
   max-width:calc(100% - 32px);
@@ -709,7 +709,7 @@ html, body {
 .earthquakeAlert{
   position:absolute;
   left:50%;
-  top:52px;
+  top:calc(52px + var(--sat));
   transform:translateX(-50%);
   z-index:6;
   max-width:calc(100% - 32px);
