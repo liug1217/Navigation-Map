@@ -343,18 +343,6 @@ html,body{
   white-space:nowrap;
 }
 
-/* ===== iOS PWA 底部安全填充（防止 home indicator 露出底色）===== */
-.iosBottomFill{
-  position:fixed;
-  left:0;
-  right:0;
-  bottom:0;
-  height:60px;
-  background:rgba(255,255,255,0.8);
-  z-index:1;
-  pointer-events:none;
-}
-
 /* ===== 隱藏 MapLibre 預設控制按鈕 ===== */
 .maplibregl-ctrl-top-right,
 .maplibregl-ctrl-bottom-right,
@@ -917,7 +905,6 @@ html, body {
   <button class="mapCtrlBtn" id="styleBtn" title="切換地圖">🛰</button>
 </div>
 
-<div class="iosBottomFill"></div>
 <div class="bottomBar">
   <div class="rect4">
     <div class="rect4-inner">
