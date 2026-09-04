@@ -44,9 +44,8 @@ html,body{
   position:fixed;
   left:8px;
   right:8px;
-  bottom:0;
-  height:calc(166px + var(--sab));
-  padding-bottom:var(--sab);
+  bottom:var(--sab);
+  height:166px;
   border-width:1.5px 1.5px 0 1.5px;
   border-style:solid;
   border-color:#FFFFFF;
@@ -87,7 +86,7 @@ html,body{
   position:fixed;
   left:50%;
   transform:translateX(-50%);
-  bottom:176px;
+  bottom:calc(176px + var(--sab));
   width:auto;
   max-width:calc(100% - 16px);
   height:33px;
