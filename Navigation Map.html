@@ -18,7 +18,7 @@
 } 
 
 /* UI must be above map */
-.rect2,.bottomBar,.rect4{
+.rect2,.bottomBar,.rect4,.rect1{
   z-index:2;
 }
 
@@ -34,20 +34,14 @@ body{
   overflow:hidden;
 }
 
-.bottomBar{
-  position:fixed;
-  left:0;
-  right:0;
-  bottom:0;
-  height:166px;
-}
+.bottomBar{}
 
 .rect1{
   box-sizing:border-box;
-  position:absolute;
+  position:fixed;
   left:8px;
   right:8px;
-  top:0;
+  bottom:0;
   height:166px;
   border-width:1.5px 1.5px 0 1.5px;
   border-style:solid;
@@ -86,7 +80,7 @@ body{
 
 .rect4{
   box-sizing:border-box;
-  position:absolute;
+  position:fixed;
   left:50%;
   transform:translateX(-50%);
   bottom:176px;
