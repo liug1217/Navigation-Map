@@ -288,6 +288,63 @@ html,body{
   cursor:pointer;
 }
 
+/* ===== 自訂地圖控制按鈕 ===== */
+.mapCtrlGroup{
+  position:fixed;
+  right:10px;
+  top:50%;
+  transform:translateY(-50%);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+  z-index:10;
+}
+.mapCtrlBtn{
+  width:40px;
+  height:40px;
+  border-radius:12px;
+  border:none;
+  background:rgba(255,255,255,0.92);
+  backdrop-filter:blur(10px);
+  box-shadow:0 2px 8px rgba(0,0,0,0.28);
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:18px;
+  transition:background 0.15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.mapCtrlBtn:active{ background:rgba(230,230,230,0.95); }
+
+.compassBtn svg{
+  transition:transform 0.2s linear;
+}
+
+/* ===== 時鐘 ===== */
+.mapClock{
+  position:fixed;
+  top:12px;
+  left:50%;
+  transform:translateX(-50%);
+  background:rgba(0,0,0,0.45);
+  backdrop-filter:blur(8px);
+  color:#fff;
+  border-radius:20px;
+  padding:4px 14px;
+  font-size:15px;
+  font-weight:600;
+  letter-spacing:0.5px;
+  z-index:10;
+  pointer-events:none;
+  white-space:nowrap;
+}
+
+/* ===== 隱藏 MapLibre 預設按鈕 ===== */
+.maplibregl-ctrl-top-right,
+.maplibregl-ctrl-bottom-right{ display:none!important; }
+
 .rect6{
   position:absolute;
   width:76px;
@@ -792,6 +849,33 @@ html, body {
   <div class="cctvStatus" id="cctvStatus">點選地圖上的監視器圖示開始觀看</div>
 </div>
 
+<!-- 時鐘 -->
+<div class="mapClock" id="mapClock">00:00</div>
+
+<!-- 自訂地圖控制按鈕群 -->
+<div class="mapCtrlGroup">
+  <!-- 指南針 -->
+  <button class="mapCtrlBtn compassBtn" id="compassBtn" title="重設方向">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" id="compassSvg">
+      <circle cx="12" cy="12" r="10" fill="none" stroke="#ddd" stroke-width="1.5"/>
+      <polygon points="12,3 10,12 12,10 14,12" fill="#E53935"/>
+      <polygon points="12,21 10,12 12,14 14,12" fill="#555"/>
+    </svg>
+  </button>
+  <!-- 定位 -->
+  <button class="mapCtrlBtn" id="locateBtn" title="定位">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2F80FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="4"/>
+      <line x1="12" y1="2" x2="12" y2="6"/>
+      <line x1="12" y1="18" x2="12" y2="22"/>
+      <line x1="2" y1="12" x2="6" y2="12"/>
+      <line x1="18" y1="12" x2="22" y2="12"/>
+    </svg>
+  </button>
+  <!-- 地圖風格 -->
+  <button class="mapCtrlBtn" id="styleBtn" title="切換地圖">🛰</button>
+</div>
+
 <div class="bottomBar">
   <div class="rect4">
     <div class="rect4-inner">
@@ -928,7 +1012,7 @@ map.addControl(geolocate);
 geolocate.on('trackuserlocationstart', () => { followUser = true; });
 geolocate.trigger();
   });
-  map.addControl(new maplibregl.NavigationControl());
+  /* 移除預設 NavigationControl，改用自訂控制項 */
 
 
   const infoElement = document.querySelector('.info');
@@ -2443,6 +2527,88 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
 
 
+
+<!-- ===== 自訂地圖控制 ===== -->
+<script>
+(function(){
+  /* 等 map 準備好 */
+  function init(){
+    if(typeof map === 'undefined'){ setTimeout(init, 100); return; }
+
+    /* --- 時鐘 --- */
+    const clockEl = document.getElementById('mapClock');
+    function tick(){
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2,'0');
+      const m = String(now.getMinutes()).padStart(2,'0');
+      const s = String(now.getSeconds()).padStart(2,'0');
+      if(clockEl) clockEl.textContent = h + ':' + m + ':' + s;
+    }
+    tick();
+    setInterval(tick, 1000);
+
+    /* --- 指南針 --- */
+    const compassSvg = document.getElementById('compassSvg');
+    function updateCompass(){
+      const bearing = map.getBearing();
+      if(compassSvg) compassSvg.style.transform = 'rotate(' + (-bearing) + 'deg)';
+    }
+    map.on('rotate', updateCompass);
+    map.on('rotateend', updateCompass);
+
+    const compassBtn = document.getElementById('compassBtn');
+    if(compassBtn) compassBtn.addEventListener('click', function(){
+      map.easeTo({ bearing: 0, pitch: 60, duration: 400 });
+    });
+
+    /* --- 定位 --- */
+    const locateBtn = document.getElementById('locateBtn');
+    if(locateBtn) locateBtn.addEventListener('click', function(){
+      if(window.currentLat !== undefined && window.currentLon !== undefined){
+        map.easeTo({ center:[window.currentLon, window.currentLat], zoom:17, duration:600 });
+        window.followUser = true;
+      } else {
+        navigator.geolocation.getCurrentPosition(function(pos){
+          map.easeTo({ center:[pos.coords.longitude, pos.coords.latitude], zoom:17, duration:600 });
+        });
+      }
+    });
+
+    /* --- 地圖風格切換 --- */
+    const STYLES = [
+      { icon:'🛰', label:'衛星', style:{
+        version:8,
+        sources:{ 'esri':{ type:'raster', tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize:256, maxzoom:19 }},
+        layers:[{ id:'bg', type:'background', paint:{'background-color':'#000'}},{ id:'sat', type:'raster', source:'esri'}]
+      }},
+      { icon:'🗺', label:'街道', style:'https://tiles.openfreemap.org/styles/liberty' },
+      { icon:'🌙', label:'夜間', style:{
+        version:8,
+        sources:{ 'carto-dark':{ type:'raster', tiles:['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png','https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'], tileSize:256, attribution:'© CARTO', maxzoom:19 }},
+        layers:[{ id:'bg', type:'background', paint:{'background-color':'#111'}},{ id:'tiles', type:'raster', source:'carto-dark'}]
+      }}
+    ];
+    let styleIdx = 0;
+    const styleBtn = document.getElementById('styleBtn');
+
+    function applyStyle(idx){
+      const s = STYLES[idx];
+      if(styleBtn) styleBtn.textContent = s.icon;
+      map.once('styledata', function(){
+        /* 重新載入 route/navRoute layers 避免樣式切換後消失 */
+        if(typeof window.reloadMapLayers === 'function') window.reloadMapLayers();
+      });
+      map.setStyle(s.style);
+    }
+
+    if(styleBtn) styleBtn.addEventListener('click', function(){
+      styleIdx = (styleIdx + 1) % STYLES.length;
+      applyStyle(styleIdx);
+    });
+  }
+  init();
+})();
+</script>
 
 <link href="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.21.0/video-js.min.css" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.21.0/video.min.js"></script>
