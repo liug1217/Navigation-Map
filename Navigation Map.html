@@ -3,47 +3,38 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<link rel="manifest" href="manifest.json">
 <title>Navigation Map</title>
 <style>
-/* ===== Safe Area Variables ===== */
-:root{
-  --sat: env(safe-area-inset-top, 0px);
-  --sab: env(safe-area-inset-bottom, 0px);
-}
-
-html,body{
-  margin:0;
-  padding:0;
-  width:100%;
-  height:calc(var(--vh,1vh) * 100);
-  overflow:hidden;
-  touch-action:none;
-  background:#C5DCF0;
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Arial,sans-serif;
-}
-
 /* ===== OpenStreetMap Layer ===== */
 #map{
   position:fixed;
-  inset:0;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
   z-index:0;
-}
+} 
 
 /* UI must be above map */
 .rect2,.bottomBar,.rect4{
   z-index:2;
 }
 
+html,body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  background:#C5DCF0;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Arial,sans-serif;
+}
+
 .bottomBar{
-  position:fixed;
+  position:absolute;
   left:0;
   right:0;
   bottom:0;
-  height:calc(166px + var(--sab));
-  z-index:2;
+  height:166px;
 }
 
 .rect1{
@@ -52,8 +43,7 @@ html,body{
   left:8px;
   right:8px;
   top:0;
-  height:calc(166px + var(--sab));
-  padding-bottom:var(--sab);
+  height:166px;
   border-width:1.5px 1.5px 0 1.5px;
   border-style:solid;
   border-color:#FFFFFF;
@@ -144,7 +134,7 @@ html,body{
   width:calc(100% - 16px);
   height:69px;
   left:8px;
-  top:calc(54px + var(--sat));
+  top:54px;
   background:#0E1A2D;
   border-radius:12px;
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
@@ -186,7 +176,7 @@ html,body{
   position:absolute;
   left:8px;
   right:8px;
-  top:calc(50px + var(--sat));
+  top:50px;
   z-index:5;
 }
 .searchBar{
@@ -335,7 +325,7 @@ html,body{
 /* ===== 時鐘 ===== */
 .mapClock{
   position:fixed;
-  top:calc(106px + var(--sat));
+  top:106px;
   right:8px;
   background:rgba(0,0,0,0.45);
   backdrop-filter:blur(8px);
@@ -361,7 +351,7 @@ html,body{
   width:76px;
   height:76px;
   left:8px;
-  top:calc(132px + var(--sat));
+  top:132px;
   background:#FFFFFF;
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
   border-radius:38px;
@@ -685,12 +675,19 @@ html,body{
   fill:rgba(30,144,255,0.15) !important;
 }
 
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  touch-action: none;
+}
 
 /* ===== 🌩️ 中央氣象署天氣特報橫幅 ===== */
 .weatherAlert{
   position:absolute;
   left:50%;
-  top:calc(8px + var(--sat));
+  top:8px;
   transform:translateX(-50%);
   z-index:6;
   max-width:calc(100% - 32px);
@@ -710,7 +707,7 @@ html,body{
 .earthquakeAlert{
   position:absolute;
   left:50%;
-  top:calc(52px + var(--sat));
+  top:52px;
   transform:translateX(-50%);
   z-index:6;
   max-width:calc(100% - 32px);
@@ -726,44 +723,6 @@ html,body{
   display:none;
 }
 </style>
-<script>
-// --vh fix
-function setVH() {
-  document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
-}
-setVH();
-window.addEventListener('resize', setVH);
-window.addEventListener('orientationchange', function(){ setTimeout(setVH, 300); });
-
-// Stay-standalone：防止 PWA 內的連結跳出到 Safari
-if (window.navigator.standalone) {
-  document.addEventListener('click', function(e) {
-    var node = e.target;
-    while (node && node.nodeName !== 'A') node = node.parentNode;
-    if (node && node.href && node.href.indexOf('http') !== -1) {
-      e.preventDefault();
-      window.location.href = node.href;
-    }
-  }, false);
-}
-
-// 若不是 standalone 模式，顯示「請從主畫面開啟」提示
-window.addEventListener('DOMContentLoaded', function() {
-  var isStandalone = window.navigator.standalone === true ||
-    window.matchMedia('(display-mode: standalone)').matches;
-  if (!isStandalone) {
-    var banner = document.createElement('div');
-    banner.style.cssText = [
-      'position:fixed', 'top:0', 'left:0', 'right:0',
-      'background:#1a1a2e', 'color:#fff', 'text-align:center',
-      'padding:14px 16px', 'font-size:14px', 'z-index:99999',
-      'font-family:-apple-system,sans-serif'
-    ].join(';');
-    banner.innerHTML = '請點 <strong>分享 → 加入主畫面</strong>，再從主畫面圖示開啟以使用全螢幕';
-    document.body.appendChild(banner);
-  }
-});
-</script>
 </head>
 <body>
 
@@ -797,7 +756,7 @@ window.addEventListener('DOMContentLoaded', function() {
 <!-- 🧪 測速照相語音播報測試面板 -->
 <div id="speedCamTestPanel" style="
   position: fixed;
-  top: calc(80px + var(--sat));
+  top: 80px;
   right: 12px;
   z-index: 9999;
   background: rgba(0,0,0,0.75);
@@ -2806,32 +2765,6 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
   updateDial();
 })();
-</script>
-
-<script>
-// ===== 即時路況 (TomTom Traffic Flow Tiles) =====
-const TOMTOM_KEY = 'YOUR_TOMTOM_API_KEY'; // 至 developer.tomtom.com 免費申請
-
-map.on('load', function() {
-  if (!TOMTOM_KEY || TOMTOM_KEY === 'YOUR_TOMTOM_API_KEY') return;
-
-  map.addSource('tomtom-traffic', {
-    type: 'raster',
-    tiles: [
-      'https://api.tomtom.com/traffic/map/4/tile/flow/{z}/{x}/{y}.png' +
-      '?key=' + TOMTOM_KEY + '&style=absolute&tileSize=256'
-    ],
-    tileSize: 256,
-    attribution: '© TomTom'
-  });
-
-  map.addLayer({
-    id: 'tomtom-traffic-layer',
-    type: 'raster',
-    source: 'tomtom-traffic',
-    paint: { 'raster-opacity': 0.75 }
-  });
-});
 </script>
 </body>
 </html>
