@@ -727,13 +727,42 @@ html,body{
 }
 </style>
 <script>
-// 修正 iOS PWA 全螢幕高度不穩定：用 window.innerHeight 設定 --vh
+// --vh fix
 function setVH() {
   document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
 }
 setVH();
 window.addEventListener('resize', setVH);
 window.addEventListener('orientationchange', function(){ setTimeout(setVH, 300); });
+
+// Stay-standalone：防止 PWA 內的連結跳出到 Safari
+if (window.navigator.standalone) {
+  document.addEventListener('click', function(e) {
+    var node = e.target;
+    while (node && node.nodeName !== 'A') node = node.parentNode;
+    if (node && node.href && node.href.indexOf('http') !== -1) {
+      e.preventDefault();
+      window.location.href = node.href;
+    }
+  }, false);
+}
+
+// 若不是 standalone 模式，顯示「請從主畫面開啟」提示
+window.addEventListener('DOMContentLoaded', function() {
+  var isStandalone = window.navigator.standalone === true ||
+    window.matchMedia('(display-mode: standalone)').matches;
+  if (!isStandalone) {
+    var banner = document.createElement('div');
+    banner.style.cssText = [
+      'position:fixed', 'top:0', 'left:0', 'right:0',
+      'background:#1a1a2e', 'color:#fff', 'text-align:center',
+      'padding:14px 16px', 'font-size:14px', 'z-index:99999',
+      'font-family:-apple-system,sans-serif'
+    ].join(';');
+    banner.innerHTML = '請點 <strong>分享 → 加入主畫面</strong>，再從主畫面圖示開啟以使用全螢幕';
+    document.body.appendChild(banner);
+  }
+});
 </script>
 </head>
 <body>
