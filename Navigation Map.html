@@ -22,24 +22,28 @@
   z-index:2;
 }
 
-html,body{
+html{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  background:#f3f8fc;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Arial,sans-serif;
+}
+body{
   margin:0;
   padding:0;
   width:100%;
   height:100%;
   background:#C5DCF0;
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Arial,sans-serif;
 }
 
 .bottomBar{
-  position:fixed;
+  position:absolute;
   left:0;
   right:0;
   bottom:0;
   height:166px;
-  background:rgba(255,255,255,0.8);
-  backdrop-filter:blur(20px);
-  -webkit-backdrop-filter:blur(20px);
 }
 
 .rect1{
