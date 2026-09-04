@@ -36,7 +36,8 @@ html,body{
   left:0;
   right:0;
   bottom:0;
-  height:166px;
+  height:calc(166px + env(safe-area-inset-bottom));
+  padding-bottom:env(safe-area-inset-bottom);
 }
 
 .rect1{
