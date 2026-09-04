@@ -1,7 +1,9 @@
 {
   "name": "Navigation Map",
   "short_name": "Nav Map",
-  "start_url": "./Navigation Map.html",
+  "id": "./Navigation%20Map.html",
+  "start_url": "./Navigation%20Map.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#C5DCF0",
   "theme_color": "#C5DCF0",
