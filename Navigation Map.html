@@ -1487,16 +1487,93 @@ geolocate.trigger();
     }
   }
 
-  function speakText(text){
-    if (!('speechSynthesis' in window)) return;
+  // ===== 語音包（錄音/TTS生成 mp3）=====
+  const VoicePack = {
+    base: 'voice_pack/',
+    _cache: {},
+
+    DIRS: {
+      '右轉':'right','左轉':'left','直行':'straight',
+      '繼續直行':'straight','繼續前進':'straight',
+      '迴轉':'uturn','靠右行駛':'bear_right','靠左行駛':'bear_left',
+      '大幅右轉':'right','大幅左轉':'left',
+      '進入圓環':'roundabout','匯入車流':'merge',
+      '即將到達目的地':null,'出發':null,
+    },
+    DISTS: {
+      10:'10m',20:'20m',30:'30m',40:'40m',50:'50m',
+      60:'60m',70:'70m',80:'80m',90:'90m',100:'100m',
+      150:'150m',200:'200m',250:'250m',300:'300m',
+      400:'400m',500:'500m',600:'600m',700:'700m',
+      800:'800m',900:'900m',1000:'1km',1500:'1_5km',
+      2000:'2km',3000:'3km',5000:'5km',10000:'10km',
+    },
+    SYSTEM: {
+      '您已到達目的地':'arrived',
+      '您已偏航，正在重新規劃路線':'rerouting',
+      '路線已重新規劃':'rerouted',
+      '重新規劃失敗，請手動搜尋目的地':'reroute_failed',
+    },
+
+    _nearestDist(m){
+      const ks = Object.keys(this.DISTS).map(Number).sort((a,b)=>a-b);
+      return this.DISTS[ks.reduce((p,k)=>Math.abs(k-m)<Math.abs(p-m)?k:p,ks[0])];
+    },
+
+    async _play(key){
+      if (!this._cache[key]) {
+        const a = new Audio(this.base + key + '.mp3');
+        // 試載入，失敗就跳過
+        await new Promise(r => { a.oncanplaythrough = r; a.onerror = r; a.load(); });
+        this._cache[key] = a;
+      }
+      const a = this._cache[key];
+      if (a.error) return;
+      a.currentTime = 0;
+      await new Promise(r => { a.onended = r; a.onerror = r; a.play().catch(r); });
+    },
+
+    parse(text){
+      if (this.SYSTEM[text]) return [this.SYSTEM[text]];
+      // 前方X公尺Direction
+      const m1 = text.match(/^前方(\d+)公尺(.+?)(?:[，,]|$)/);
+      if (m1){
+        const dk = this._nearestDist(parseInt(m1[1]));
+        const dir = m1[2].trim();
+        if (dir in this.DIRS)
+          return ['qianfang', dk, this.DIRS[dir]].filter(k=>k!=null);
+      }
+      // 請Direction
+      const m2 = text.match(/^請(.+?)(?:[，,]|$)/);
+      if (m2){
+        const dir = m2[1].trim();
+        if (dir in this.DIRS)
+          return ['qing', this.DIRS[dir]].filter(k=>k!=null);
+      }
+      return null;
+    },
+
+    async tryPlay(text){
+      const keys = this.parse(text);
+      if (!keys) return false;
+      for (const k of keys) await this._play(k);
+      return true;
+    },
+  };
+
+  async function speakText(text){
+    _duckRadio();
     try {
-      _duckRadio();
+      const handled = await VoicePack.tryPlay(text);
+      if (handled){ _unduckRadio(); return; }
+      // fallback: Web Speech API
+      if (!('speechSynthesis' in window)){ _unduckRadio(); return; }
       window.speechSynthesis.cancel();
       const utter = _makeUtter(text);
       utter.onend   = _unduckRadio;
       utter.onerror = _unduckRadio;
       window.speechSynthesis.speak(utter);
-    } catch(e) {
+    } catch(e){
       _unduckRadio();
       console.error('語音播報失敗:', e);
     }
