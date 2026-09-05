@@ -44,10 +44,10 @@ html,body{
 
 .rect1{
   box-sizing:border-box;
-  position:absolute;
+  position:fixed;
   left:8px;
   right:8px;
-  top:0;
+  bottom:8px;
   height:160px;
   border:0.5px solid #d9d9d9;
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
@@ -55,6 +55,9 @@ html,body{
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  overflow: hidden;
+  transition: height 0.38s cubic-bezier(0.32,0.72,0,1);
+  will-change: height;
 }
 
 .rect3{
@@ -923,37 +926,6 @@ html, body {
   <button class="mapCtrlBtn" id="styleBtn" title="切換地圖">🛰</button>
 </div>
 
-<!-- 語音設定 bottom sheet -->
-<div id="voiceSheet" style="
-  position:fixed; left:0; right:0; bottom:0; z-index:200;
-  background:rgba(255,255,255,0.97);
-  backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
-  border-radius:24px 24px 0 0;
-  border-top:0.5px solid #d9d9d9;
-  box-shadow:0 -4px 24px rgba(0,0,0,0.13);
-  padding:12px 20px 48px;
-  transform:translateY(100%);
-  transition:transform 0.38s cubic-bezier(0.32,0.72,0,1);
-  will-change:transform;
-">
-  <div style="width:40px;height:4px;background:#ccc;border-radius:2px;margin:0 auto 16px;"></div>
-  <div style="font-size:17px;font-weight:600;margin-bottom:14px;">導航語音</div>
-  <div id="voiceList" style="display:flex;flex-direction:column;gap:7px;max-height:40vh;overflow-y:auto;"></div>
-  <div style="margin-top:16px;font-size:13px;color:#666;">
-    語速
-    <input type="range" id="voiceRateSlider" min="0.6" max="1.4" step="0.05" value="0.95" style="width:100%;margin-top:5px;accent-color:#2F80FF;">
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;"><span>慢</span><span id="voiceRateLabel">0.95×</span><span>快</span></div>
-  </div>
-  <div style="margin-top:14px;font-size:13px;color:#666;">
-    音調
-    <input type="range" id="voicePitchSlider" min="0.7" max="1.5" step="0.05" value="1.05" style="width:100%;margin-top:5px;accent-color:#2F80FF;">
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;"><span>低沉</span><span id="voicePitchLabel">1.05</span><span>清亮</span></div>
-  </div>
-  <button id="voiceTestBtn" style="margin-top:18px;width:100%;padding:12px;background:#2F80FF;color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;">🔊 試聽</button>
-</div>
-<!-- 點外面關閉遮罩 -->
-<div id="voiceSheetMask" style="display:none;position:fixed;inset:0;z-index:199;"></div>
-
 <div class="bottomBar">
   <div class="rect4">
     <div class="rect4-inner">
@@ -962,7 +934,21 @@ html, body {
     </div>
   </div>
   <div class="rect1" id="rect1">
-    <div class="rect3" id="rect3Handle" style="cursor:pointer;"></div>
+    <div class="rect3" id="rect3Handle" style="cursor:pointer;touch-action:none;"></div>
+    <!-- 語音設定（收起時 hidden，展開卡片才顯示） -->
+    <div id="voiceDrawer" style="padding:4px 20px 14px;border-bottom:0.5px solid #eee;margin-bottom:2px;display:none;">
+      <div style="font-size:15px;font-weight:600;margin-bottom:10px;">🔊 導航語音</div>
+      <div id="voiceList" style="display:flex;flex-direction:column;gap:6px;max-height:35vh;overflow-y:auto;"></div>
+      <div style="margin-top:12px;font-size:12px;color:#666;">語速
+        <input type="range" id="voiceRateSlider" min="0.6" max="1.4" step="0.05" value="0.95" style="width:100%;margin-top:4px;accent-color:#2F80FF;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;"><span>慢</span><span id="voiceRateLabel">0.95×</span><span>快</span></div>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:#666;">音調
+        <input type="range" id="voicePitchSlider" min="0.7" max="1.5" step="0.05" value="1.05" style="width:100%;margin-top:4px;accent-color:#2F80FF;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;"><span>低沉</span><span id="voicePitchLabel">1.05</span><span>清亮</span></div>
+      </div>
+      <button id="voiceTestBtn" style="margin-top:12px;width:100%;padding:10px;background:#2F80FF;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;">🔊 試聽</button>
+    </div>
     <div class="info">0小時0分鐘 0.00公里</div>
     <div class="arrivalText" id="arrivalText">00:00到達</div>
     <button type="button" class="navExitBtn" id="navExitBtn">退出</button>
@@ -1387,43 +1373,65 @@ geolocate.trigger();
     _voiceTestBtn.addEventListener('click', () => speakText('前方200公尺，請右轉，進入忠孝東路'));
   }
 
-  // ===== 語音設定 bottom sheet =====
-  const _voiceSheet = document.getElementById('voiceSheet');
-  const _voiceSheetMask = document.getElementById('voiceSheetMask');
+  // ===== rect1 卡片展開語音設定（跟手上滑）=====
+  const _rect1El = document.getElementById('rect1');
   const _rect3Handle = document.getElementById('rect3Handle');
-  let _sheetOpen = false;
+  const _voiceDrawer = document.getElementById('voiceDrawer');
+  const RECT1_COLLAPSED = 160;
+  let _drawerOpen = false;
+  let _expandedH = 0;
 
-  function _openSheet() {
+  function _measureExpanded() {
+    // 暫時顯示量高度
+    _voiceDrawer.style.visibility = 'hidden';
+    _voiceDrawer.style.display = 'block';
+    const dh = _voiceDrawer.offsetHeight;
+    _voiceDrawer.style.display = 'none';
+    _voiceDrawer.style.visibility = '';
+    return RECT1_COLLAPSED + dh + 8;
+  }
+
+  function _openDrawer() {
     _buildVoiceList();
-    _voiceSheetMask.style.display = 'block';
-    requestAnimationFrame(() => { _voiceSheet.style.transform = 'translateY(0)'; });
-    _sheetOpen = true;
+    _expandedH = _measureExpanded();
+    _voiceDrawer.style.display = 'block';
+    _rect1El.style.transition = 'height 0.38s cubic-bezier(0.32,0.72,0,1)';
+    _rect1El.style.height = _expandedH + 'px';
+    _drawerOpen = true;
   }
-  function _closeSheet() {
-    _voiceSheet.style.transform = 'translateY(100%)';
-    _voiceSheetMask.style.display = 'none';
-    _sheetOpen = false;
+  function _closeDrawer() {
+    _rect1El.style.transition = 'height 0.38s cubic-bezier(0.32,0.72,0,1)';
+    _rect1El.style.height = RECT1_COLLAPSED + 'px';
+    setTimeout(() => { if (!_drawerOpen) _voiceDrawer.style.display = 'none'; }, 400);
+    _drawerOpen = false;
   }
 
-  // rect3 點擊或上滑開啟
+  // 跟手滑動
   if (_rect3Handle) {
-    let _tsY = 0;
-    _rect3Handle.addEventListener('touchstart', e => { _tsY = e.touches[0].clientY; }, { passive: true });
+    let _tsY = 0, _curH = RECT1_COLLAPSED, _moved = false;
+
+    _rect3Handle.addEventListener('touchstart', e => {
+      _tsY = e.touches[0].clientY;
+      _curH = _drawerOpen ? _expandedH : RECT1_COLLAPSED;
+      if (!_drawerOpen) { _buildVoiceList(); _expandedH = _measureExpanded(); _voiceDrawer.style.display = 'block'; }
+      _rect1El.style.transition = 'none';
+      _moved = false;
+    }, { passive: true });
+
+    _rect3Handle.addEventListener('touchmove', e => {
+      const dy = _tsY - e.touches[0].clientY; // 上滑為正
+      const newH = Math.min(_expandedH, Math.max(RECT1_COLLAPSED, _curH + dy));
+      _rect1El.style.height = newH + 'px';
+      _moved = true;
+    }, { passive: true });
+
     _rect3Handle.addEventListener('touchend', e => {
       const dy = _tsY - e.changedTouches[0].clientY;
-      if (dy > 20) _openSheet();           // 上滑 > 20px 開
-      else if (dy < -20) _closeSheet();    // 下滑關
-      else _sheetOpen ? _closeSheet() : _openSheet(); // 輕點切換
-    }, { passive: true });
-  }
-  // 點遮罩關閉
-  if (_voiceSheetMask) _voiceSheetMask.addEventListener('click', _closeSheet);
-  // sheet 本身的 drag pill 也能下滑關閉
-  if (_voiceSheet) {
-    let _sheetTsY = 0;
-    _voiceSheet.addEventListener('touchstart', e => { _sheetTsY = e.touches[0].clientY; }, { passive: true });
-    _voiceSheet.addEventListener('touchend', e => {
-      if (e.changedTouches[0].clientY - _sheetTsY > 60) _closeSheet();
+      if (!_moved || Math.abs(dy) < 8) {
+        _drawerOpen ? _closeDrawer() : _openDrawer();
+        return;
+      }
+      dy > 30 ? _openDrawer() : _closeDrawer();
     }, { passive: true });
   }
 
