@@ -650,44 +650,47 @@ html,body{
 
 /* ===== 📷 CCTV 即時影像 ===== */
 .cctvOverlay{
-  position:absolute;
+  position:fixed;
   right:10px;
-  top:240px;
-  width:168px;
-  padding:10px;
+  top:220px;
+  width:160px;
+  padding:8px;
   box-sizing:border-box;
-  background:rgba(255,255,255,0.88);
-  border:1px solid rgba(255,255,255,0.95);
-  box-shadow:0 6px 18px rgba(14,26,45,0.18);
-  border-radius:8px;
-  backdrop-filter:blur(18px);
-  -webkit-backdrop-filter:blur(18px);
+  background:rgba(255,255,255,0.92);
+  border:1.5px solid rgba(255,255,255,1);
+  box-shadow:0 4px 16px rgba(14,26,45,0.22);
+  border-radius:10px;
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
   z-index:4;
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
   transform-origin:top right;
   transform:scale(0);
   opacity:0;
   pointer-events:none;
-  transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s;
+  transition:transform 0.45s cubic-bezier(0.34,1.56,0.64,1),opacity 0.3s ease;
 }
 
-.cctvArrow{
+/* 向左指的箭頭（面板在右側，地圖在左側） */
+.cctvOverlay::before{
+  content:'';
   position:absolute;
-  width:0;
-  height:0;
-  border-left:8px solid transparent;
-  border-right:8px solid transparent;
-  border-bottom:13px solid rgba(255,255,255,0.92);
-  filter:drop-shadow(0 1px 2px rgba(14,26,45,0.15));
-  pointer-events:none;
-  transform-origin:8px 0;
+  right:100%;
+  top:18px;
+  border-top:9px solid transparent;
+  border-bottom:9px solid transparent;
+  border-right:12px solid rgba(255,255,255,0.92);
+  filter:drop-shadow(-2px 0 3px rgba(14,26,45,0.1));
 }
 
 .cctvPanelTitle{
-  font-size:13px;
+  font-size:12px;
   font-weight:700;
   color:#0E1A2D;
-  margin-bottom:7px;
+  margin-bottom:6px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .cctvImage{
@@ -695,11 +698,13 @@ html,body{
   border-radius:6px;
   display:block;
   background:#0E1A2D;
+  aspect-ratio:4/3;
+  object-fit:cover;
 }
 
 .cctvStatus{
-  margin-top:6px;
-  color:#36445A;
+  margin-top:5px;
+  color:#4A5568;
   font-size:10px;
   line-height:13px;
 }
@@ -902,8 +907,7 @@ html, body {
 <div class="cctvOverlay" id="cctvOverlay">
   <div class="cctvPanelTitle" id="cctvPanelTitle">📷 即時影像</div>
   <img class="cctvImage" id="cctvImage" alt="CCTV 即時影像">
-  <div class="cctvStatus" id="cctvStatus">點選地圖上的監視器圖示開始觀看</div>
-  <div class="cctvArrow" id="cctvArrow"></div>
+  <div class="cctvStatus" id="cctvStatus">附近無監視器</div>
 </div>
 
 <!-- 時鐘 -->
@@ -1259,10 +1263,6 @@ geolocate.trigger();
     if(nearest && nearestDist <= CCTV_APPEAR_KM){
       const t = 1 - Math.max(0,(nearestDist - CCTV_FULL_KM)/(CCTV_APPEAR_KM - CCTV_FULL_KM));
       setCctvScale(t);
-      window.cctvCurrentCamLon = nearest.lon;
-      window.cctvCurrentCamLat = nearest.lat;
-      if(typeof window.updateCctvArrow === 'function')
-        window.updateCctvArrow(nearest.lon, nearest.lat);
       if(window.cctvActiveCameraId !== nearest.id){
         const label = window.buildCctvLabel ? window.buildCctvLabel(nearest) : (nearest.road + ' ' + nearest.mile);
         window.switchCctvCamera(nearest.url, label, nearest.id, true);
@@ -2410,32 +2410,6 @@ document.addEventListener("DOMContentLoaded", function(){
   // 切換到地圖上點選的某一支監視器,並打開置中彈出視窗
   // camId: 該監視器的 id(用於追蹤目前顯示中的是哪一支,避免重複觸發)
   // isAuto: true 代表是「定位經過自動顯示」觸發的,false 代表是手動點擊圖示觸發的
-  function updateCctvArrow(lon, lat){
-    const arrow = document.getElementById('cctvArrow');
-    const panel = document.getElementById('cctvOverlay');
-    const m = window.map;
-    if(!arrow || !panel || !m) return;
-    try {
-      const cam = m.project([lon, lat]);
-      const rect = panel.getBoundingClientRect();
-      const px = rect.left + rect.width / 2;
-      const py = rect.top  + rect.height / 2;
-      const angle = Math.atan2(cam.y - py, cam.x - px); // radians toward camera
-      const rotDeg = angle * 180 / Math.PI - 90; // arrow tip points up by default; -90 so 0rad=left
-      // position arrow at edge of panel
-      const hw = rect.width  / 2 - 2;
-      const hh = rect.height / 2 - 2;
-      const ac = Math.abs(Math.cos(angle)), as = Math.abs(Math.sin(angle));
-      const maxR = (ac < 1e-6) ? hh : (as < 1e-6) ? hw : Math.min(hw/ac, hh/as);
-      const ax = px + Math.cos(angle)*maxR - rect.left - 8;
-      const ay = py + Math.sin(angle)*maxR - rect.top  - 6;
-      arrow.style.left = ax.toFixed(1) + 'px';
-      arrow.style.top  = ay.toFixed(1) + 'px';
-      arrow.style.transform = 'rotate(' + rotDeg.toFixed(1) + 'deg)';
-    } catch(e){}
-  }
-  window.updateCctvArrow = updateCctvArrow;
-
   window.switchCctvCamera = function(url, label, camId, isAuto){
     CCTV_BASE_URL = url;
     CCTV_CURRENT_LABEL = label;
@@ -2446,14 +2420,6 @@ document.addEventListener("DOMContentLoaded", function(){
     reloadCctvImage();
   };
 
-  // 地圖移動時同步更新箭頭方向
-  (function(){
-    var m = window.map;
-    if(m) m.on('move', function(){
-      if(window.cctvCurrentCamLon != null)
-        updateCctvArrow(window.cctvCurrentCamLon, window.cctvCurrentCamLat);
-    });
-  })();
 
 
   // 關閉彈出視窗時,停止重連計時器,避免在背景一直跑浪費效能
