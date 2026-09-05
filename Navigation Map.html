@@ -3084,8 +3084,11 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
       var imgA=document.getElementById(uid+'_a');
       if(imgA) imgA.onerror=function(){ setTimeout(reloadStream,1500); };
+      // 定期 crossfade 換流（攝影機凍結但不斷線時也能恢復）
+      var refreshTimer=setInterval(reloadStream,10000);
 
       cctvPopup.on('close',function(){
+        clearInterval(refreshTimer);
         ['a','b'].forEach(function(s){
           var img=document.getElementById(uid+'_'+s);
           if(img) img.src='';
