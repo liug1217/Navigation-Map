@@ -1457,7 +1457,13 @@ geolocate.trigger();
     if (rect8Instruction) rect8Instruction.innerText = text + (roadName ? roadName : '');
     if (rect8Icon) rect8Icon.innerText = iconForManeuver(step.maneuver);
     if (rect8Distance) {
-      rect8Distance.innerText = (distanceMeters != null) ? (Math.round(distanceMeters) + '公尺後') : '';
+      if (distanceMeters == null) {
+        rect8Distance.innerText = '';
+      } else if (distanceMeters >= 1000) {
+        rect8Distance.innerText = (distanceMeters / 1000).toFixed(1) + '公里後';
+      } else {
+        rect8Distance.innerText = Math.round(distanceMeters) + '公尺後';
+      }
     }
   }
 
