@@ -2975,7 +2975,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 /* ===== CCTV 即時攝影機整合 ===== */
 (function(){
   var CCTV_URL = 'https://tisvcloud.freeway.gov.tw/history/motc20/CCTV.xml';
-  var PROXY = 'https://corsproxy.io/?url=';
+  var PROXY = 'https://api.allorigins.win/raw?url=';
   var cctvPopup = null;
 
   function getText(el, tag){
@@ -3084,8 +3084,19 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     });
   }
 
+  // 狀態標示
+  var badge = document.createElement('div');
+  badge.id = 'cctvBadge';
+  badge.style.cssText = 'position:fixed;bottom:220px;right:12px;background:rgba(0,0,0,0.6);color:#fff;font-size:11px;padding:4px 8px;border-radius:10px;z-index:9999;pointer-events:none';
+  badge.textContent = '📷 CCTV 載入中…';
+  document.body.appendChild(badge);
+
   // 等 map 就緒才加圖層
   loadCCTV().then(function(geojson){
+    var count = geojson.features.length;
+    badge.textContent = '📷 CCTV ' + count + ' 台';
+    setTimeout(function(){ badge.style.opacity='0'; badge.style.transition='opacity 1s'; }, 3000);
+    if(count === 0){ console.warn('CCTV: 0 筆資料，XML 解析可能有問題'); return; }
     function tryAdd(){
       var m = window.map;
       if(!m){ setTimeout(tryAdd, 300); return; }
@@ -3096,7 +3107,10 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       }
     }
     tryAdd();
-  }).catch(function(e){ console.warn('CCTV 載入失敗:', e); });
+  }).catch(function(e){
+    badge.textContent = '📷 CCTV 載入失敗';
+    console.warn('CCTV 載入失敗:', e);
+  });
 })();
 </script>
 </body>
