@@ -59,7 +59,7 @@ html,body{
   left:50%;
   top:5px;
   transform:translateX(-50%);
-  background:rgba(187,197,199,0.8);
+  background:#555555;
   box-shadow:0 4px 4px rgba(0,0,0,0.25), 0 4px 4px rgba(0,0,0,0.25);
   border-radius:2.5px;
 }
@@ -367,32 +367,21 @@ html,body{
   bottom:364px;
   display:flex;
   align-items:center;
+  justify-content:center;
   background:rgba(17,35,62,0.9);
   border-top:1px solid rgba(255,255,255,0.4);
   border-radius:22.5px;
   height:43px;
-  padding-right:14px;
+  padding:0 16px;
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
   z-index:4;
   pointer-events:none;
-}
-.speedPillCircle{
-  width:42px;
-  height:42px;
-  border-radius:21px;
-  background:#34C759;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  flex-shrink:0;
-  flex-shrink:0;
 }
 .speedPillNum{
   font-family:"Inter","SF Pro Display","SF Pro Text",Arial,sans-serif;
   font-size:35px;
   font-weight:500;
   color:#ecfeef;
-  margin-left:10px;
   min-width:30px;
   text-align:center;
   line-height:1;
@@ -424,33 +413,6 @@ html,body{
   line-height:1;
 }
 
-/* ===== 路況三色點 ===== */
-.trafficDots{
-  position:fixed;
-  right:22px;
-  bottom:268px;
-  display:flex;
-  align-items:center;
-  gap:4px;
-  z-index:4;
-  pointer-events:none;
-  background:#253a63;
-  border:2px solid #d9e6fc;
-  border-radius:7px;
-  padding:2px 5px;
-  width:28px;
-  height:14px;
-  box-sizing:border-box;
-}
-.trafficDot{
-  width:6px;
-  height:6px;
-  border-radius:50%;
-  flex-shrink:0;
-}
-.trafficDot.red{background:#FF3B30;}
-.trafficDot.yellow{background:#FFCC00;}
-.trafficDot.green{background:#34C759;}
 
 /* ===== 🆕 底部面板大改版新增元件 ===== */
 .arrivalText{
@@ -917,7 +879,6 @@ html, body {
 
 <!-- 速度膠囊 -->
 <div class="speedPill">
-  <div class="speedPillCircle">↑</div>
   <div class="speedPillNum" id="speedPillNum">0</div>
 </div>
 
@@ -926,12 +887,6 @@ html, body {
   <div class="limit-num" id="speedLimitNum">110</div>
 </div>
 
-<!-- 路況三色點 -->
-<div class="trafficDots">
-  <span class="trafficDot red"></span>
-  <span class="trafficDot yellow"></span>
-  <span class="trafficDot green"></span>
-</div>
 
 <div class="cctvOverlay" id="cctvOverlay">
   <button class="cctvCloseBtn" type="button" onclick="closeCctvOverlay()">✕</button>
