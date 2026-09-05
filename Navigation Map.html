@@ -3065,7 +3065,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
       var img=document.getElementById(uid);
       if(img) img.onerror=function(){ setTimeout(reconnect,2000); };
-      refreshTimer=setInterval(reconnect,9000);
+      refreshTimer=setInterval(reconnect,8000);
 
       cctvPopup.on('close',function(){
         clearInterval(refreshTimer);
