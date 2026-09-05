@@ -3018,15 +3018,14 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
     m.addLayer({
       id:'cctv-point',
-      type:'circle',
+      type:'symbol',
       source:'cctv',
       filter:['!',['has','point_count']],
-      paint:{
-        'circle-color':'#FF3B30',
-        'circle-radius':6,
-        'circle-stroke-width':2,
-        'circle-stroke-color':'#fff',
-        'circle-opacity':0.92
+      layout:{
+        'text-field':'📷',
+        'text-size':20,
+        'text-allow-overlap':true,
+        'text-ignore-placement':true
       }
     });
 
