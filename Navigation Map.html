@@ -1520,11 +1520,14 @@ geolocate.trigger();
   // ===== 🚨 偏航偵測與重新規劃 =====
   let offRouteCount = 0;          // 連續偏航偵測次數
   let isRerouting = false;        // 是否正在重新規劃中
-  const OFF_ROUTE_THRESHOLD = 50; // 距路線超過50公尺視為偏航
-  const OFF_ROUTE_CONFIRM = 3;    // 連續3次GPS更新都偏航才確認
+  let lastRerouteTime = 0;        // 上次重新規劃完成時間，用於冷卻期
+  const OFF_ROUTE_THRESHOLD = 80; // 距路線超過80公尺視為偏航（50太敏感，城市GPS漂移可達40m）
+  const OFF_ROUTE_CONFIRM = 5;    // 連續5次GPS更新都偏航才確認（過濾短暫GPS跳躍）
+  const REROUTE_COOLDOWN_MS = 15000; // 重新規劃後15秒冷卻，避免立刻又觸發
 
   function checkOffRoute(lat, lon) {
     if (!isNavigating || isRerouting || !window.plannedRouteCoordinates) return;
+    if (Date.now() - lastRerouteTime < REROUTE_COOLDOWN_MS) return;
 
     // 計算使用者目前位置距離規劃路線上最近點的距離
     const minDist = getMinDistanceToRoute(lat, lon, window.plannedRouteCoordinates);
@@ -1544,12 +1547,25 @@ geolocate.trigger();
     }
   }
 
-  // 計算使用者位置到路線上最近點的距離(公尺)
+  // 計算使用者位置到路線上最近線段的距離(公尺)
+  // 用線段投影而非只比較端點，彎道上更準確
   function getMinDistanceToRoute(lat, lon, routeCoords) {
     let minDist = Infinity;
-    for (const coord of routeCoords) {
-      const d = calculateDistance(lat, lon, coord[1], coord[0]) * 1000;
+    for (let i = 0; i < routeCoords.length; i++) {
+      const d = calculateDistance(lat, lon, routeCoords[i][1], routeCoords[i][0]) * 1000;
       if (d < minDist) minDist = d;
+
+      if (i + 1 < routeCoords.length) {
+        const ax = routeCoords[i][0], ay = routeCoords[i][1];
+        const bx = routeCoords[i + 1][0], by = routeCoords[i + 1][1];
+        const dx = bx - ax, dy = by - ay;
+        const lenSq = dx * dx + dy * dy;
+        if (lenSq > 0) {
+          const t = Math.max(0, Math.min(1, ((lon - ax) * dx + (lat - ay) * dy) / lenSq));
+          const segDist = calculateDistance(lat, lon, ay + t * dy, ax + t * dx) * 1000;
+          if (segDist < minDist) minDist = segDist;
+        }
+      }
     }
     return minDist;
   }
@@ -1570,6 +1586,7 @@ geolocate.trigger();
 
     try {
       await planRouteTo(selectedDest.lat, selectedDest.lon, { lat, lon });
+      lastRerouteTime = Date.now(); // 冷卻期從重新規劃成功後開始計算
       speakText('路線已重新規劃');
     } catch (e) {
       console.error('[偏航] 重新規劃失敗:', e);
@@ -1727,14 +1744,16 @@ geolocate.trigger();
         arrivalEl.innerText = hh + ':' + mm + '到達';
       }
 
-      // 縮放地圖顯示整條路線
-      const lons = plannedRouteCoordinates.map(c => c[0]);
-      const lats = plannedRouteCoordinates.map(c => c[1]);
-      const bounds = [
-        [Math.min(...lons), Math.min(...lats)],
-        [Math.max(...lons), Math.max(...lats)]
-      ];
-      map.fitBounds(bounds, { padding: 80, duration: 800 });
+      // 初始導航才縮放顯示整條路線；重新規劃時保持目前視角，不跳走
+      if (!fromPosition) {
+        const lons = plannedRouteCoordinates.map(c => c[0]);
+        const lats = plannedRouteCoordinates.map(c => c[1]);
+        const bounds = [
+          [Math.min(...lons), Math.min(...lats)],
+          [Math.max(...lons), Math.max(...lats)]
+        ];
+        map.fitBounds(bounds, { padding: 80, duration: 800 });
+      }
 
       destPanel.style.display = 'none';
 
@@ -1749,53 +1768,75 @@ geolocate.trigger();
       updateRect8Display();
       togglePoiLayers(false); // 導航時隱藏POI地標
 
-      // 開始導航時播報全程距離跟預估時間,並直接帶出第一個轉彎指示(不用等GPS靠近才講)
-      const startH = Math.floor(durationMin / 60);
-      const startM = durationMin % 60;
-      let startupText = '開始導航,全程' + distanceKm + '公里,大約需要';
-      if (startH > 0) startupText += startH + '小時';
-      startupText += startM + '分鐘';
-
-      // 加上預計到達時間
-      const startupEta = new Date(Date.now() + route.duration * 1000);
-      const startupEtaH = startupEta.getHours();
-      const startupEtaM = startupEta.getMinutes();
-      startupText += ',預計' + startupEtaH + '點' + startupEtaM + '分到達';
-
-      // 找出第一個真正的轉彎(跳過出發點depart),把指示一併講出來
+      // 找出第一個真正的轉彎(跳過出發點depart)
       const firstTurnIndex = navSteps.findIndex(s => s.maneuver && s.maneuver.type !== 'depart');
       if (firstTurnIndex !== -1) {
         const firstStep = navSteps[firstTurnIndex];
         const firstText = maneuverToChinese(firstStep.maneuver);
         const firstRoadPart = firstStep.name ? ('進入' + firstStep.name) : '';
-        // 用上一步(通常是出發點)的距離,算出離第一個轉彎還有多遠
         const prevStep = navSteps[firstTurnIndex - 1];
         const firstStepDistanceMeters = prevStep ? prevStep.distance : null;
-        if (firstStepDistanceMeters != null) {
-          const meters = Math.max(10, Math.round(firstStepDistanceMeters / 10) * 10);
-          startupText += ',前方' + meters + '公尺' + firstText + firstRoadPart;
-        } else {
-          startupText += ',' + firstText + firstRoadPart;
-        }
         // 標記這一步已經播報過,避免GPS之後在200公尺/30公尺門檻又重複講一次
         currentStepIndex = firstTurnIndex;
         navStepVoiceState[firstTurnIndex] = 'warned200';
         updateRect8Display(firstStepDistanceMeters);
+
+        if (fromPosition) {
+          // 重新規劃：只播報下一個轉彎指示，不重複「開始導航」全程摘要
+          // (triggerReroute 會接著播報「路線已重新規劃」)
+          if (firstStepDistanceMeters != null) {
+            const meters = Math.max(10, Math.round(firstStepDistanceMeters / 10) * 10);
+            speakText('前方' + meters + '公尺' + firstText + firstRoadPart);
+          }
+        } else {
+          // 初始導航：播報全程摘要 + 第一個轉彎指示
+          const startH = Math.floor(durationMin / 60);
+          const startM = durationMin % 60;
+          let startupText = '開始導航,全程' + distanceKm + '公里,大約需要';
+          if (startH > 0) startupText += startH + '小時';
+          startupText += startM + '分鐘';
+          const startupEta = new Date(Date.now() + route.duration * 1000);
+          startupText += ',預計' + startupEta.getHours() + '點' + startupEta.getMinutes() + '分到達';
+          if (firstStepDistanceMeters != null) {
+            const meters = Math.max(10, Math.round(firstStepDistanceMeters / 10) * 10);
+            startupText += ',前方' + meters + '公尺' + firstText + firstRoadPart;
+          } else {
+            startupText += ',' + firstText + firstRoadPart;
+          }
+          speakText(startupText);
+        }
+      } else if (!fromPosition) {
+        // 沒有轉彎步驟的初始導航，仍播報全程摘要
+        const startH = Math.floor(durationMin / 60);
+        const startM = durationMin % 60;
+        let startupText = '開始導航,全程' + distanceKm + '公里,大約需要';
+        if (startH > 0) startupText += startH + '小時';
+        startupText += startM + '分鐘';
+        speakText(startupText);
       }
 
-      speakText(startupText);
-
-      // 先讓使用者看一眼整條路線的鳥瞰圖,1.8秒後自動拉近到正常導航視角,不然會一直停在縮小狀態看不清楚路
-      setTimeout(() => {
-        if (!isNavigating) return; // 如果這段時間使用者已經退出導航,就不要再拉近
+      if (fromPosition) {
+        // 重新規劃：直接縮放到使用者目前位置，繼續導航視角
         map.easeTo({
           center: [origin.lon, origin.lat],
           zoom: 17,
-          duration: 1200,
+          duration: 800,
           padding: getUserCameraPadding(),
           bearing: (window.compassHeading != null ? window.compassHeading : 0)
         });
-      }, 1800);
+      } else {
+        // 初始導航：先看整條路線鳥瞰，1.8秒後拉回正常導航視角
+        setTimeout(() => {
+          if (!isNavigating) return;
+          map.easeTo({
+            center: [origin.lon, origin.lat],
+            zoom: 17,
+            duration: 1200,
+            padding: getUserCameraPadding(),
+            bearing: (window.compassHeading != null ? window.compassHeading : 0)
+          });
+        }, 1800);
+      }
     } catch (e) {
       console.error('路線規劃失敗:', e);
       if (!fromPosition) alert('路線規劃失敗,請檢查網路連線');
