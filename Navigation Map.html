@@ -510,13 +510,16 @@ body.navigating .mapClock{ top:134px; }
   width:2.5px;
   border-radius:1.5px;
   background:#2F80FF;
-  animation:radioWavePulse 0.9s ease-in-out infinite;
 }
-.radioWaveform span:nth-child(1){ height:4px; animation-delay:0s; }
-.radioWaveform span:nth-child(2){ height:9px; animation-delay:0.15s; }
-.radioWaveform span:nth-child(3){ height:13px; animation-delay:0.3s; }
-.radioWaveform span:nth-child(4){ height:9px; animation-delay:0.45s; }
-.radioWaveform span:nth-child(5){ height:4px; animation-delay:0.6s; }
+/* CSS fallback animation (used before real waveform kicks in) */
+.radioWaveform:not([data-realwave]) span{ animation:radioWavePulse 0.9s ease-in-out infinite; }
+.radioWaveform:not([data-realwave]) span:nth-child(1){ height:4px; animation-delay:0s; }
+.radioWaveform:not([data-realwave]) span:nth-child(2){ height:9px; animation-delay:0.15s; }
+.radioWaveform:not([data-realwave]) span:nth-child(3){ height:13px; animation-delay:0.3s; }
+.radioWaveform:not([data-realwave]) span:nth-child(4){ height:9px; animation-delay:0.45s; }
+.radioWaveform:not([data-realwave]) span:nth-child(5){ height:4px; animation-delay:0.6s; }
+/* Real waveform: JS drives height, no animation */
+.radioWaveform[data-realwave] span{ animation:none; transition:height 0.06s linear; height:3px; }
 @keyframes radioWavePulse{
   0%,100%{ transform:scaleY(0.35); }
   50%{ transform:scaleY(1); }
@@ -1239,6 +1242,10 @@ geolocate.trigger();
   const SPEED_CAM_RESET_KM = 0.15; // 離開這個範圍才重置狀態,讓下一次經過可以再次播報
   const speedCameraVoiceState = {}; // key: 該支測速照相在陣列裡的索引
 
+  // 語音播報時把廣播音量降到 15%，播完後還原
+  function _duckRadio(){ var v=window.radioVjs; if(v && !v.paused()) v.volume(0.15); }
+  function _unduckRadio(){ var v=window.radioVjs; if(v) v.volume(1.0); }
+
   function speakText(text){
     if (!('speechSynthesis' in window)) return;
     try {
@@ -1246,8 +1253,12 @@ geolocate.trigger();
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = 'zh-TW';
       utter.rate = 1.00;
+      utter.onstart = _duckRadio;
+      utter.onend   = _unduckRadio;
+      utter.onerror = _unduckRadio;
       window.speechSynthesis.speak(utter);
     } catch(e) {
+      _unduckRadio();
       console.error('語音播報失敗:', e);
     }
   }
@@ -1259,17 +1270,21 @@ geolocate.trigger();
     if (!list.length) return;
 
     window.speechSynthesis.cancel(); // 避免播報堆疊、搶話
+    _duckRadio();
 
     function playAt(i){
-      if (i >= list.length) return;
+      if (i >= list.length){ _unduckRadio(); return; }
       const utter = new SpeechSynthesisUtterance(list[i]);
       utter.lang = 'zh-TW';
       utter.rate = 1.00;
       utter.onend = () => {
         if (i + 1 < list.length) {
           setTimeout(() => playAt(i + 1), 250); // 真正的0.25秒停頓
+        } else {
+          _unduckRadio();
         }
       };
+      utter.onerror = _unduckRadio;
       window.speechSynthesis.speak(utter);
     }
     playAt(0);
@@ -2674,6 +2689,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   var playing = false;
 
   var vjs      = videojs('bgMusic', { controls:false, autoplay:false, muted:false, preload:'auto' });
+  window.radioVjs = vjs; // 供語音播報做音量閃避
   var nameEl   = document.getElementById('radioName');
   var freqEl   = document.getElementById('radioFreq');
   var statusEl = document.getElementById('radioStatus');
@@ -2807,6 +2823,51 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
   updateDial();
 
+  // ===== 🎵 真實音頻波動（Web Audio API AnalyserNode）=====
+  var _audioCtx = null, _analyser = null, _waveRaf = null;
+  var _waveEl = document.getElementById('radioWaveform');
+  var _waveSpans = _waveEl ? _waveEl.querySelectorAll('span') : [];
+  var _binIdx = [2, 7, 18, 40, 85]; // 低頻→高頻 5 個 bin
+
+  function _initAnalyser(){
+    if(_audioCtx) return true;
+    try {
+      _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      var videoEl = vjs.tech({IWillNotUseThisInProductionAndIKnowHowToStopIt:true}).el();
+      var src = _audioCtx.createMediaElementSource(videoEl);
+      _analyser = _audioCtx.createAnalyser();
+      _analyser.fftSize = 256;
+      src.connect(_analyser);
+      _analyser.connect(_audioCtx.destination);
+      return true;
+    } catch(e){ _audioCtx = null; return false; }
+  }
+
+  function _startRealWave(){
+    if(!_initAnalyser()) return;
+    if(_audioCtx.state === 'suspended') _audioCtx.resume();
+    if(_waveEl) _waveEl.setAttribute('data-realwave','1');
+    if(_waveRaf) cancelAnimationFrame(_waveRaf);
+    var buf = new Uint8Array(_analyser.frequencyBinCount);
+    function tick(){
+      _waveRaf = requestAnimationFrame(tick);
+      _analyser.getByteFrequencyData(buf);
+      for(var i=0;i<5;i++){
+        var v = buf[_binIdx[i]] / 255;
+        if(_waveSpans[i]) _waveSpans[i].style.height = (2 + v*12).toFixed(1)+'px';
+      }
+    }
+    tick();
+  }
+
+  function _stopRealWave(){
+    if(_waveRaf){ cancelAnimationFrame(_waveRaf); _waveRaf = null; }
+    if(_waveEl) _waveEl.removeAttribute('data-realwave');
+  }
+
+  vjs.on('playing', function(){ _startRealWave(); });
+  vjs.on('pause',   function(){ _stopRealWave(); });
+  vjs.on('error',   function(){ _stopRealWave(); });
 
 })();
 </script>
