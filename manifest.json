@@ -1,12 +1,11 @@
 {
   "name": "Navigation Map",
-  "short_name": "Nav Map",
   "id": "./Navigation%20Map.html",
   "start_url": "./Navigation%20Map.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#C5DCF0",
+  "theme_color": "#C5DCF0",
   "orientation": "portrait-primary",
   "icons": [
     {
