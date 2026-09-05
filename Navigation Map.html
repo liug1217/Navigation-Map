@@ -920,6 +920,57 @@ html, body {
   </button>
   <!-- 地圖風格 -->
   <button class="mapCtrlBtn" id="styleBtn" title="切換地圖">🛰</button>
+  <!-- 語音設定 -->
+  <button class="mapCtrlBtn" id="voiceSettingsBtn" title="語音設定">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+    </svg>
+  </button>
+</div>
+
+<!-- 語音設定面板 -->
+<div id="voicePanel" style="
+  display:none;
+  position:fixed;
+  bottom:0; left:0; right:0;
+  z-index:100;
+  background:rgba(255,255,255,0.97);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border-top:0.5px solid #d9d9d9;
+  border-radius:24px 24px 0 0;
+  box-shadow:0 -4px 20px rgba(0,0,0,0.15);
+  padding:16px 20px 40px;
+  max-height:60vh;
+  overflow-y:auto;
+">
+  <div style="width:40px;height:4px;background:#ccc;border-radius:2px;margin:0 auto 16px;"></div>
+  <div style="font-size:17px;font-weight:600;color:#000;margin-bottom:4px;">導航語音</div>
+  <div style="font-size:13px;color:#888;margin-bottom:16px;">選擇裝置上的中文語音</div>
+  <div id="voiceList" style="display:flex;flex-direction:column;gap:8px;"></div>
+  <div style="margin-top:20px;font-size:13px;color:#888;">
+    語速
+    <input type="range" id="voiceRateSlider" min="0.6" max="1.4" step="0.05" value="0.95"
+      style="width:100%;margin-top:6px;accent-color:#2F80FF;">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;margin-top:2px;">
+      <span>慢</span><span id="voiceRateLabel">0.95×</span><span>快</span>
+    </div>
+  </div>
+  <div style="margin-top:16px;font-size:13px;color:#888;">
+    音調
+    <input type="range" id="voicePitchSlider" min="0.7" max="1.5" step="0.05" value="1.05"
+      style="width:100%;margin-top:6px;accent-color:#2F80FF;">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;margin-top:2px;">
+      <span>低沉</span><span id="voicePitchLabel">1.05</span><span>清亮</span>
+    </div>
+  </div>
+  <button id="voiceTestBtn" style="
+    margin-top:20px;width:100%;padding:12px;
+    background:#2F80FF;color:#fff;border:none;border-radius:14px;
+    font-size:15px;font-weight:600;cursor:pointer;
+  ">🔊 試聽</button>
 </div>
 
 <div class="bottomBar">
@@ -1259,14 +1310,128 @@ geolocate.trigger();
     }
   }
 
+  // ===== 🔊 語音設定 =====
+  let _selectedVoiceName = localStorage.getItem('navVoiceName') || null;
+  let _voiceRate  = parseFloat(localStorage.getItem('navVoiceRate')  || '0.95');
+  let _voicePitch = parseFloat(localStorage.getItem('navVoicePitch') || '1.05');
+
+  function _getCachedVoice() {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return null;
+    // 優先用使用者選的
+    if (_selectedVoiceName) {
+      const picked = voices.find(v => v.name === _selectedVoiceName);
+      if (picked) return picked;
+    }
+    // 自動選最佳中文語音
+    const checks = [
+      v => v.lang === 'zh-TW' && /enhanced|premium/i.test(v.name),
+      v => v.lang === 'zh-TW',
+      v => v.lang.startsWith('zh'),
+    ];
+    for (const fn of checks) {
+      const found = voices.find(fn);
+      if (found) return found;
+    }
+    return null;
+  }
+  window.speechSynthesis.addEventListener('voiceschanged', () => _buildVoiceList());
+
+  function _makeUtter(text) {
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang  = 'zh-TW';
+    utter.rate  = _voiceRate;
+    utter.pitch = _voicePitch;
+    const voice = _getCachedVoice();
+    if (voice) utter.voice = voice;
+    return utter;
+  }
+
+  // 語音設定面板
+  function _buildVoiceList() {
+    const listEl = document.getElementById('voiceList');
+    if (!listEl) return;
+    const voices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith('zh'));
+    listEl.innerHTML = '';
+    if (!voices.length) {
+      listEl.innerHTML = '<div style="color:#aaa;font-size:13px;">找不到中文語音，請確認裝置已安裝</div>';
+      return;
+    }
+    voices.forEach(v => {
+      const btn = document.createElement('button');
+      const isSelected = _selectedVoiceName ? v.name === _selectedVoiceName : v.lang === 'zh-TW' && /enhanced|premium/i.test(v.name);
+      btn.style.cssText = `
+        width:100%;text-align:left;padding:12px 14px;border-radius:12px;border:none;cursor:pointer;
+        font-size:14px;transition:background 0.15s;
+        background:${isSelected ? '#EBF3FF' : '#f5f5f7'};
+        color:${isSelected ? '#2F80FF' : '#000'};
+        font-weight:${isSelected ? '600' : '400'};
+      `;
+      btn.innerHTML = `
+        <div>${v.name}</div>
+        <div style="font-size:11px;color:#aaa;margin-top:2px;">${v.lang}${v.localService ? '' : ' · 線上'}</div>
+      `;
+      btn.addEventListener('click', () => {
+        _selectedVoiceName = v.name;
+        localStorage.setItem('navVoiceName', v.name);
+        _buildVoiceList();
+      });
+      listEl.appendChild(btn);
+    });
+  }
+
+  // 滑桿
+  const _rateSlider  = document.getElementById('voiceRateSlider');
+  const _pitchSlider = document.getElementById('voicePitchSlider');
+  if (_rateSlider) {
+    _rateSlider.value = _voiceRate;
+    _rateSlider.addEventListener('input', () => {
+      _voiceRate = parseFloat(_rateSlider.value);
+      localStorage.setItem('navVoiceRate', _voiceRate);
+      document.getElementById('voiceRateLabel').innerText = _voiceRate.toFixed(2) + '×';
+    });
+  }
+  if (_pitchSlider) {
+    _pitchSlider.value = _voicePitch;
+    _pitchSlider.addEventListener('input', () => {
+      _voicePitch = parseFloat(_pitchSlider.value);
+      localStorage.setItem('navVoicePitch', _voicePitch);
+      document.getElementById('voicePitchLabel').innerText = _voicePitch.toFixed(2);
+    });
+  }
+
+  // 試聽按鈕
+  const _voiceTestBtn = document.getElementById('voiceTestBtn');
+  if (_voiceTestBtn) {
+    _voiceTestBtn.addEventListener('click', () => speakText('前方200公尺，請右轉，進入忠孝東路'));
+  }
+
+  // 開關面板
+  const _voicePanel = document.getElementById('voicePanel');
+  const _voiceSettingsBtn = document.getElementById('voiceSettingsBtn');
+  if (_voiceSettingsBtn && _voicePanel) {
+    _voiceSettingsBtn.addEventListener('click', () => {
+      const open = _voicePanel.style.display === 'none';
+      _voicePanel.style.display = open ? 'block' : 'none';
+      if (open) _buildVoiceList();
+    });
+    // 點面板外關閉
+    document.addEventListener('click', e => {
+      if (_voicePanel.style.display !== 'none' &&
+          !_voicePanel.contains(e.target) &&
+          e.target !== _voiceSettingsBtn &&
+          !_voiceSettingsBtn.contains(e.target)) {
+        _voicePanel.style.display = 'none';
+      }
+    });
+  }
+
   function speakText(text){
     if (!('speechSynthesis' in window)) return;
     try {
-      _duckRadio(); // 最優先設 flag，cancel() / speak() 都在後面
+      _duckRadio();
       window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = 'zh-TW';
-      utter.rate = 1.00;
+      const utter = _makeUtter(text);
       utter.onend   = _unduckRadio;
       utter.onerror = _unduckRadio;
       window.speechSynthesis.speak(utter);
@@ -1276,23 +1441,21 @@ geolocate.trigger();
     }
   }
 
-  // 分段播放,段落之間用setTimeout插入真正1秒的靜音停頓,不依賴標點符號
+  // 分段播放,段落之間用setTimeout插入真正0.25秒停頓
   function speakSegments(segments){
     if (!('speechSynthesis' in window)) return;
     const list = segments.filter(s => s && s.length > 0);
     if (!list.length) return;
 
-    _duckRadio(); // 同步設 flag，確保 mediaSession pause 攔得住
-    window.speechSynthesis.cancel(); // 避免播報堆疊、搶話
+    _duckRadio();
+    window.speechSynthesis.cancel();
 
     function playAt(i){
       if (i >= list.length){ _unduckRadio(); return; }
-      const utter = new SpeechSynthesisUtterance(list[i]);
-      utter.lang = 'zh-TW';
-      utter.rate = 1.00;
+      const utter = _makeUtter(list[i]);
       utter.onend = () => {
         if (i + 1 < list.length) {
-          setTimeout(() => playAt(i + 1), 250); // 真正的0.25秒停頓
+          setTimeout(() => playAt(i + 1), 250);
         } else {
           _unduckRadio();
         }
