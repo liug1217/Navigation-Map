@@ -6,9 +6,12 @@
 <title>智行地圖</title>
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
+<link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="智行地圖">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#2F80FF">
 <style>
 /* ===== OpenStreetMap Layer ===== */
 #map{
@@ -1029,24 +1032,7 @@ function updateUserLocation(position) {
 
   window.currentLat = lat; // 讓搜尋導航功能盡早就能取得目前位置
   window.currentLon = lng;
-
-  const el = document.createElement('div');
-  el.style.width = '16px';
-  el.style.height = '16px';
-  el.style.borderRadius = '50%';
-  el.style.background = '#2F80FF';
-  el.style.border = '3px solid white';
-  el.style.boxShadow = '0 0 10px rgba(47,128,255,0.6)';
-
-  if (userMarker) userMarker.remove();
-
-  userMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
-    .setLngLat([lng, lat])
-    .addTo(map);
-
-  if (typeof followUser === 'undefined' || followUser) {
-    map.easeTo({ center: [lng, lat], zoom: 16, padding: getUserCameraPadding(), bearing: (window.compassHeading != null ? window.compassHeading : 0) });
-  }
+  // 地圖跟隨和 marker 更新由 map.on('load') 裡的 watchPosition 統一處理
 }
 
 if (navigator.geolocation) {
@@ -1134,15 +1120,73 @@ geolocate.trigger();
   let marker = null;
   let routeSource = null;
 
+  // ===== 最近目的地 (localStorage) =====
+  const RECENT_DESTS_KEY = 'navRecentDests';
+
+  function saveRecentDest(dest) {
+    if (!dest || !dest.lat || !dest.lon) return;
+    try {
+      let list = JSON.parse(localStorage.getItem(RECENT_DESTS_KEY) || '[]');
+      list = list.filter(d => !(Math.abs(d.lat - dest.lat) < 0.0001 && Math.abs(d.lon - dest.lon) < 0.0001));
+      list.unshift({ lat: dest.lat, lon: dest.lon, name: dest.name, addr: dest.addr });
+      list = list.slice(0, 6);
+      localStorage.setItem(RECENT_DESTS_KEY, JSON.stringify(list));
+    } catch(e) {}
+  }
+
+  function getRecentDests() {
+    try { return JSON.parse(localStorage.getItem(RECENT_DESTS_KEY) || '[]'); } catch(e) { return []; }
+  }
+
+  function showRecentDests() {
+    const list = getRecentDests();
+    if (!list.length) return;
+    searchResultsList.innerHTML = '';
+    const label = document.createElement('div');
+    label.style.cssText = 'padding:8px 14px 4px;font-size:12px;color:#999;font-weight:600;letter-spacing:.5px;';
+    label.textContent = '最近目的地';
+    searchResultsList.appendChild(label);
+    list.forEach(item => {
+      const el = document.createElement('div');
+      el.className = 'searchResultItem';
+      el.innerHTML = '<div class="name">🕐 ' + (item.name || '未知地點') + '</div><div class="addr">' + (item.addr || '') + '</div>';
+      el.addEventListener('click', () => {
+        selectDestination(item.lat, item.lon, item.name, item.addr);
+        searchResultsList.style.display = 'none';
+        searchInput.value = item.name || '';
+      });
+      searchResultsList.appendChild(el);
+    });
+    searchResultsList.style.display = 'block';
+  }
+
+  // ===== 退出導航（不需重新載入頁面）=====
+  function stopNavigation() {
+    isNavigating = false;
+    navSteps = [];
+    currentStepIndex = 0;
+    Object.keys(navStepVoiceState).forEach(k => delete navStepVoiceState[k]);
+    document.body.classList.remove('navigating');
+    if (rect8) rect8.style.display = 'none';
+    if (searchBarWrapEl) searchBarWrapEl.style.display = '';
+    togglePoiLayers(true);
+    if (window.navRouteSource) {
+      window.navRouteSource.setData({ type: 'FeatureCollection', features: [] });
+    }
+    window.plannedRouteCoordinates = [];
+    plannedRouteCoordinates = [];
+    if (destMarker) { destMarker.remove(); destMarker = null; }
+    selectedDest = null;
+    if (destPanel) destPanel.style.display = 'none';
+  }
+
   // ===== 🆕 退出 / 全覽 按鈕 =====
   const navExitBtn = document.getElementById('navExitBtn');
   const navOverviewBtn = document.getElementById('navOverviewBtn');
 
   if(navExitBtn){
     navExitBtn.addEventListener('click', () => {
-      if(confirm('要結束本次路線記錄並重新開始嗎?')){
-        location.reload();
-      }
+      stopNavigation();
     });
   }
 
@@ -1601,6 +1645,17 @@ geolocate.trigger();
         return { clips: ['前方', ...this._numClips(Math.round(km)), '公', '里'], tts: '' };
       }
 
+      // 限速X公里
+      const mLim = text.match(/^限速(\d+)公里$/);
+      if (mLim) {
+        return { clips: ['限速', ...this._numClips(parseInt(mLim[1])), '公', '里'], tts: '' };
+      }
+
+      // 單字錄音片段
+      if (['有固定', '測速照相', '您已超速', '通過測速照相'].includes(text)) {
+        return { clips: [text], tts: '' };
+      }
+
       return { clips: [], tts: text };
     },
 
@@ -1644,7 +1699,8 @@ geolocate.trigger();
   VP.prefetch(['1','2','3','4','5','6','7','8','9',
                '十','百','千','公','里','尺',
                '前方','全程','大約需要','分鐘','小時',
-               '開始導航','有固定','測速照相','限速']);
+               '開始導航','有固定','測速照相','限速',
+               '您已超速','通過測速照相']);
 
   async function speakText(text){
     _duckRadio();
@@ -1772,6 +1828,12 @@ geolocate.trigger();
   if (searchInput) {
     searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') searchPlaces(searchInput.value);
+    });
+    searchInput.addEventListener('focus', () => {
+      if (!searchInput.value.trim()) showRecentDests();
+    });
+    searchInput.addEventListener('input', () => {
+      if (!searchInput.value.trim()) showRecentDests();
     });
   }
   if (closeDestBtn) {
@@ -2058,7 +2120,7 @@ geolocate.trigger();
       _smoothedHeading = (_smoothedHeading + _COMPASS_ALPHA * diff + 360) % 360;
     }
     window.compassHeading = _smoothedHeading;
-    updateUserMarkerHeading();
+    if (typeof window.updateUserMarkerHeading === 'function') window.updateUserMarkerHeading();
 
     // 即時更新地圖旋轉（只在跟隨模式下，duration 短讓畫面跟得上）
     if (followUser && map) {
@@ -2170,6 +2232,9 @@ geolocate.trigger();
       }
 
       destPanel.style.display = 'none';
+
+      // 儲存到最近目的地
+      if (!fromPosition && selectedDest) saveRecentDest(selectedDest);
 
       // ===== 🧭 啟動逐步轉彎導航模式 =====
       navSteps = (route.legs && route.legs[0] && route.legs[0].steps) ? route.legs[0].steps : [];
@@ -2286,19 +2351,19 @@ geolocate.trigger();
       const state = speedCameraVoiceState[idx] || 'idle';
 
       if (d <= SPEED_CAM_WARN_KM && state === 'idle') {
-        // 進入100公尺範圍,第一次播報預告(距離用實際算出來的,不是寫死100)
+        // 進入100公尺範圍,第一次播報預告
         const limit = p.limit;
-        const meters = Math.max(10, Math.round((d * 1000) / 10) * 10); // 四捨五入到最近10公尺,且最少講10公尺
+        const meters = Math.max(10, Math.round((d * 1000) / 10) * 10);
         const isOverSpeed = !!(currentSpeedKmh && limit && currentSpeedKmh > Number(limit));
-        let text = '前方' + meters + '公尺後有固定測速照相';
-        if (limit) text += '限速' + limit + '公里';
-        if (isOverSpeed) text += '您已超速';
-        speakText(text);
+        const items = ['前方' + meters + '公尺', '有固定', '測速照相'];
+        if (limit) items.push('限速' + limit + '公里');
+        if (isOverSpeed) items.push('您已超速');
+        speakQueue(items);
         speedCameraVoiceState[idx] = 'warned';
 
       } else if (d <= SPEED_CAM_PASS_KM && state === 'warned') {
-        // 已經很靠近,視為通過,播報一次「通過」
-        speakText('通過測速照相');
+        // 已經很靠近,視為通過
+        speakQueue(['通過測速照相']);
         speedCameraVoiceState[idx] = 'passed';
 
       } else if (d > SPEED_CAM_RESET_KM && state !== 'idle') {
@@ -2349,10 +2414,10 @@ geolocate.trigger();
       ? Math.round(Number(distanceMeters))
       : 100;
     const isOverSpeed = !!(speedKmh && limit && Number(speedKmh) > Number(limit));
-    let text = '前方' + meters + '公尺後有固定測速照相';
-    if (limit) text += '限速' + limit + '公里';
-    if (isOverSpeed) text += '您已超速';
-    speakText(text);
+    const items = ['前方' + meters + '公尺', '有固定', '測速照相'];
+    if (limit) items.push('限速' + limit + '公里');
+    if (isOverSpeed) items.push('您已超速');
+    speakQueue(items);
   }
   window.forceTestSpeedCameraAnnounce = forceTestSpeedCameraAnnounce;
 
@@ -2615,22 +2680,32 @@ map.on('load', () => {
     }).setLngLat([lng, lat]);
   }
 
-  // 更新車子圖示的旋轉方向
-  function updateUserMarkerHeading() {
+  let _lastNavState = false; // 追蹤導航狀態切換，避免不必要的 marker 重建
+
+  // 更新車子圖示的旋轉方向（掛到 window 讓主腳本的 handleDeviceOrientation 能呼叫）
+  window.updateUserMarkerHeading = function() {
     if (!isNavigating || !userMarker) return;
     const el = userMarker.getElement();
     if (!el) return;
     const heading = window.compassHeading != null ? window.compassHeading : 0;
     el.style.transform = `rotate(${heading}deg)`;
-  }
+  };
 
   navigator.geolocation.watchPosition((pos) => {
     const lng = pos.coords.longitude;
     const lat = pos.coords.latitude;
 
-    if (userMarker) userMarker.remove();
+    const navStateChanged = (_lastNavState !== isNavigating);
+    _lastNavState = isNavigating;
 
-    userMarker = createUserDot(lng, lat).addTo(map);
+    if (!userMarker || navStateChanged) {
+      // 首次建立或導航狀態切換時才重建 marker
+      if (userMarker) userMarker.remove();
+      userMarker = createUserDot(lng, lat).addTo(map);
+    } else {
+      // 平常只移動位置，不重建 DOM
+      userMarker.setLngLat([lng, lat]);
+    }
 
     if (followUser) {
       map.easeTo({
