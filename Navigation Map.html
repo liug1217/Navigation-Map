@@ -2906,33 +2906,61 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   var c=document.createElement('canvas');
   c.width=c.height=180;
   var ctx=c.getContext('2d');
-  // 圓角藍色背景
+
+  // 藍色漸層背景（高德風格：左上亮藍→右下深藍）
+  var bg=ctx.createLinearGradient(0,0,180,180);
+  bg.addColorStop(0,'#4DAAFF');
+  bg.addColorStop(1,'#0048CC');
   ctx.beginPath();
-  ctx.roundRect(0,0,180,180,40);
-  ctx.fillStyle='#1A6ADB';
+  ctx.roundRect(0,0,180,180,38);
+  ctx.fillStyle=bg;
   ctx.fill();
-  // 白色定位針圖示
+
+  // 頂部光澤
+  var shine=ctx.createLinearGradient(0,0,0,100);
+  shine.addColorStop(0,'rgba(255,255,255,0.22)');
+  shine.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(0,0,180,180,38);
+  ctx.clip();
+  ctx.fillStyle=shine;
+  ctx.fillRect(0,0,180,100);
+  ctx.restore();
+
+  // 定位針陰影
+  ctx.shadowColor='rgba(0,30,100,0.45)';
+  ctx.shadowBlur=14;
+  ctx.shadowOffsetX=0;
+  ctx.shadowOffsetY=8;
+
+  // 定位針（淚滴形）
+  var cx=90,cy=68,r=36;
   ctx.fillStyle='#FFFFFF';
   ctx.beginPath();
-  ctx.arc(90,78,28,0,Math.PI*2);
+  ctx.moveTo(cx,cy+r+44);
+  ctx.bezierCurveTo(cx-18,cy+r+22,cx-r,cy+r*0.25,cx-r,cy);
+  ctx.arc(cx,cy,r,Math.PI,0,false);
+  ctx.bezierCurveTo(cx+r,cy+r*0.25,cx+18,cy+r+22,cx,cy+r+44);
+  ctx.closePath();
   ctx.fill();
-  ctx.fillStyle='#1A6ADB';
+
+  // 內圓漸層
+  ctx.shadowColor='transparent';
+  var ig=ctx.createLinearGradient(cx-18,cy-18,cx+18,cy+18);
+  ig.addColorStop(0,'#70C0FF');
+  ig.addColorStop(1,'#0048CC');
   ctx.beginPath();
-  ctx.arc(90,78,16,0,Math.PI*2);
+  ctx.arc(cx,cy,17,0,Math.PI*2);
+  ctx.fillStyle=ig;
   ctx.fill();
-  ctx.fillStyle='#FFFFFF';
+
+  // 中心白點
+  ctx.fillStyle='rgba(255,255,255,0.95)';
   ctx.beginPath();
-  ctx.moveTo(90,115);
-  ctx.bezierCurveTo(68,88,55,82,55,78);
-  ctx.bezierCurveTo(55,63.6,71.6,52,90,52);
-  ctx.bezierCurveTo(108.4,52,125,63.6,125,78);
-  ctx.bezierCurveTo(125,82,112,88,90,115);
+  ctx.arc(cx,cy,7,0,Math.PI*2);
   ctx.fill();
-  ctx.fillStyle='#1A6ADB';
-  ctx.beginPath();
-  ctx.arc(90,78,10,0,Math.PI*2);
-  ctx.fill();
-  // 設定 apple-touch-icon
+
   var link=document.getElementById('appTouchIcon');
   if(link) link.href=c.toDataURL('image/png');
 })();
