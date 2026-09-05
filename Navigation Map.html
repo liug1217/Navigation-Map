@@ -2993,6 +2993,16 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
   function initLayers(m, geojson){
     if(m.getSource('cctv')) return;
+    // 產生 📷 emoji 圖示
+    if(!m.hasImage('cctv-icon')){
+      var sz=40;
+      var cv=document.createElement('canvas'); cv.width=cv.height=sz;
+      var cx=cv.getContext('2d');
+      cx.font=(sz*0.8)+'px serif';
+      cx.textAlign='center'; cx.textBaseline='middle';
+      cx.fillText('📷',sz/2,sz/2);
+      m.addImage('cctv-icon',{width:sz,height:sz,data:cx.getImageData(0,0,sz,sz).data});
+    }
 
     m.addSource('cctv',{
       type:'geojson',
@@ -3022,10 +3032,10 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       source:'cctv',
       filter:['!',['has','point_count']],
       layout:{
-        'text-field':'📷',
-        'text-size':20,
-        'text-allow-overlap':true,
-        'text-ignore-placement':true
+        'icon-image':'cctv-icon',
+        'icon-size':0.7,
+        'icon-allow-overlap':true,
+        'icon-ignore-placement':true
       }
     });
 
