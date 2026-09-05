@@ -1319,7 +1319,10 @@ geolocate.trigger();
   function _buildVoiceList() {
     const listEl = document.getElementById('voiceList');
     if (!listEl) return;
-    const voices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith('zh'));
+    const _seen = new Set();
+    const voices = window.speechSynthesis.getVoices()
+      .filter(v => v.lang.startsWith('zh'))
+      .filter(v => _seen.has(v.name) ? false : _seen.add(v.name));
     listEl.innerHTML = '';
     if (!voices.length) {
       listEl.innerHTML = '<div style="color:#aaa;font-size:13px;">找不到中文語音，請確認裝置已安裝</div>';
