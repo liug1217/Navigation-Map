@@ -1435,7 +1435,14 @@ geolocate.trigger();
     function _onDragEnd(e) {
       if (_rafId) cancelAnimationFrame(_rafId);
       const dy = _tsY - e.changedTouches[0].clientY;
-      if (!_moved || Math.abs(dy) < 8) return;
+      if (!_moved || Math.abs(dy) < 8) {
+        // 輕點卡片背景切換（排除按鈕/輸入框）
+        const tag = (e.target || e.changedTouches[0].target || {}).tagName || '';
+        if (!/^(BUTTON|INPUT|SELECT|A|LABEL)$/.test(tag)) {
+          _drawerOpen ? _closeDrawer() : _openDrawer();
+        }
+        return;
+      }
       dy > 40 ? _openDrawer() : _closeDrawer();
     }
 
