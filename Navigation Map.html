@@ -956,7 +956,7 @@ html, body {
   <div class="rect1">
     <div class="rect3"></div>
     <div class="info">0小時0分鐘 0.00公里</div>
-    <div class="arrivalText" id="arrivalText">00:00到達</div>
+    <div class="arrivalText" id="arrivalText">現在00:00:00 到達00:00:00</div>
     <button type="button" class="navExitBtn" id="navExitBtn">退出</button>
     <button type="button" class="navOverviewBtn" id="navOverviewBtn">全覽</button>
     <div class="navInfoCard" id="radioCard">
@@ -1742,10 +1742,7 @@ geolocate.trigger();
       }
       const arrivalEl = document.getElementById('arrivalText');
       if (arrivalEl) {
-        const eta = new Date(Date.now() + route.duration * 1000);
-        const hh = String(eta.getHours()).padStart(2, '0');
-        const mm = String(eta.getMinutes()).padStart(2, '0');
-        arrivalEl.innerText = hh + ':' + mm + '到達';
+        window._navEta = new Date(Date.now() + route.duration * 1000);
       }
 
       // 初始導航才縮放顯示整條路線；重新規劃時保持目前視角，不跳走
@@ -2899,6 +2896,16 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   window.addEventListener('pagehide', function(){ if(playing) pausePlay(); });
 
   updateDial();
+
+  // 每秒更新「現在時間 / 到達時間」顯示
+  setInterval(function(){
+    var el=document.getElementById('arrivalText');
+    if(!el) return;
+    var now=new Date();
+    function fmt(d){ return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0'); }
+    var etaStr=window._navEta?fmt(window._navEta):'--:--:--';
+    el.innerText='現在'+fmt(now)+' 到達'+etaStr;
+  },1000);
 })();
 </script>
 <script>
