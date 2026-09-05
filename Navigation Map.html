@@ -1639,6 +1639,14 @@ geolocate.trigger();
 
   // ===== 🧭 手機羅盤方向偵測,讓地圖跟著手機旋轉(360度)而不是固定北方朝上 =====
   window.compassHeading = null;
+  let _smoothedHeading = null;
+  const _COMPASS_ALPHA = 0.18; // 指數平滑係數：越小越穩，越大越靈敏
+
+  function _angleDiff(a, b){
+    // 回傳從 b 到 a 的最短角差（-180~180）
+    let d = ((a - b) % 360 + 360) % 360;
+    return d > 180 ? d - 360 : d;
+  }
 
   function handleDeviceOrientation(event){
     let heading = null;
@@ -1647,9 +1655,21 @@ geolocate.trigger();
     } else if (typeof event.alpha === 'number') {
       heading = 360 - event.alpha;
     }
-    if (heading != null && !isNaN(heading)) {
-      window.compassHeading = heading;
-      updateUserMarkerHeading(); // 同步更新車子圖示方向
+    if (heading == null || isNaN(heading)) return;
+
+    // 指數平滑 + 正確繞圈處理
+    if (_smoothedHeading == null) {
+      _smoothedHeading = heading;
+    } else {
+      const diff = _angleDiff(heading, _smoothedHeading);
+      _smoothedHeading = (_smoothedHeading + _COMPASS_ALPHA * diff + 360) % 360;
+    }
+    window.compassHeading = _smoothedHeading;
+    updateUserMarkerHeading();
+
+    // 即時更新地圖旋轉（只在跟隨模式下，duration 短讓畫面跟得上）
+    if (followUser && map) {
+      map.easeTo({ bearing: _smoothedHeading, duration: 150, easing: t => t });
     }
   }
 
@@ -2095,7 +2115,7 @@ geolocate.trigger();
         map.easeTo({
           center: [currentLon, currentLat],
           zoom: 15,
-          duration: 1000,
+          duration: 300,
           padding: getUserCameraPadding(),
           bearing: (window.compassHeading != null ? window.compassHeading : 0)
         });
