@@ -2,7 +2,7 @@
   "name": "智行地圖",
   "short_name": "智行地圖",
   "description": "台灣智慧導航地圖，支援語音播報與測速照相警示",
-  "start_url": "./Navigation%20Map.html",
+  "start_url": "./%E6%99%BA%E8%A1%8C%E5%9C%B0%E5%9C%96.html",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#D6E4F2",
