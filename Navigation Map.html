@@ -3005,11 +3005,18 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     return { type:'FeatureCollection', features:features };
   }
 
+  function fetchTimeout(url, ms){
+    var ctrl = new AbortController();
+    var t = setTimeout(function(){ ctrl.abort(); }, ms);
+    return fetch(url, {signal: ctrl.signal}).finally(function(){ clearTimeout(t); });
+  }
+
   function loadCCTV(){
-    return fetch(CCTV_URL, {mode:'cors'})
+    return fetchTimeout(CCTV_URL, 5000)
       .then(function(r){ return r.text(); })
       .catch(function(){
-        return fetch(PROXY + encodeURIComponent(CCTV_URL)).then(function(r){ return r.text(); });
+        return fetchTimeout(PROXY + encodeURIComponent(CCTV_URL), 10000)
+          .then(function(r){ return r.text(); });
       })
       .then(parseXML);
   }
