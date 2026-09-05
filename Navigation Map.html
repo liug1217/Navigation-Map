@@ -342,6 +342,9 @@ html,body{
   white-space:nowrap;
 }
 
+/* 導航中時鐘下移，避免被導航面板遮住 */
+body.navigating .mapClock{ top:134px; }
+
 /* ===== 隱藏 MapLibre 預設控制按鈕 ===== */
 .maplibregl-ctrl-top-right,
 .maplibregl-ctrl-bottom-right,
@@ -1425,7 +1428,6 @@ geolocate.trigger();
     const roadName = step.name ? ('進入' + step.name) : '';
     if (rect8Instruction) rect8Instruction.innerText = text + (roadName ? roadName : '');
     if (rect8Icon) rect8Icon.innerText = iconForManeuver(step.maneuver);
-    if (rect6El) rect6El.innerText = iconForManeuver(step.maneuver);
     if (rect8Distance) {
       rect8Distance.innerText = (distanceMeters != null) ? (Math.round(distanceMeters) + '公尺後') : '';
     }
@@ -1436,6 +1438,7 @@ geolocate.trigger();
     if (!isNavigating || !navSteps.length) return;
     if (currentStepIndex >= navSteps.length) {
       isNavigating = false;
+      document.body.classList.remove('navigating');
       return;
     }
     const step = navSteps[currentStepIndex];
@@ -1464,6 +1467,7 @@ geolocate.trigger();
       navStepVoiceState[currentStepIndex] = navStepVoiceState[currentStepIndex] || 'idle';
       if (currentStepIndex >= navSteps.length) {
         isNavigating = false;
+        document.body.classList.remove('navigating');
         if (rect8) rect8.style.display = 'none';
         if (speedPillNum) speedPillNum.innerText = '0';
         if (searchBarWrapEl) searchBarWrapEl.style.display = '';
@@ -1544,7 +1548,6 @@ geolocate.trigger();
     if (rect8) {
       rect8Instruction.innerText = '重新規劃路線中...';
       rect8Icon.innerText = '🔄';
-      if (rect6El) rect6El.innerText = '🔄';
       rect8Distance.innerText = '';
     }
 
@@ -1726,6 +1729,7 @@ geolocate.trigger();
       currentStepIndex = 0;
       Object.keys(navStepVoiceState).forEach(k => delete navStepVoiceState[k]);
       isNavigating = true;
+      document.body.classList.add('navigating');
       if (searchBarWrapEl) searchBarWrapEl.style.display = 'none';
       if (rect8) rect8.style.display = 'flex';
       if (rect6El) rect6El.style.display = 'flex';
@@ -2953,7 +2957,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       filter:['!',['has','point_count']],
       layout:{
         'icon-image':'cctv-icon',
-        'icon-size':0.65,
+        'icon-size':['interpolate',['linear'],['zoom'],12,0.4,15,0.7,17,1.0,19,1.4],
         'icon-allow-overlap':true,
         'icon-ignore-placement':true
       }
@@ -3031,12 +3035,12 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     var data = window.speedCameraData;
     if(!data) return;
 
-    // 為每個速限值畫紅框白底圓形圖示
+    // 為每個速限值畫紅框白底圓形圖示（底部加三角指針）
     [25,30,40,50,60,70,80,90,100,110].forEach(function(lim){
       var key='speed-'+lim;
       if(m.hasImage(key)) return;
-      var sz=60, r=sz/2, border=5;
-      var cv=document.createElement('canvas'); cv.width=cv.height=sz;
+      var sz=60, tip=10, totalH=sz+tip, r=sz/2, border=5;
+      var cv=document.createElement('canvas'); cv.width=sz; cv.height=totalH;
       var cx=cv.getContext('2d');
       // 白底圓
       cx.beginPath(); cx.arc(r,r,r-1,0,Math.PI*2);
@@ -3049,7 +3053,12 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       cx.font='bold '+fs+'px Arial,sans-serif';
       cx.textAlign='center'; cx.textBaseline='middle';
       cx.fillStyle='#000000'; cx.fillText(String(lim),r,r+1);
-      m.addImage(key,{width:sz,height:sz,data:cx.getImageData(0,0,sz,sz).data});
+      // 底部三角指針
+      cx.fillStyle='#FFFFFF';
+      cx.beginPath();
+      cx.moveTo(r-8,sz); cx.lineTo(r+8,sz); cx.lineTo(r,sz+tip); cx.closePath();
+      cx.fill();
+      m.addImage(key,{width:sz,height:totalH,data:cx.getImageData(0,0,sz,totalH).data});
     });
 
     m.addSource('speed-cam',{type:'geojson',data:data,cluster:true,clusterMaxZoom:13,clusterRadius:50});
@@ -3068,7 +3077,8 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       filter:['!',['has','point_count']],
       layout:{
         'icon-image':['concat','speed-',['to-string',['get','limit']]],
-        'icon-size':0.7,'icon-allow-overlap':true,'icon-ignore-placement':true
+        'icon-size':['interpolate',['linear'],['zoom'],12,0.4,15,0.65,17,0.9,19,1.2],
+        'icon-allow-overlap':true,'icon-ignore-placement':true
       }
     });
 
