@@ -1487,6 +1487,29 @@ geolocate.trigger();
     }
   }
 
+  // ===== iOS audio unlock：第一次使用者互動時解鎖 =====
+  (function() {
+    let unlocked = false;
+    const unlock = () => {
+      if (unlocked) return;
+      unlocked = true;
+      // 播一段無聲音訊解鎖 AudioContext
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const buf = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(0);
+      ctx.resume().then(() => ctx.close());
+      document.removeEventListener('touchstart', unlock, true);
+      document.removeEventListener('touchend',   unlock, true);
+      document.removeEventListener('click',      unlock, true);
+    };
+    document.addEventListener('touchstart', unlock, true);
+    document.addEventListener('touchend',   unlock, true);
+    document.addEventListener('click',      unlock, true);
+  })();
+
   // ===== 語音包（錄音 m4a + TTS fallback）=====
   const VP = {
     base: 'voice_pack/',
