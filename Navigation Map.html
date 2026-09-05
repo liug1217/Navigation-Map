@@ -1415,6 +1415,7 @@ geolocate.trigger();
     return RECT1_COLLAPSED + dh + 8;
   }
 
+  const _navEls = () => _rect1El.querySelectorAll('.info, .arrivalText, .navExitBtn, .navOverviewBtn, #radioCard');
   function _openDrawer() {
     _buildVoiceList();
     _expandedH = _measureExpanded();
@@ -1422,10 +1423,12 @@ geolocate.trigger();
     _rect1El.style.transition = 'height 0.38s cubic-bezier(0.32,0.72,0,1)';
     _rect1El.style.height = _expandedH + 'px';
     _drawerOpen = true;
+    _navEls().forEach(el => el.style.visibility = 'hidden');
   }
   function _closeDrawer() {
     _rect1El.style.transition = 'height 0.38s cubic-bezier(0.32,0.72,0,1)';
     _rect1El.style.height = RECT1_COLLAPSED + 'px';
+    _navEls().forEach(el => el.style.visibility = 'visible');
     setTimeout(() => { if (!_drawerOpen) _voiceDrawer.style.display = 'none'; }, 400);
     _drawerOpen = false;
   }
