@@ -648,7 +648,7 @@ html,body{
 .navInfoCardPlayBtn.playing .pause-icon{ display:flex; }
 
 
-/* ===== 📷 CCTV 即時影像 ===== */
+/* ===== 📷 CCTV 即時影像(proximity auto-show panel, hidden by default) ===== */
 .cctvOverlay{
   position:absolute;
   right:10px;
@@ -664,6 +664,7 @@ html,body{
   -webkit-backdrop-filter:blur(18px);
   z-index:4;
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
+  display:none;
 }
 
 .cctvPanelTitle{
@@ -2967,11 +2968,37 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       });
     });
 
+    var cctvPopup = null;
     m.on('click','cctv-point',function(e){
       var props=e.features[0].properties;
-      if(typeof window.switchCctvCamera === 'function'){
-        window.switchCctvCamera(props.url, props.road+' '+props.mile, null, false);
+      var coords=e.features[0].geometry.coordinates.slice();
+      if(cctvPopup) cctvPopup.remove();
+      var uid='cctv_'+Date.now();
+      var baseUrl=props.url;
+      var refreshTimer=null;
+      cctvPopup=new maplibregl.Popup({maxWidth:'320px',closeButton:true})
+        .setLngLat(coords)
+        .setHTML(
+          '<div style="font-size:12px;font-weight:700;color:#1A6ADB;margin-bottom:5px">'+props.road+' '+props.mile+'</div>'+
+          '<img id="'+uid+'" src="'+baseUrl+'&t='+Date.now()+'" style="width:300px;height:200px;object-fit:cover;border-radius:8px;display:block;background:#000">'+
+          '<div style="color:#888;font-size:11px;margin-top:4px">點擊關閉即停止串流</div>'
+        )
+        .addTo(m);
+      function reconnect(){
+        var img=document.getElementById(uid);
+        if(!img) return;
+        img.onerror=function(){ setTimeout(reconnect,2000); };
+        img.src=baseUrl+'&t='+Date.now();
       }
+      var img=document.getElementById(uid);
+      if(img) img.onerror=function(){ setTimeout(reconnect,2000); };
+      refreshTimer=setInterval(reconnect,8000);
+      cctvPopup.on('close',function(){
+        clearInterval(refreshTimer);
+        var img=document.getElementById(uid);
+        if(img) img.src='';
+        cctvPopup=null;
+      });
     });
 
     ['cctv-clusters','cctv-point'].forEach(function(id){
