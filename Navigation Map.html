@@ -438,7 +438,7 @@ html,body{
   top:82px;
   height:60px;
   background:#FFFFFF;
-  box-shadow:0 4px 4px rgba(0,0,0,0.25);
+  box-shadow:0 4px 12px rgba(0,0,0,0.12);
   border-radius:30px;
   display:flex;
   align-items:center;
@@ -446,37 +446,75 @@ html,body{
 }
 
 .navInfoCardIcon{
-  width:59px;
-  height:60px;
+  width:52px;
+  height:52px;
   flex-shrink:0;
-  background:url('https://upload.wikimedia.org/wikipedia/zh/thumb/d/d1/ROC_Police_Broadcasting_Service_Seal.svg/1280px-ROC_Police_Broadcasting_Service_Seal.svg.png') center/contain no-repeat #FFFFFF;
-  border-radius:29.5px 0 0 29.5px;
-  filter:drop-shadow(0px 4px 4px rgba(0,0,0,0.25));
+  margin:4px 0 4px 4px;
+  background:url('https://upload.wikimedia.org/wikipedia/zh/thumb/d/d1/ROC_Police_Broadcasting_Service_Seal.svg/512px-ROC_Police_Broadcasting_Service_Seal.svg.png') center/cover no-repeat #f0f0f0;
+  border-radius:50%;
+  box-shadow:0 2px 6px rgba(0,0,0,0.18);
 }
 
 .navInfoCardMeta{
-  flex:0 0 auto;
-  margin-left:12px;
+  flex:1;
+  min-width:0;
+  margin-left:10px;
   display:flex;
   flex-direction:column;
   justify-content:center;
 }
 .navInfoCardText{
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
-  font-weight:500;
-  font-size:14px;
+  font-weight:600;
+  font-size:13px;
   color:#000000;
-  text-shadow:0 4px 4px rgba(0,0,0,0.25);
   line-height:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.navInfoCardFreqRow{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-top:4px;
 }
 .navInfoCardFreq{
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
-  font-size:11px;
-  font-weight:600;
+  font-size:10px;
+  font-weight:700;
   color:#2F80FF;
-  line-height:1;
-  margin-top:3px;
-  letter-spacing:0.3px;
+  background:rgba(47,128,255,0.1);
+  padding:2px 7px;
+  border-radius:8px;
+  line-height:1.4;
+  letter-spacing:0.2px;
+  white-space:nowrap;
+}
+.radioWaveform{
+  display:flex;
+  align-items:center;
+  gap:2px;
+  height:14px;
+  opacity:0;
+  transition:opacity 0.3s;
+}
+.radioWaveform.active{ opacity:1; }
+.radioWaveform span{
+  display:block;
+  width:2.5px;
+  border-radius:1.5px;
+  background:#2F80FF;
+  animation:radioWavePulse 0.9s ease-in-out infinite;
+}
+.radioWaveform span:nth-child(1){ height:4px; animation-delay:0s; }
+.radioWaveform span:nth-child(2){ height:9px; animation-delay:0.15s; }
+.radioWaveform span:nth-child(3){ height:13px; animation-delay:0.3s; }
+.radioWaveform span:nth-child(4){ height:9px; animation-delay:0.45s; }
+.radioWaveform span:nth-child(5){ height:4px; animation-delay:0.6s; }
+@keyframes radioWavePulse{
+  0%,100%{ transform:scaleY(0.35); }
+  50%{ transform:scaleY(1); }
 }
 .navInfoCardStatus{
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
@@ -554,54 +592,55 @@ html,body{
 }
 .fmTick.active .tick-line{ background:#2F80FF; height:14px; }
 .fmTick.active .tick-label{ color:#2F80FF; font-weight:700; }
+.radioControls{
+  display:flex;
+  align-items:center;
+  gap:2px;
+  margin-right:10px;
+  flex-shrink:0;
+}
 .navInfoCardArrow{
-  width:28px;
-  height:28px;
+  width:30px;
+  height:30px;
   flex-shrink:0;
   background:none;
   border:none;
   color:#8E8E93;
-  font-size:22px;
-  line-height:1;
   cursor:pointer;
   padding:0;
   display:flex;
   align-items:center;
   justify-content:center;
-}
-.navInfoCardPlayBtn{
-  width:32px;
-  height:32px;
   border-radius:50%;
-  background:#2F80FF;
+  transition:background 0.15s;
+}
+.navInfoCardArrow:active{ background:rgba(0,0,0,0.07); }
+.navInfoCardPlayBtn{
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  background:linear-gradient(135deg,#3d8ef8,#1a6de8);
   border:none;
   display:flex;
   align-items:center;
   justify-content:center;
   cursor:pointer;
   flex-shrink:0;
-  margin-right:12px;
-  position:relative;
+  box-shadow:0 3px 10px rgba(47,128,255,0.45);
+  transition:transform 0.1s,box-shadow 0.1s;
 }
-.navInfoCardPlayBtn .play-icon{
-  width:0;
-  height:0;
-  border-top:6px solid transparent;
-  border-bottom:6px solid transparent;
-  border-left:10px solid white;
-  margin-left:2px;
-  display:block;
+.navInfoCardPlayBtn:active{
+  transform:scale(0.93);
+  box-shadow:0 1px 4px rgba(47,128,255,0.3);
 }
-.navInfoCardPlayBtn .pause-icon{
-  display:none;
-  gap:3px;
-}
+.navInfoCardPlayBtn .play-icon{ display:flex; align-items:center; justify-content:center; }
+.navInfoCardPlayBtn .pause-icon{ display:none; align-items:center; justify-content:center; gap:3px; }
 .navInfoCardPlayBtn .pause-icon span{
   display:block;
   width:3px;
   height:12px;
   background:white;
-  border-radius:1px;
+  border-radius:1.5px;
 }
 .navInfoCardPlayBtn.playing .play-icon{ display:none; }
 .navInfoCardPlayBtn.playing .pause-icon{ display:flex; }
@@ -919,22 +958,43 @@ html, body {
     <button type="button" class="navExitBtn" id="navExitBtn">退出</button>
     <button type="button" class="navOverviewBtn" id="navOverviewBtn">全覽</button>
     <div class="navInfoCard" id="radioCard">
-      <div class="navInfoCardIcon"></div>
+      <div class="navInfoCardIcon" id="radioIcon"></div>
       <div class="navInfoCardMeta">
         <div class="navInfoCardText" id="radioName">全國治安交通網</div>
-        <div class="navInfoCardFreq" id="radioFreq">104.9 MHz</div>
+        <div class="navInfoCardFreqRow">
+          <div class="navInfoCardFreq" id="radioFreq">104.9 MHz</div>
+          <div class="radioWaveform" id="radioWaveform">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
       </div>
       <!-- FM 刻度盤：隱藏但保留 JS 功能 -->
       <div class="fmDial" id="fmDial" style="display:none;flex:0;width:0;overflow:hidden;">
         <div class="fmNeedle" style="display:none;"></div>
         <div class="fmTrack" id="fmTrack"></div>
       </div>
-      <button class="navInfoCardArrow" id="radioPrev">‹</button>
-      <button class="navInfoCardArrow" id="radioNext">›</button>
-      <button class="navInfoCardPlayBtn" id="radioPlayBtn">
-        <span class="play-icon"></span>
-        <span class="pause-icon"><span></span><span></span></span>
-      </button>
+      <div class="radioControls">
+        <button class="navInfoCardArrow" id="radioPrev">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="1.5" y="2" width="2.5" height="12" rx="1.25" fill="currentColor"/>
+            <path d="M14 3L6.5 8L14 13V3Z" fill="currentColor"/>
+          </svg>
+        </button>
+        <button class="navInfoCardPlayBtn" id="radioPlayBtn">
+          <span class="play-icon">
+            <svg width="13" height="15" viewBox="0 0 13 15" fill="none">
+              <path d="M1.5 1.5L11.5 7.5L1.5 13.5V1.5Z" fill="white"/>
+            </svg>
+          </span>
+          <span class="pause-icon"><span></span><span></span></span>
+        </button>
+        <button class="navInfoCardArrow" id="radioNext">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="12" y="2" width="2.5" height="12" rx="1.25" fill="currentColor"/>
+            <path d="M2 3L9.5 8L2 13V3Z" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -2699,6 +2759,8 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   function setPlaying(v){
     playing = v;
     if(playBtn) playBtn.classList.toggle('playing', v);
+    const waveform = document.getElementById('radioWaveform');
+    if(waveform) waveform.classList.toggle('active', v);
     if('mediaSession' in navigator)
       navigator.mediaSession.playbackState = v ? 'playing' : 'paused';
   }
