@@ -1262,13 +1262,13 @@ geolocate.trigger();
   function speakText(text){
     if (!('speechSynthesis' in window)) return;
     try {
-      window.speechSynthesis.cancel(); // 避免播報堆疊、搶話
+      _duckRadio(); // 最優先設 flag，cancel() / speak() 都在後面
+      window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = 'zh-TW';
       utter.rate = 1.00;
       utter.onend   = _unduckRadio;
       utter.onerror = _unduckRadio;
-      _duckRadio(); // 在 speak() 之前同步設 flag，確保 mediaSession pause 攔得住
       window.speechSynthesis.speak(utter);
     } catch(e) {
       _unduckRadio();
@@ -2829,9 +2829,9 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   }
 
   vjs.on('playing', function(){ setPlaying(true); setStatus('直播中'); });
-  vjs.on('waiting', function(){ if(playing) setStatus('緩衝中…'); });
+  vjs.on('waiting', function(){ if(playing && !window._ttsActive) setStatus('緩衝中…'); });
   vjs.on('error',   function(){ setPlaying(false); setStatus('點擊重試'); });
-  vjs.on('pause',   function(){ if(playing){ setPlaying(false); setStatus('已暫停'); } });
+  vjs.on('pause',   function(){ if(window._ttsActive) return; if(playing){ setPlaying(false); setStatus('已暫停'); } });
   window.addEventListener('pagehide', function(){ if(playing) pausePlay(); });
 
   updateDial();
@@ -2870,7 +2870,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   }
 
   vjs.on('playing', function(){ _startRealWave(); });
-  vjs.on('pause',   function(){ _stopRealWave(); });
+  vjs.on('pause',   function(){ if(!window._ttsActive) _stopRealWave(); });
   vjs.on('error',   function(){ _stopRealWave(); });
 
 })();
