@@ -2993,24 +2993,12 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
   function initLayers(m, geojson){
     if(m.getSource('cctv')) return;
-    // 產生帶白色底色的 📷 emoji 圖示（群集與個別點共用）
+    // 產生 📷 emoji 圖示（群集與個別點共用）
     if(!m.hasImage('cctv-icon')){
-      var sz=56, pad=4, r=8;
+      var sz=48;
       var cv=document.createElement('canvas'); cv.width=cv.height=sz;
       var cx=cv.getContext('2d');
-      // 白色圓角底色
-      cx.fillStyle='rgba(255,255,255,0.95)';
-      cx.beginPath();
-      cx.moveTo(pad+r,pad);
-      cx.lineTo(sz-pad-r,pad); cx.quadraticCurveTo(sz-pad,pad,sz-pad,pad+r);
-      cx.lineTo(sz-pad,sz-pad-r); cx.quadraticCurveTo(sz-pad,sz-pad,sz-pad-r,sz-pad);
-      cx.lineTo(pad+r,sz-pad); cx.quadraticCurveTo(pad,sz-pad,pad,sz-pad-r);
-      cx.lineTo(pad,pad+r); cx.quadraticCurveTo(pad,pad,pad+r,pad);
-      cx.closePath(); cx.fill();
-      // 藍色邊框
-      cx.strokeStyle='#2F80FF'; cx.lineWidth=2.5; cx.stroke();
-      // 📷 emoji
-      cx.font=(sz*0.58)+'px serif';
+      cx.font=(sz*0.8)+'px serif';
       cx.textAlign='center'; cx.textBaseline='middle';
       cx.fillText('📷',sz/2,sz/2);
       m.addImage('cctv-icon',{width:sz,height:sz,data:cx.getImageData(0,0,sz,sz).data});
