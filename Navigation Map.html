@@ -2814,7 +2814,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       title: STATIONS[idx].name,
       artist: '警察廣播電台',
       album: STATIONS[idx].freq + ' MHz',
-      artwork: [{ src: PBS_ART, sizes:'512x512', type:'image/png' }]
+      artwork: [{ src: window.appLogoDataUrl||PBS_ART, sizes:'512x512', type:'image/png' }]
     });
     navigator.mediaSession.setActionHandler('play',  function(){ startPlay(); });
     navigator.mediaSession.setActionHandler('pause', function(){ pausePlay(); });
@@ -2962,6 +2962,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   ctx.fill();
 
   var dataUrl=c.toDataURL('image/png');
+  window.appLogoDataUrl=dataUrl;
   var link=document.getElementById('appTouchIcon');
   if(link) link.href=dataUrl;
 
