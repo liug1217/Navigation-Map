@@ -1407,11 +1407,11 @@ geolocate.trigger();
     _drawerOpen = false;
   }
 
-  // 整張卡片可拖拉（上滑展開，下滑收合）
+  // 整張卡片 + rect3 拖拉（上滑展開，下滑收合）
   if (_rect1El) {
     let _tsY = 0, _curH = RECT1_COLLAPSED, _moved = false, _rafId = null;
 
-    _rect1El.addEventListener('touchstart', e => {
+    function _onDragStart(e) {
       _tsY = e.touches[0].clientY;
       _curH = _drawerOpen ? _expandedH : RECT1_COLLAPSED;
       if (!_drawerOpen) {
@@ -1422,32 +1422,39 @@ geolocate.trigger();
       _rect1El.style.transition = 'none';
       _moved = false;
       if (_rafId) cancelAnimationFrame(_rafId);
-    }, { passive: true });
-
-    _rect1El.addEventListener('touchmove', e => {
+    }
+    function _onDragMove(e) {
       const dy = _tsY - e.touches[0].clientY;
-      // 只有明確上下滑才接管，讓內部 scroll 元素可以正常捲動
       if (!_moved && Math.abs(dy) < 5) return;
       e.preventDefault();
       const newH = Math.min(_expandedH, Math.max(RECT1_COLLAPSED, _curH + dy));
       _moved = true;
       if (_rafId) cancelAnimationFrame(_rafId);
-      _rafId = requestAnimationFrame(() => {
-        _rect1El.style.height = newH + 'px';
-      });
-    }, { passive: false });
-
-    _rect1El.addEventListener('touchend', e => {
+      _rafId = requestAnimationFrame(() => { _rect1El.style.height = newH + 'px'; });
+    }
+    function _onDragEnd(e) {
       if (_rafId) cancelAnimationFrame(_rafId);
       const dy = _tsY - e.changedTouches[0].clientY;
-      if (!_moved || Math.abs(dy) < 8) return; // 輕點不觸發（讓按鈕可點）
+      if (!_moved || Math.abs(dy) < 8) return;
       dy > 40 ? _openDrawer() : _closeDrawer();
-    }, { passive: true });
+    }
 
-    // rect3 輕點切換
-    _rect3Handle && _rect3Handle.addEventListener('click', () => {
-      _drawerOpen ? _closeDrawer() : _openDrawer();
-    });
+    _rect1El.addEventListener('touchstart', _onDragStart, { passive: true });
+    _rect1El.addEventListener('touchmove', _onDragMove, { passive: false });
+    _rect1El.addEventListener('touchend', _onDragEnd, { passive: true });
+
+    // rect3 明確加 drag（stopPropagation 避免雙重觸發）；輕點切換
+    if (_rect3Handle) {
+      _rect3Handle.addEventListener('touchstart', e => { e.stopPropagation(); _onDragStart(e); }, { passive: true });
+      _rect3Handle.addEventListener('touchmove', e => { e.stopPropagation(); _onDragMove(e); }, { passive: false });
+      _rect3Handle.addEventListener('touchend', e => {
+        e.stopPropagation();
+        if (_rafId) cancelAnimationFrame(_rafId);
+        const dy = _tsY - e.changedTouches[0].clientY;
+        if (!_moved || Math.abs(dy) < 8) { _drawerOpen ? _closeDrawer() : _openDrawer(); return; }
+        dy > 40 ? _openDrawer() : _closeDrawer();
+      }, { passive: true });
+    }
   }
 
   function speakText(text){
