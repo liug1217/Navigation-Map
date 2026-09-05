@@ -3058,7 +3058,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
         var img=document.getElementById(uid);
         if(!img) return;
         img.src='';
-        setTimeout(function(){ img.src=props.url+'?_='+Date.now(); },200);
+        setTimeout(function(){ img.src=props.url+'&_='+Date.now(); },200);
       }
       var img=document.getElementById(uid);
       if(img){
