@@ -1519,17 +1519,25 @@ geolocate.trigger();
     },
 
     // 預載單一音檔 → AudioBuffer（失敗回傳 null）
-    async _load(name) {
-      if (name in this._bufs) return this._bufs[name];
-      this._bufs[name] = null; // 先佔位，避免重複 fetch
-      try {
-        const ctx = this._getCtx();
-        if (ctx.state === 'suspended') await ctx.resume();
-        const url = this.base + encodeURIComponent(name + '.m4a');
-        const ab = await fetch(url).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status));
-        this._bufs[name] = await ctx.decodeAudioData(ab);
-      } catch(e) { /* 找不到的音檔保持 null */ }
-      return this._bufs[name];
+    // _bufs 存的可能是 Promise（載入中）或 AudioBuffer/null（完成）
+    _load(name) {
+      if (name in this._bufs) return Promise.resolve(this._bufs[name]);
+      const p = (async () => {
+        try {
+          const ctx = this._getCtx();
+          if (ctx.state === 'suspended') await ctx.resume();
+          const url = this.base + encodeURIComponent(name + '.m4a');
+          const ab = await fetch(url).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status));
+          const buf = await ctx.decodeAudioData(ab);
+          this._bufs[name] = buf;
+          return buf;
+        } catch(e) {
+          this._bufs[name] = null;
+          return null;
+        }
+      })();
+      this._bufs[name] = p; // 存 Promise，讓並行呼叫可以 await 同一個
+      return p;
     },
 
     // 在背景預載所有已知音檔（頁面啟動後呼叫）
