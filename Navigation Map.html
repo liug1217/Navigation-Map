@@ -692,10 +692,28 @@ html,body{
 }
 
 .cctvStatus{
-  margin-top:10px;
   color:#B9C2D0;
   font-size:13px;
   line-height:17px;
+  flex:1;
+  text-align:center;
+}
+
+.cctvNav{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-top:10px;
+  gap:8px;
+}
+
+.cctvNav .navInfoCardArrow{
+  background:rgba(255,255,255,0.12);
+  color:#fff;
+}
+
+.cctvNav .navInfoCardArrow:active{
+  background:rgba(255,255,255,0.28);
 }
 
 .cctvCloseBtn{
@@ -916,7 +934,19 @@ html, body {
   <button class="cctvCloseBtn" type="button" onclick="closeCctvOverlay()">✕</button>
   <div class="cctvPanelTitle" id="cctvPanelTitle">📷 即時影像</div>
   <img class="cctvImage" id="cctvImage" alt="CCTV 即時影像">
-  <div class="cctvStatus" id="cctvStatus">點選地圖上的監視器圖示開始觀看</div>
+  <div class="cctvNav">
+    <button class="navInfoCardArrow" id="cctvPrevBtn" onclick="window.cctvNavigate(-1)" title="上一支">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M10 3L4 8L10 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <div class="cctvStatus" id="cctvStatus">點選地圖上的監視器圖示開始觀看</div>
+    <button class="navInfoCardArrow" id="cctvNextBtn" onclick="window.cctvNavigate(1)" title="下一支">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M6 3L12 8L6 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
 </div>
 
 <!-- 時鐘 -->
@@ -2405,6 +2435,8 @@ document.addEventListener("DOMContentLoaded", function(){
   // 切換到地圖上點選的某一支監視器,並打開置中彈出視窗
   // camId: 該監視器的 id(用於追蹤目前顯示中的是哪一支,避免重複觸發)
   // isAuto: true 代表是「定位經過自動顯示」觸發的,false 代表是手動點擊圖示觸發的
+  window.cctvCurrentIndex = -1;
+
   window.switchCctvCamera = function(url, label, camId, isAuto){
     CCTV_BASE_URL = url;
     CCTV_CURRENT_LABEL = label;
@@ -2413,6 +2445,18 @@ document.addEventListener("DOMContentLoaded", function(){
     window.cctvActiveCameraId = camId || null;
     window.cctvActiveIsAuto = !!isAuto;
     reloadCctvImage();
+  };
+
+  window.cctvNavigate = function(dir){
+    var data = window.CCTV_DATA;
+    if(!data || !data.length) return;
+    var idx = window.cctvCurrentIndex;
+    if(idx < 0) idx = 0;
+    idx = ((idx + dir) % data.length + data.length) % data.length;
+    window.cctvCurrentIndex = idx;
+    var cam = data[idx];
+    var label = (cam.road || '') + (cam.mile ? ' ' + cam.mile : '');
+    window.switchCctvCamera(cam.url, label, null, false);
   };
 
   // 關閉彈出視窗時,停止重連計時器,避免在背景一直跑浪費效能
@@ -3062,8 +3106,12 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
     m.on('click','cctv-point',function(e){
       var props=e.features[0].properties;
-      // 直接使用原有的 switchCctvCamera（有 8 秒定時重連、可拖動彈窗）
       if(typeof window.switchCctvCamera === 'function'){
+        var data = window.CCTV_DATA;
+        if(data){
+          var idx = data.findIndex(function(c){ return c.url === props.url; });
+          window.cctvCurrentIndex = idx;
+        }
         window.switchCctvCamera(props.url, props.road+' '+props.mile, null, false);
       }
     });
