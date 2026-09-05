@@ -1544,8 +1544,22 @@ geolocate.trigger();
 
     // 解析 speakText 文字 → {clips:[], tts:''}
     parse(text) {
-      // 系統訊息（有固定錄音的）
       if (text === '開始導航') return { clips:['開始導航'], tts:'' };
+
+      // 全程X公里
+      const mAll = text.match(/^全程(\d+)公里$/);
+      if (mAll) {
+        return { clips: ['全程', ...this._numClips(parseInt(mAll[1])), '公', '里'], tts: '' };
+      }
+
+      // 大約需要X小時Y分鐘 or 大約需要X分鐘
+      const mDur = text.match(/^大約需要(?:(\d+)小時)?(\d+)分鐘$/);
+      if (mDur) {
+        const clips = ['大約需要'];
+        if (mDur[1]) clips.push(...this._numClips(parseInt(mDur[1])), '小時');
+        clips.push(...this._numClips(parseInt(mDur[2])), '分鐘');
+        return { clips, tts: '' };
+      }
 
       // 前方X公尺/公里 + 方向
       const m1 = text.match(/^前方(\d+)公(尺|里)(.*)$/);
@@ -1564,27 +1578,29 @@ geolocate.trigger();
         return { clips: ['前方', ...this._numClips(Math.round(km)), '公', '里'], tts: '' };
       }
 
-      // 全程 / 大約需要 → TTS 整句（數字混合太複雜）
       return { clips: [], tts: text };
     },
 
     async _playClip(name) {
       const url = this.base + encodeURIComponent(name + '.m4a');
-      await new Promise((res, rej) => {
+      await new Promise((res) => {
         const a = new Audio(url);
-        a.onended = res;
-        a.onerror = rej;
-        a.play().catch(rej);
+        const t = setTimeout(res, 5000);
+        a.onended = () => { clearTimeout(t); res(); };
+        a.onerror = () => { clearTimeout(t); res(); };
+        a.play().catch(() => { clearTimeout(t); res(); });
       });
     },
 
     async run(text) {
       const { clips, tts } = this.parse(text);
-      for (const c of clips) await this._playClip(c).catch(()=>{});
+      for (const c of clips) await this._playClip(c);
       if (tts) await new Promise(r => {
         if (!('speechSynthesis' in window)) { r(); return; }
         const u = _makeUtter(tts);
-        u.onend = r; u.onerror = r;
+        const done = () => { clearTimeout(t); r(); };
+        const t = setTimeout(done, 10000);
+        u.onend = done; u.onerror = done;
         window.speechSynthesis.speak(u);
       });
     },
@@ -1594,6 +1610,20 @@ geolocate.trigger();
     _duckRadio();
     try {
       await VP.run(text);
+    } catch(e){
+      console.error('語音播報失敗:', e);
+    } finally {
+      _unduckRadio();
+    }
+  }
+
+  // 依序播放多段語音（每段用 VP.run，所以各段都能用錄音包）
+  async function speakQueue(items){
+    _duckRadio();
+    try {
+      for (const item of items) {
+        if (item) await VP.run(item);
+      }
     } catch(e){
       console.error('語音播報失敗:', e);
     } finally {
@@ -2134,30 +2164,31 @@ geolocate.trigger();
             speakText('前方' + meters + '公尺' + firstText + firstRoadPart);
           }
         } else {
-          // 初始導航：播報全程摘要 + 第一個轉彎指示
+          // 初始導航：依序播報各段（各段能單獨對應錄音包）
           const startH = Math.floor(durationMin / 60);
           const startM = durationMin % 60;
-          let startupText = '開始導航,全程' + distanceKm + '公里,大約需要';
-          if (startH > 0) startupText += startH + '小時';
-          startupText += startM + '分鐘';
+          const distKmInt = Math.round(route.distance / 1000);
           const startupEta = new Date(Date.now() + route.duration * 1000);
-          startupText += ',預計' + startupEta.getHours() + '點' + startupEta.getMinutes() + '分到達';
+          const etaH = startupEta.getHours();
+          const etaM = startupEta.getMinutes();
+          const durText = '大約需要' + (startH > 0 ? startH + '小時' : '') + startM + '分鐘';
+          const etaText = '預計' + etaH + '點' + etaM + '分到達';
+          const items = ['開始導航', '全程' + distKmInt + '公里', durText, etaText];
           if (firstStepDistanceMeters != null) {
             const meters = Math.max(10, Math.round(firstStepDistanceMeters / 10) * 10);
-            startupText += ',前方' + meters + '公尺' + firstText + firstRoadPart;
-          } else {
-            startupText += ',' + firstText + firstRoadPart;
+            items.push('前方' + meters + '公尺' + firstText + firstRoadPart);
+          } else if (firstText) {
+            items.push(firstText + firstRoadPart);
           }
-          speakText(startupText);
+          speakQueue(items);
         }
       } else if (!fromPosition) {
         // 沒有轉彎步驟的初始導航，仍播報全程摘要
         const startH = Math.floor(durationMin / 60);
         const startM = durationMin % 60;
-        let startupText = '開始導航,全程' + distanceKm + '公里,大約需要';
-        if (startH > 0) startupText += startH + '小時';
-        startupText += startM + '分鐘';
-        speakText(startupText);
+        const distKmInt = Math.round(route.distance / 1000);
+        const durText = '大約需要' + (startH > 0 ? startH + '小時' : '') + startM + '分鐘';
+        speakQueue(['開始導航', '全程' + distKmInt + '公里', durText]);
       }
 
       if (fromPosition) {
