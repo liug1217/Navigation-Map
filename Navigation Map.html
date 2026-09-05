@@ -2796,7 +2796,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     if(freqEl)  freqEl.textContent  = STATIONS[idx].freq + ' MHz';
   }
 
-  var PBS_ART = 'https://upload.wikimedia.org/wikipedia/zh/thumb/d/d1/ROC_Police_Broadcasting_Service_Seal.svg/512px-ROC_Police_Broadcasting_Service_Seal.svg.png';
+  var PBS_ART = 'https://upload.wikimedia.org/wikipedia/zh/thumb/d/d1/ROC_Police_Broadcasting_Service_Seal.svg/1280px-ROC_Police_Broadcasting_Service_Seal.svg.png';
 
   function setStatus(t){ if(statusEl) statusEl.textContent = t; }
   function setPlaying(v){
@@ -2814,7 +2814,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       title: STATIONS[idx].name,
       artist: '警察廣播電台',
       album: STATIONS[idx].freq + ' MHz',
-      artwork: [{ src: window.appLogoDataUrl||PBS_ART, sizes:'512x512', type:'image/png' }]
+      artwork: [{ src: PBS_ART, sizes:'512x512', type:'image/png' }]
     });
     navigator.mediaSession.setActionHandler('play',  function(){ startPlay(); });
     navigator.mediaSession.setActionHandler('pause', function(){ pausePlay(); });
