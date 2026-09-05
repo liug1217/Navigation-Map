@@ -649,73 +649,42 @@ html,body{
 
 
 /* ===== 📷 CCTV 即時影像 ===== */
-/* ===== 📷 CCTV 即時影像:置中大尺寸彈出視窗 ===== */
 .cctvOverlay{
-  position:fixed;
-  top:50%;
-  left:50%;
-  transform:translate(-50%, -50%);
-  width:88%;
-  max-width:640px;
-  padding:14px;
+  position:absolute;
+  right:10px;
+  top:240px;
+  width:168px;
+  padding:10px;
   box-sizing:border-box;
-  background:rgba(14,26,45,0.95);
-  border:1px solid rgba(255,255,255,0.15);
-  box-shadow:0 12px 40px rgba(0,0,0,0.45);
-  border-radius:14px;
+  background:rgba(255,255,255,0.88);
+  border:1px solid rgba(255,255,255,0.95);
+  box-shadow:0 6px 18px rgba(14,26,45,0.18);
+  border-radius:8px;
   backdrop-filter:blur(18px);
   -webkit-backdrop-filter:blur(18px);
-  z-index:50;
+  z-index:4;
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
-  display:none;
-}
-
-.cctvOverlay.show{
-  display:block;
 }
 
 .cctvPanelTitle{
-  font-size:18px;
+  font-size:13px;
   font-weight:700;
-  color:#FFFFFF;
-  margin-bottom:10px;
-  padding-right:36px;
-  cursor:move;
-  user-select:none;
+  color:#0E1A2D;
+  margin-bottom:7px;
 }
 
 .cctvImage{
   width:100%;
-  border-radius:8px;
+  border-radius:6px;
   display:block;
-  background:#000000;
+  background:#0E1A2D;
 }
 
 .cctvStatus{
-  margin-top:10px;
-  color:#B9C2D0;
-  font-size:13px;
-  line-height:17px;
-}
-
-.cctvCloseBtn{
-  position:absolute;
-  top:10px;
-  right:10px;
-  width:30px;
-  height:30px;
-  border:0;
-  border-radius:50%;
-  background:rgba(255,255,255,0.12);
-  color:#FFFFFF;
-  font-size:18px;
-  line-height:30px;
-  text-align:center;
-  cursor:pointer;
-}
-
-.cctvCloseBtn:active{
-  background:rgba(255,255,255,0.25);
+  margin-top:6px;
+  color:#36445A;
+  font-size:10px;
+  line-height:13px;
 }
 
 
@@ -914,7 +883,6 @@ html, body {
 
 
 <div class="cctvOverlay" id="cctvOverlay">
-  <button class="cctvCloseBtn" type="button" onclick="closeCctvOverlay()">✕</button>
   <div class="cctvPanelTitle" id="cctvPanelTitle">📷 即時影像</div>
   <img class="cctvImage" id="cctvImage" alt="CCTV 即時影像">
   <div class="cctvStatus" id="cctvStatus">點選地圖上的監視器圖示開始觀看</div>
@@ -2401,13 +2369,11 @@ document.addEventListener("DOMContentLoaded", function(){
     if(cctvPanelTitle) cctvPanelTitle.textContent = "📷 " + label;
     window.cctvActiveCameraId = camId || null;
     window.cctvActiveIsAuto = !!isAuto;
-    if(cctvOverlay) cctvOverlay.classList.add("show");
     reloadCctvImage();
   };
 
   // 關閉彈出視窗時,停止重連計時器,避免在背景一直跑浪費效能
   window.closeCctvOverlay = function(){
-    if(cctvOverlay) cctvOverlay.classList.remove("show");
     if(cctvReloadTimer){
       clearTimeout(cctvReloadTimer);
       cctvReloadTimer = null;
@@ -2417,61 +2383,6 @@ document.addEventListener("DOMContentLoaded", function(){
     window.cctvActiveIsAuto = false;
   };
 
-  // ===== 🖱️ 讓彈出視窗可以拖動(抓標題列當把手,滑鼠/觸控都支援) =====
-  if(cctvOverlay && cctvPanelTitle){
-    let dragStartX = 0;
-    let dragStartY = 0;
-    let overlayStartLeft = 0;
-    let overlayStartTop = 0;
-    let dragging = false;
-
-    function getPointerXY(e){
-      if(e.touches && e.touches.length){
-        return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      }
-      return { x: e.clientX, y: e.clientY };
-    }
-
-    function startDrag(e){
-      dragging = true;
-      const rect = cctvOverlay.getBoundingClientRect();
-      // 第一次拖動時,把定位從「置中公式」換成固定的像素座標,之後才能用 left/top 自由移動
-      cctvOverlay.style.left = rect.left + "px";
-      cctvOverlay.style.top = rect.top + "px";
-      cctvOverlay.style.transform = "none";
-
-      overlayStartLeft = rect.left;
-      overlayStartTop = rect.top;
-
-      const p = getPointerXY(e);
-      dragStartX = p.x;
-      dragStartY = p.y;
-
-      e.preventDefault();
-    }
-
-    function onDragMove(e){
-      if(!dragging) return;
-      const p = getPointerXY(e);
-      const dx = p.x - dragStartX;
-      const dy = p.y - dragStartY;
-      cctvOverlay.style.left = (overlayStartLeft + dx) + "px";
-      cctvOverlay.style.top = (overlayStartTop + dy) + "px";
-    }
-
-    function stopDrag(){
-      dragging = false;
-    }
-
-    cctvPanelTitle.addEventListener("mousedown", startDrag);
-    cctvPanelTitle.addEventListener("touchstart", startDrag, { passive: false });
-
-    document.addEventListener("mousemove", onDragMove);
-    document.addEventListener("touchmove", onDragMove, { passive: false });
-
-    document.addEventListener("mouseup", stopDrag);
-    document.addEventListener("touchend", stopDrag);
-  }
 
   if(cctvImage){
     cctvImage.addEventListener("load", function(){
