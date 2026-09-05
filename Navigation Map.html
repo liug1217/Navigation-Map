@@ -53,6 +53,8 @@ html,body{
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
   border-radius:40px;
   background: rgba(255, 255, 255, 0.8);
+  transition: height 0.35s cubic-bezier(0.32,0.72,0,1), top 0.35s cubic-bezier(0.32,0.72,0,1);
+  overflow: hidden;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
@@ -921,57 +923,6 @@ html, body {
   </button>
   <!-- 地圖風格 -->
   <button class="mapCtrlBtn" id="styleBtn" title="切換地圖">🛰</button>
-  <!-- 語音設定 -->
-  <button class="mapCtrlBtn" id="voiceSettingsBtn" title="語音設定">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-      <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-    </svg>
-  </button>
-</div>
-
-<!-- 語音設定面板 -->
-<div id="voicePanel" style="
-  display:none;
-  position:fixed;
-  bottom:0; left:0; right:0;
-  z-index:100;
-  background:rgba(255,255,255,0.97);
-  backdrop-filter:blur(20px);
-  -webkit-backdrop-filter:blur(20px);
-  border-top:0.5px solid #d9d9d9;
-  border-radius:24px 24px 0 0;
-  box-shadow:0 -4px 20px rgba(0,0,0,0.15);
-  padding:16px 20px 40px;
-  max-height:60vh;
-  overflow-y:auto;
-">
-  <div style="width:40px;height:4px;background:#ccc;border-radius:2px;margin:0 auto 16px;"></div>
-  <div style="font-size:17px;font-weight:600;color:#000;margin-bottom:4px;">導航語音</div>
-  <div style="font-size:13px;color:#888;margin-bottom:16px;">選擇裝置上的中文語音</div>
-  <div id="voiceList" style="display:flex;flex-direction:column;gap:8px;"></div>
-  <div style="margin-top:20px;font-size:13px;color:#888;">
-    語速
-    <input type="range" id="voiceRateSlider" min="0.6" max="1.4" step="0.05" value="0.95"
-      style="width:100%;margin-top:6px;accent-color:#2F80FF;">
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;margin-top:2px;">
-      <span>慢</span><span id="voiceRateLabel">0.95×</span><span>快</span>
-    </div>
-  </div>
-  <div style="margin-top:16px;font-size:13px;color:#888;">
-    音調
-    <input type="range" id="voicePitchSlider" min="0.7" max="1.5" step="0.05" value="1.05"
-      style="width:100%;margin-top:6px;accent-color:#2F80FF;">
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;margin-top:2px;">
-      <span>低沉</span><span id="voicePitchLabel">1.05</span><span>清亮</span>
-    </div>
-  </div>
-  <button id="voiceTestBtn" style="
-    margin-top:20px;width:100%;padding:12px;
-    background:#2F80FF;color:#fff;border:none;border-radius:14px;
-    font-size:15px;font-weight:600;cursor:pointer;
-  ">🔊 試聽</button>
 </div>
 
 <div class="bottomBar">
@@ -981,8 +932,28 @@ html, body {
       <div class="icon"></div>
     </div>
   </div>
-  <div class="rect1">
-    <div class="rect3"></div>
+  <div class="rect1" id="rect1">
+    <div class="rect3" id="rect3Handle" style="cursor:pointer;"></div>
+    <!-- 語音設定展開區（拉桿往上拉才顯示） -->
+    <div id="voiceDrawer" style="display:none;padding:0 24px 12px;border-bottom:0.5px solid #eee;margin-bottom:4px;">
+      <div style="font-size:15px;font-weight:600;color:#000;margin-bottom:10px;">🔊 導航語音</div>
+      <div id="voiceList" style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;"></div>
+      <div style="margin-top:12px;font-size:12px;color:#888;">
+        語速
+        <input type="range" id="voiceRateSlider" min="0.6" max="1.4" step="0.05" value="0.95" style="width:100%;margin-top:4px;accent-color:#2F80FF;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;">
+          <span>慢</span><span id="voiceRateLabel">0.95×</span><span>快</span>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:#888;">
+        音調
+        <input type="range" id="voicePitchSlider" min="0.7" max="1.5" step="0.05" value="1.05" style="width:100%;margin-top:4px;accent-color:#2F80FF;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;">
+          <span>低沉</span><span id="voicePitchLabel">1.05</span><span>清亮</span>
+        </div>
+      </div>
+      <button id="voiceTestBtn" style="margin-top:12px;width:100%;padding:10px;background:#2F80FF;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">試聽</button>
+    </div>
     <div class="info">0小時0分鐘 0.00公里</div>
     <div class="arrivalText" id="arrivalText">00:00到達</div>
     <button type="button" class="navExitBtn" id="navExitBtn">退出</button>
@@ -1407,23 +1378,31 @@ geolocate.trigger();
     _voiceTestBtn.addEventListener('click', () => speakText('前方200公尺，請右轉，進入忠孝東路'));
   }
 
-  // 開關面板
-  const _voicePanel = document.getElementById('voicePanel');
-  const _voiceSettingsBtn = document.getElementById('voiceSettingsBtn');
-  if (_voiceSettingsBtn && _voicePanel) {
-    _voiceSettingsBtn.addEventListener('click', () => {
-      const open = _voicePanel.style.display === 'none';
-      _voicePanel.style.display = open ? 'block' : 'none';
-      if (open) _buildVoiceList();
-    });
-    // 點面板外關閉
-    document.addEventListener('click', e => {
-      if (_voicePanel.style.display !== 'none' &&
-          !_voicePanel.contains(e.target) &&
-          e.target !== _voiceSettingsBtn &&
-          !_voiceSettingsBtn.contains(e.target)) {
-        _voicePanel.style.display = 'none';
-      }
+  // 拉桿開關語音設定（點 rect3 展開/收合）
+  const _rect1 = document.getElementById('rect1');
+  const _rect3Handle = document.getElementById('rect3Handle');
+  const _voiceDrawer = document.getElementById('voiceDrawer');
+  let _drawerOpen = false;
+  const DRAWER_COLLAPSED_H = 160;
+
+  function _openDrawer() {
+    _buildVoiceList();
+    _voiceDrawer.style.display = 'block';
+    // 量出 drawer 實際高度再加原本 160px
+    const drawerH = _voiceDrawer.scrollHeight;
+    _rect1.style.height = (DRAWER_COLLAPSED_H + drawerH + 8) + 'px';
+    _rect1.style.top = -(drawerH + 8) + 'px';
+    _drawerOpen = true;
+  }
+  function _closeDrawer() {
+    _rect1.style.height = DRAWER_COLLAPSED_H + 'px';
+    _rect1.style.top = '0px';
+    setTimeout(() => { _voiceDrawer.style.display = 'none'; }, 350);
+    _drawerOpen = false;
+  }
+  if (_rect3Handle) {
+    _rect3Handle.addEventListener('click', () => {
+      _drawerOpen ? _closeDrawer() : _openDrawer();
     });
   }
 
