@@ -3044,31 +3044,52 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       var coords=e.features[0].geometry.coordinates.slice();
       if(cctvPopup) cctvPopup.remove();
       var uid='cctv_'+Date.now();
-      var refreshTimer=null;
+      var activeSlot='a';
+      var reloading=false;
+
       cctvPopup=new maplibregl.Popup({maxWidth:'320px',closeButton:true})
         .setLngLat(coords)
         .setHTML(
           '<div style="font-size:12px;font-weight:700;color:#1A6ADB;margin-bottom:5px">'+props.road+' '+props.mile+'</div>'+
-          '<img id="'+uid+'" src="'+props.url+'" style="width:300px;height:200px;object-fit:cover;border-radius:8px;display:block;background:#000">'+
+          '<div style="position:relative;width:300px;height:200px;background:#000;border-radius:8px;overflow:hidden">'+
+          '<img id="'+uid+'_a" src="'+props.url+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity 0.6s">'+
+          '<img id="'+uid+'_b" src="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.6s">'+
+          '</div>'+
           '<div style="color:#888;font-size:11px;margin-top:4px">點擊關閉即停止串流</div>'
         )
         .addTo(m);
-      // 斷線自動重連
+
       function reloadStream(){
-        var img=document.getElementById(uid);
-        if(!img) return;
-        img.src='';
-        setTimeout(function(){ img.src=props.url+'&_='+Date.now(); },200);
+        if(reloading) return;
+        reloading=true;
+        var next=activeSlot==='a'?'b':'a';
+        var imgNext=document.getElementById(uid+'_'+next);
+        var imgCur=document.getElementById(uid+'_'+activeSlot);
+        if(!imgNext||!imgCur){ reloading=false; return; }
+        // 先在背後載入新串流
+        imgNext.src=props.url+'&_='+Date.now();
+        imgNext.onerror=function(){ reloading=false; setTimeout(reloadStream,1500); };
+        // 等 2 秒讓新串流建立連線再淡入
+        setTimeout(function(){
+          if(!document.getElementById(uid+'_'+next)){ reloading=false; return; }
+          imgNext.style.opacity='1';
+          imgCur.style.opacity='0';
+          setTimeout(function(){
+            if(imgCur) imgCur.src='';
+            activeSlot=next;
+            reloading=false;
+          },700);
+        },2000);
       }
-      var img=document.getElementById(uid);
-      if(img){
-        img.onerror=function(){ setTimeout(reloadStream,2000); };
-        refreshTimer=setInterval(reloadStream,8000);
-      }
+
+      var imgA=document.getElementById(uid+'_a');
+      if(imgA) imgA.onerror=function(){ setTimeout(reloadStream,1500); };
+
       cctvPopup.on('close',function(){
-        clearInterval(refreshTimer);
-        var img=document.getElementById(uid);
-        if(img) img.src='';
+        ['a','b'].forEach(function(s){
+          var img=document.getElementById(uid+'_'+s);
+          if(img) img.src='';
+        });
       });
     });
 
