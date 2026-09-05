@@ -33,8 +33,8 @@ html,body{
   position:absolute;
   left:0;
   right:0;
-  bottom:0;
-  height:166px;
+  bottom:8px;
+  height:160px;
 }
 
 .rect1{
@@ -43,12 +43,10 @@ html,body{
   left:8px;
   right:8px;
   top:0;
-  height:166px;
-  border-width:1.5px 1.5px 0 1.5px;
-  border-style:solid;
-  border-color:#FFFFFF;
-  box-shadow:0 4px 4px rgba(0,0,0,0.25), 0 4px 4px rgba(0,0,0,0.25);
-  border-radius:11px 11px 0 0;
+  height:160px;
+  border:0.5px solid #d9d9d9;
+  box-shadow:0 4px 4px rgba(0,0,0,0.25);
+  border-radius:40px;
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -61,7 +59,7 @@ html,body{
   left:50%;
   top:5px;
   transform:translateX(-50%);
-  background:#74767A;
+  background:rgba(187,197,199,0.8);
   box-shadow:0 4px 4px rgba(0,0,0,0.25), 0 4px 4px rgba(0,0,0,0.25);
   border-radius:2.5px;
 }
@@ -84,7 +82,7 @@ html,body{
   position:absolute;
   left:50%;
   transform:translateX(-50%);
-  bottom:176px;
+  bottom:178px;
   width:auto;
   max-width:calc(100% - 16px);
   height:33px;
@@ -136,7 +134,7 @@ html,body{
   left:8px;
   top:54px;
   background:#0E1A2D;
-  border-radius:12px;
+  border-radius:30px;
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
   z-index:5;
   display:flex;
@@ -355,7 +353,7 @@ html,body{
   background:#FFFFFF;
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
   border-radius:38px;
-  display:none;
+  display:flex;
   align-items:center;
   justify-content:center;
   font-size:40px;
@@ -366,50 +364,49 @@ html,body{
 .speedPill{
   position:fixed;
   left:27%;
-  bottom:214px;
+  bottom:364px;
   display:flex;
   align-items:center;
-  background:rgba(255,255,255,0.92);
-  border-radius:24px;
-  height:44px;
+  background:rgba(17,35,62,0.9);
+  border-top:1px solid rgba(255,255,255,0.4);
+  border-radius:22.5px;
+  height:43px;
   padding-right:14px;
-  box-shadow:0 2px 10px rgba(0,0,0,0.2);
+  box-shadow:0 4px 4px rgba(0,0,0,0.25);
   z-index:4;
   pointer-events:none;
-  backdrop-filter:blur(10px);
-  -webkit-backdrop-filter:blur(10px);
 }
 .speedPillCircle{
-  width:44px;
-  height:44px;
-  border-radius:22px;
+  width:42px;
+  height:42px;
+  border-radius:21px;
   background:#34C759;
   display:flex;
   align-items:center;
   justify-content:center;
   flex-shrink:0;
-  font-size:22px;
-  color:#fff;
+  flex-shrink:0;
 }
 .speedPillNum{
-  font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
-  font-size:22px;
-  font-weight:700;
-  color:#000;
+  font-family:"Inter","SF Pro Display","SF Pro Text",Arial,sans-serif;
+  font-size:35px;
+  font-weight:500;
+  color:#ecfeef;
   margin-left:10px;
   min-width:30px;
   text-align:center;
+  line-height:1;
 }
 
 /* ===== 速限標誌 ===== */
 .speedLimitSign{
   position:fixed;
   right:14px;
-  bottom:268px;
+  bottom:452px;
   width:50px;
   height:50px;
-  border:4.5px solid #CC0000;
-  border-radius:50%;
+  border:5px solid red;
+  border-radius:25px;
   background:#fff;
   display:none;
   align-items:center;
@@ -421,8 +418,8 @@ html,body{
 }
 .speedLimitSign .limit-num{
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
-  font-size:17px;
-  font-weight:700;
+  font-size:22px;
+  font-weight:400;
   color:#000;
   line-height:1;
 }
@@ -431,22 +428,25 @@ html,body{
 .trafficDots{
   position:fixed;
   right:22px;
-  bottom:212px;
+  bottom:268px;
   display:flex;
   align-items:center;
-  gap:6px;
+  gap:4px;
   z-index:4;
   pointer-events:none;
-  background:rgba(255,255,255,0.78);
-  border-radius:10px;
-  padding:4px 7px;
-  backdrop-filter:blur(6px);
-  -webkit-backdrop-filter:blur(6px);
+  background:#253a63;
+  border:2px solid #d9e6fc;
+  border-radius:7px;
+  padding:2px 5px;
+  width:28px;
+  height:14px;
+  box-sizing:border-box;
 }
 .trafficDot{
-  width:8px;
-  height:8px;
+  width:6px;
+  height:6px;
   border-radius:50%;
+  flex-shrink:0;
 }
 .trafficDot.red{background:#FF3B30;}
 .trafficDot.yellow{background:#FFCC00;}
@@ -486,13 +486,13 @@ html,body{
 .navInfoCard{
   box-sizing:border-box;
   position:absolute;
-  left:12px;
-  right:12px;
-  top:71px;
+  left:21px;
+  right:21px;
+  top:82px;
   height:60px;
   background:#FFFFFF;
   box-shadow:0 4px 4px rgba(0,0,0,0.25);
-  border-radius:8px;
+  border-radius:30px;
   display:flex;
   align-items:center;
   overflow:hidden;
@@ -503,7 +503,7 @@ html,body{
   height:60px;
   flex-shrink:0;
   background:url('https://upload.wikimedia.org/wikipedia/zh/thumb/d/d1/ROC_Police_Broadcasting_Service_Seal.svg/1280px-ROC_Police_Broadcasting_Service_Seal.svg.png') center/contain no-repeat #FFFFFF;
-  border-radius:8px;
+  border-radius:29.5px 0 0 29.5px;
   filter:drop-shadow(0px 4px 4px rgba(0,0,0,0.25));
 }
 
@@ -913,7 +913,7 @@ html, body {
   </div>
 </div>
 
-<div class="rect6" id="rect6">↑</div>
+<div class="rect6" id="rect6"></div>
 
 <!-- 速度膠囊 -->
 <div class="speedPill">
@@ -1505,7 +1505,7 @@ geolocate.trigger();
       if (currentStepIndex >= navSteps.length) {
         isNavigating = false;
         if (rect8) rect8.style.display = 'none';
-        if (rect6El) rect6El.style.display = 'none';
+        if (rect6El) rect6El.innerText = '';
         if (searchBarWrapEl) searchBarWrapEl.style.display = '';
         togglePoiLayers(true); // 恢復POI地標
         speakText('您已到達目的地');
