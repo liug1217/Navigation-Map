@@ -59,6 +59,8 @@ html,body{
   transition: height 0.38s cubic-bezier(0.32,0.72,0,1);
   will-change: height;
   z-index: 11;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
 }
 
 .rect3{
@@ -76,6 +78,7 @@ html,body{
 
 .info{
   position:absolute;
+  z-index: 2;
   left:50%;
   top:13px;
   transform:translateX(-50%);
@@ -415,6 +418,7 @@ body.navigating .mapClock{ top:134px; }
 /* ===== 🆕 底部面板大改版新增元件 ===== */
 .arrivalText{
   position:absolute;
+  z-index: 2;
   left:50%;
   top:39px;
   transform:translateX(-50%);
@@ -428,6 +432,7 @@ body.navigating .mapClock{ top:134px; }
 
 .navExitBtn,.navOverviewBtn{
   position:absolute;
+  z-index: 2;
   top:44px;
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
   font-weight:500;
