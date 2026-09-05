@@ -1546,16 +1546,13 @@ geolocate.trigger();
     },
 
     async _playClip(name) {
-      const key = name + '.m4a';
-      if (!this._c[key]) {
-        const a = new Audio(this.base + encodeURIComponent(key));
-        await new Promise(r => { a.oncanplaythrough = r; a.onerror = r; a.load(); });
-        this._c[key] = a;
-      }
-      const a = this._c[key];
-      if (a.error) return;
-      a.currentTime = 0;
-      await new Promise(r => { a.onended = r; a.onerror = r; a.play().catch(r); });
+      const url = this.base + encodeURIComponent(name + '.m4a');
+      await new Promise((res, rej) => {
+        const a = new Audio(url);
+        a.onended = res;
+        a.onerror = rej;
+        a.play().catch(rej);
+      });
     },
 
     async run(text) {
