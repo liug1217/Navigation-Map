@@ -356,35 +356,20 @@ html,body{
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:40px;
+  flex-direction:column;
+  font-size:24px;
+  font-weight:400;
+  color:#000000;
+  font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
   z-index:5;
 }
-
-/* ===== 速度膠囊（新版） ===== */
-.speedPill{
-  position:fixed;
-  left:27%;
-  bottom:364px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:rgba(17,35,62,0.9);
-  border-top:1px solid rgba(255,255,255,0.4);
-  border-radius:22.5px;
-  height:43px;
-  padding:0 16px;
-  box-shadow:0 4px 4px rgba(0,0,0,0.25);
-  z-index:4;
-  pointer-events:none;
+.rect6 .speed-value{
+  font-size:32px;
+  font-weight:600;
 }
-.speedPillNum{
-  font-family:"Inter","SF Pro Display","SF Pro Text",Arial,sans-serif;
-  font-size:35px;
-  font-weight:500;
-  color:#ecfeef;
-  min-width:30px;
-  text-align:center;
-  line-height:1;
+.rect6 .speed-unit{
+  font-size:12px;
+  font-weight:400;
 }
 
 /* ===== 速限標誌 ===== */
@@ -875,11 +860,9 @@ html, body {
   </div>
 </div>
 
-<div class="rect6" id="rect6"></div>
-
-<!-- 速度膠囊 -->
-<div class="speedPill">
-  <div class="speedPillNum" id="speedPillNum">0</div>
+<div class="rect6" id="rect6">
+  <div class="speed-value" id="rect6SpeedValue">0</div>
+  <div class="speed-unit">km/h</div>
 </div>
 
 <!-- 速限標誌 -->
@@ -1062,7 +1045,7 @@ geolocate.trigger();
 
 
   const infoElement = document.querySelector('.info');
-  const speedPillNum = document.getElementById('speedPillNum');
+  const speedPillNum = document.getElementById('rect6SpeedValue');
   const rect6El = document.getElementById('rect6');
   
   let startTime = null;
@@ -1460,7 +1443,7 @@ geolocate.trigger();
       if (currentStepIndex >= navSteps.length) {
         isNavigating = false;
         if (rect8) rect8.style.display = 'none';
-        if (rect6El) rect6El.innerText = '';
+        if (speedPillNum) speedPillNum.innerText = '0';
         if (searchBarWrapEl) searchBarWrapEl.style.display = '';
         togglePoiLayers(true); // 恢復POI地標
         speakText('您已到達目的地');
