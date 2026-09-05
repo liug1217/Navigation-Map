@@ -649,20 +649,17 @@ html,body{
 
 
 /* ===== 📷 CCTV 即時影像 ===== */
-/* ===== 📷 CCTV 即時影像:置中大尺寸彈出視窗 ===== */
 .cctvOverlay{
   position:fixed;
-  top:50%;
-  left:50%;
-  transform:translate(-50%, -50%);
-  width:88%;
-  max-width:640px;
-  padding:14px;
+  right:10px;
+  top:240px;
+  width:168px;
+  padding:10px;
   box-sizing:border-box;
-  background:rgba(14,26,45,0.95);
-  border:1px solid rgba(255,255,255,0.15);
-  box-shadow:0 12px 40px rgba(0,0,0,0.45);
-  border-radius:14px;
+  background:rgba(255,255,255,0.88);
+  border:1px solid rgba(255,255,255,0.95);
+  box-shadow:0 6px 18px rgba(14,26,45,0.18);
+  border-radius:8px;
   backdrop-filter:blur(18px);
   -webkit-backdrop-filter:blur(18px);
   z-index:50;
@@ -675,47 +672,47 @@ html,body{
 }
 
 .cctvPanelTitle{
-  font-size:18px;
+  font-size:13px;
   font-weight:700;
-  color:#FFFFFF;
-  margin-bottom:10px;
-  padding-right:36px;
+  color:#0E1A2D;
+  margin-bottom:7px;
+  padding-right:26px;
   cursor:move;
   user-select:none;
 }
 
 .cctvImage{
   width:100%;
-  border-radius:8px;
+  border-radius:6px;
   display:block;
-  background:#000000;
+  background:#0E1A2D;
 }
 
 .cctvStatus{
-  margin-top:10px;
-  color:#B9C2D0;
-  font-size:13px;
-  line-height:17px;
+  margin-top:6px;
+  color:#36445A;
+  font-size:10px;
+  line-height:13px;
 }
 
 .cctvCloseBtn{
   position:absolute;
-  top:10px;
-  right:10px;
-  width:30px;
-  height:30px;
+  top:8px;
+  right:8px;
+  width:22px;
+  height:22px;
   border:0;
   border-radius:50%;
-  background:rgba(255,255,255,0.12);
-  color:#FFFFFF;
-  font-size:18px;
-  line-height:30px;
+  background:rgba(14,26,45,0.1);
+  color:#0E1A2D;
+  font-size:14px;
+  line-height:22px;
   text-align:center;
   cursor:pointer;
 }
 
 .cctvCloseBtn:active{
-  background:rgba(255,255,255,0.25);
+  background:rgba(14,26,45,0.2);
 }
 
 .maplibregl-marker img{
