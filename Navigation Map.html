@@ -61,6 +61,34 @@ html,body{
   z-index: 11;
 }
 
+/* rect1 flex 內部排版 */
+.rect1Body{
+  box-sizing:border-box;
+  height:160px;
+  padding:18px 4px 6px;
+  display:flex;
+  flex-direction:column;
+  flex-shrink:0;
+}
+.rect1NavRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 11px;
+  flex-shrink:0;
+}
+.rect1Center{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+}
+#radioCard{
+  margin:4px 17px 0;
+  flex-shrink:0;
+}
+
 .rect3{
   position:absolute;
   width:46px;
@@ -75,11 +103,6 @@ html,body{
 }
 
 .info{
-  position:absolute;
-  z-index: 2;
-  left:50%;
-  top:13px;
-  transform:translateX(-50%);
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
   font-weight:500;
   font-size:20px;
@@ -415,11 +438,6 @@ body.navigating .mapClock{ top:134px; }
 
 /* ===== 🆕 底部面板大改版新增元件 ===== */
 .arrivalText{
-  position:absolute;
-  z-index: 2;
-  left:50%;
-  top:39px;
-  transform:translateX(-50%);
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
   font-weight:500;
   font-size:20px;
@@ -429,9 +447,6 @@ body.navigating .mapClock{ top:134px; }
 }
 
 .navExitBtn,.navOverviewBtn{
-  position:absolute;
-  z-index: 2;
-  top:44px;
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
   font-weight:500;
   font-size:13px;
@@ -443,15 +458,11 @@ body.navigating .mapClock{ top:134px; }
   text-shadow:0 4px 4px rgba(0,0,0,0.25);
 }
 
-.navExitBtn{ left:15px; }
-.navOverviewBtn{ right:15px; }
+.navExitBtn{ }
+.navOverviewBtn{ }
 
 .navInfoCard{
   box-sizing:border-box;
-  position:absolute;
-  left:21px;
-  right:21px;
-  top:82px;
   height:60px;
   background:#FFFFFF;
   box-shadow:0 4px 12px rgba(0,0,0,0.12);
@@ -941,25 +952,16 @@ html, body {
 </div>
 <div class="rect1" id="rect1">
     <div class="rect3" id="rect3Handle"></div>
-    <!-- 語音設定（收起時 hidden，展開卡片才顯示） -->
-    <div id="voiceDrawer" style="padding:4px 20px 14px;border-bottom:0.5px solid #eee;margin-bottom:2px;display:none;">
-      <div style="font-size:15px;font-weight:600;margin-bottom:10px;">🔊 導航語音</div>
-      <div id="voiceList" style="display:flex;flex-direction:column;gap:6px;max-height:35vh;overflow-y:auto;"></div>
-      <div style="margin-top:12px;font-size:12px;color:#666;">語速
-        <input type="range" id="voiceRateSlider" min="0.6" max="1.4" step="0.05" value="0.95" style="width:100%;margin-top:4px;accent-color:#2F80FF;">
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;"><span>慢</span><span id="voiceRateLabel">0.95×</span><span>快</span></div>
+    <div class="rect1Body">
+      <div class="rect1NavRow">
+        <button type="button" class="navExitBtn" id="navExitBtn">退出</button>
+        <div class="rect1Center">
+          <div class="info">0小時0分鐘 0.00公里</div>
+          <div class="arrivalText" id="arrivalText">00:00到達</div>
+        </div>
+        <button type="button" class="navOverviewBtn" id="navOverviewBtn">全覽</button>
       </div>
-      <div style="margin-top:10px;font-size:12px;color:#666;">音調
-        <input type="range" id="voicePitchSlider" min="0.7" max="1.5" step="0.05" value="1.05" style="width:100%;margin-top:4px;accent-color:#2F80FF;">
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;"><span>低沉</span><span id="voicePitchLabel">1.05</span><span>清亮</span></div>
-      </div>
-      <button id="voiceTestBtn" style="margin-top:12px;width:100%;padding:10px;background:#2F80FF;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;">🔊 試聽</button>
-    </div>
-    <div class="info">0小時0分鐘 0.00公里</div>
-    <div class="arrivalText" id="arrivalText">00:00到達</div>
-    <button type="button" class="navExitBtn" id="navExitBtn">退出</button>
-    <button type="button" class="navOverviewBtn" id="navOverviewBtn">全覽</button>
-    <div class="navInfoCard" id="radioCard">
+      <div class="navInfoCard" id="radioCard">
       <div class="navInfoCardIcon" id="radioIcon"></div>
       <div class="navInfoCardMeta">
         <div class="navInfoCardText" id="radioName">全國治安交通網</div>
@@ -998,7 +1000,22 @@ html, body {
         </button>
       </div>
     </div>
-  </div>
+    </div><!-- /rect1Body -->
+    <!-- 語音設定：在導航下方，overflow:hidden 收起時自動隱藏 -->
+    <div id="voiceDrawer" style="padding:4px 20px 14px;border-top:0.5px solid #eee;margin-top:2px;display:none;">
+      <div style="font-size:15px;font-weight:600;margin-bottom:10px;">🔊 導航語音</div>
+      <div id="voiceList" style="display:flex;flex-direction:column;gap:6px;max-height:35vh;overflow-y:auto;"></div>
+      <div style="margin-top:12px;font-size:12px;color:#666;">語速
+        <input type="range" id="voiceRateSlider" min="0.6" max="1.4" step="0.05" value="0.95" style="width:100%;margin-top:4px;accent-color:#2F80FF;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;"><span>慢</span><span id="voiceRateLabel">0.95×</span><span>快</span></div>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:#666;">音調
+        <input type="range" id="voicePitchSlider" min="0.7" max="1.5" step="0.05" value="1.05" style="width:100%;margin-top:4px;accent-color:#2F80FF;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;"><span>低沉</span><span id="voicePitchLabel">1.05</span><span>清亮</span></div>
+      </div>
+      <button id="voiceTestBtn" style="margin-top:12px;width:100%;padding:10px;background:#2F80FF;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;">🔊 試聽</button>
+    </div>
+  </div><!-- /rect1 -->
 
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -1399,7 +1416,6 @@ geolocate.trigger();
     return RECT1_COLLAPSED + dh + 8;
   }
 
-  const _navEls = () => _rect1El.querySelectorAll('.info, .arrivalText, .navExitBtn, .navOverviewBtn, #radioCard');
   function _openDrawer() {
     _buildVoiceList();
     _expandedH = _measureExpanded();
@@ -1407,12 +1423,10 @@ geolocate.trigger();
     _rect1El.style.transition = 'height 0.38s cubic-bezier(0.32,0.72,0,1)';
     _rect1El.style.height = _expandedH + 'px';
     _drawerOpen = true;
-    _navEls().forEach(el => el.style.visibility = 'hidden');
   }
   function _closeDrawer() {
     _rect1El.style.transition = 'height 0.38s cubic-bezier(0.32,0.72,0,1)';
     _rect1El.style.height = RECT1_COLLAPSED + 'px';
-    _navEls().forEach(el => el.style.visibility = 'visible');
     setTimeout(() => { if (!_drawerOpen) _voiceDrawer.style.display = 'none'; }, 400);
     _drawerOpen = false;
   }
