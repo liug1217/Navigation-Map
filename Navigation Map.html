@@ -2971,54 +2971,24 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
 })();
 </script>
+<script src="cctv_data.js"></script>
 <script>
-/* ===== CCTV 即時攝影機整合 ===== */
+/* ===== CCTV 攝影機整合（資料來自 cctv_data.js） ===== */
 (function(){
-  var CCTV_URL = 'https://tisvcloud.freeway.gov.tw/history/motc20/CCTV.xml';
-  var PROXY = 'https://corsproxy.io/?url=';
   var cctvPopup = null;
 
-  function getText(el, tag){
-    var n = el.getElementsByTagName(tag)[0];
-    return n ? n.textContent.trim() : '';
-  }
-
-  function parseXML(text){
-    var doc = new DOMParser().parseFromString(text, 'application/xml');
-    var items = doc.getElementsByTagName('CCTV');
+  function buildGeoJSON(data){
     var features = [];
-    for(var i=0; i<items.length; i++){
-      var item = items[i];
-      var lon = parseFloat(getText(item,'PositionLon'));
-      var lat = parseFloat(getText(item,'PositionLat'));
-      if(!lon||!lat||isNaN(lon)||isNaN(lat)) continue;
+    for(var i=0;i<data.length;i++){
+      var d=data[i];
+      if(!d.lon||!d.lat) continue;
       features.push({
         type:'Feature',
-        geometry:{ type:'Point', coordinates:[lon,lat] },
-        properties:{
-          url: getText(item,'VideoStreamURL'),
-          road: getText(item,'RoadName'),
-          mile: getText(item,'LocationMile')
-        }
+        geometry:{type:'Point',coordinates:[d.lon,d.lat]},
+        properties:{url:d.url,road:d.road,mile:d.mile}
       });
     }
-    return { type:'FeatureCollection', features:features };
-  }
-
-  function fetchTimeout(url, ms){
-    var ctrl = new AbortController();
-    var t = setTimeout(function(){ ctrl.abort(); }, ms);
-    return fetch(url, {signal: ctrl.signal}).finally(function(){ clearTimeout(t); });
-  }
-
-  function loadCCTV(){
-    return fetchTimeout(CCTV_URL, 5000)
-      .then(function(r){ return r.text(); })
-      .catch(function(){
-        return fetchTimeout(PROXY + encodeURIComponent(CCTV_URL), 10000)
-          .then(function(r){ return r.text(); });
-      })
-      .then(parseXML);
+    return {type:'FeatureCollection',features:features};
   }
 
   function initLayers(m, geojson){
@@ -3091,33 +3061,19 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     });
   }
 
-  // 狀態標示
-  var badge = document.createElement('div');
-  badge.id = 'cctvBadge';
-  badge.style.cssText = 'position:fixed;bottom:220px;right:12px;background:rgba(0,0,0,0.6);color:#fff;font-size:11px;padding:4px 8px;border-radius:10px;z-index:9999;pointer-events:none';
-  badge.textContent = '📷 CCTV 載入中…';
-  document.body.appendChild(badge);
-
-  // 等 map 就緒才加圖層
-  loadCCTV().then(function(geojson){
-    var count = geojson.features.length;
-    badge.textContent = '📷 CCTV ' + count + ' 台';
-    setTimeout(function(){ badge.style.opacity='0'; badge.style.transition='opacity 1s'; }, 3000);
-    if(count === 0){ console.warn('CCTV: 0 筆資料，XML 解析可能有問題'); return; }
-    function tryAdd(){
-      var m = window.map;
-      if(!m){ setTimeout(tryAdd, 300); return; }
-      if(m.loaded()){
-        initLayers(m, geojson);
-      } else {
-        m.once('load', function(){ initLayers(m, geojson); });
-      }
+  // 等 map 及資料就緒
+  function tryInit(){
+    var m = window.map;
+    var data = window.CCTV_DATA;
+    if(!m || !data){ setTimeout(tryInit, 300); return; }
+    var geojson = buildGeoJSON(data);
+    if(m.loaded()){
+      initLayers(m, geojson);
+    } else {
+      m.once('load', function(){ initLayers(m, geojson); });
     }
-    tryAdd();
-  }).catch(function(e){
-    badge.textContent = '📷 CCTV 載入失敗';
-    console.warn('CCTV 載入失敗:', e);
-  });
+  }
+  tryInit();
 })();
 </script>
 </body>
