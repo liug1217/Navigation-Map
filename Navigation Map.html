@@ -1266,9 +1266,9 @@ geolocate.trigger();
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = 'zh-TW';
       utter.rate = 1.00;
-      utter.onstart = _duckRadio;
       utter.onend   = _unduckRadio;
       utter.onerror = _unduckRadio;
+      _duckRadio(); // 在 speak() 之前同步設 flag，確保 mediaSession pause 攔得住
       window.speechSynthesis.speak(utter);
     } catch(e) {
       _unduckRadio();
@@ -1282,8 +1282,8 @@ geolocate.trigger();
     const list = segments.filter(s => s && s.length > 0);
     if (!list.length) return;
 
+    _duckRadio(); // 同步設 flag，確保 mediaSession pause 攔得住
     window.speechSynthesis.cancel(); // 避免播報堆疊、搶話
-    _duckRadio();
 
     function playAt(i){
       if (i >= list.length){ _unduckRadio(); return; }
