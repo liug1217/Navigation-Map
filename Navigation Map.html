@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>智行地圖</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
+<link rel="apple-touch-icon" id="appTouchIcon">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="智行地圖">
+<meta name="mobile-web-app-capable" content="yes">
 <style>
 /* ===== OpenStreetMap Layer ===== */
 #map{
@@ -2896,6 +2899,42 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   window.addEventListener('pagehide', function(){ if(playing) pausePlay(); });
 
   updateDial();
+})();
+</script>
+<script>
+(function(){
+  var c=document.createElement('canvas');
+  c.width=c.height=180;
+  var ctx=c.getContext('2d');
+  // 圓角藍色背景
+  ctx.beginPath();
+  ctx.roundRect(0,0,180,180,40);
+  ctx.fillStyle='#1A6ADB';
+  ctx.fill();
+  // 白色定位針圖示
+  ctx.fillStyle='#FFFFFF';
+  ctx.beginPath();
+  ctx.arc(90,78,28,0,Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle='#1A6ADB';
+  ctx.beginPath();
+  ctx.arc(90,78,16,0,Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle='#FFFFFF';
+  ctx.beginPath();
+  ctx.moveTo(90,115);
+  ctx.bezierCurveTo(68,88,55,82,55,78);
+  ctx.bezierCurveTo(55,63.6,71.6,52,90,52);
+  ctx.bezierCurveTo(108.4,52,125,63.6,125,78);
+  ctx.bezierCurveTo(125,82,112,88,90,115);
+  ctx.fill();
+  ctx.fillStyle='#1A6ADB';
+  ctx.beginPath();
+  ctx.arc(90,78,10,0,Math.PI*2);
+  ctx.fill();
+  // 設定 apple-touch-icon
+  var link=document.getElementById('appTouchIcon');
+  if(link) link.href=c.toDataURL('image/png');
 })();
 </script>
 </body>
