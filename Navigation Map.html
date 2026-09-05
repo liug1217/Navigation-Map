@@ -1378,32 +1378,59 @@ geolocate.trigger();
     _voiceTestBtn.addEventListener('click', () => speakText('前方200公尺，請右轉，進入忠孝東路'));
   }
 
-  // 拉桿開關語音設定（點 rect3 展開/收合）
+  // ===== 底部卡片語音設定抽屜（上滑展開） =====
   const _rect1 = document.getElementById('rect1');
   const _rect3Handle = document.getElementById('rect3Handle');
   const _voiceDrawer = document.getElementById('voiceDrawer');
   let _drawerOpen = false;
-  const DRAWER_COLLAPSED_H = 160;
+  const COLLAPSED_H = 160;
+
+  function _getDrawerH() {
+    // display:none 量不到，先暫時顯示再量
+    _voiceDrawer.style.visibility = 'hidden';
+    _voiceDrawer.style.display = 'block';
+    const h = _voiceDrawer.scrollHeight;
+    _voiceDrawer.style.display = 'none';
+    _voiceDrawer.style.visibility = '';
+    return h;
+  }
 
   function _openDrawer() {
     _buildVoiceList();
+    const drawerH = _getDrawerH();
     _voiceDrawer.style.display = 'block';
-    // 量出 drawer 實際高度再加原本 160px
-    const drawerH = _voiceDrawer.scrollHeight;
-    _rect1.style.height = (DRAWER_COLLAPSED_H + drawerH + 8) + 'px';
-    _rect1.style.top = -(drawerH + 8) + 'px';
+    requestAnimationFrame(() => {
+      _rect1.style.height = (COLLAPSED_H + drawerH + 8) + 'px';
+      _rect1.style.top = -(drawerH + 8) + 'px';
+    });
     _drawerOpen = true;
   }
+
   function _closeDrawer() {
-    _rect1.style.height = DRAWER_COLLAPSED_H + 'px';
+    _rect1.style.height = COLLAPSED_H + 'px';
     _rect1.style.top = '0px';
     setTimeout(() => { _voiceDrawer.style.display = 'none'; }, 350);
     _drawerOpen = false;
   }
+
+  // 上滑手勢
+  let _touchStartY = 0;
+  let _touchStartOpen = false;
   if (_rect3Handle) {
-    _rect3Handle.addEventListener('click', () => {
-      _drawerOpen ? _closeDrawer() : _openDrawer();
-    });
+    _rect3Handle.addEventListener('touchstart', e => {
+      _touchStartY = e.touches[0].clientY;
+      _touchStartOpen = _drawerOpen;
+    }, { passive: true });
+
+    _rect3Handle.addEventListener('touchend', e => {
+      const deltaY = _touchStartY - e.changedTouches[0].clientY;
+      if (deltaY > 30 && !_touchStartOpen) _openDrawer();
+      else if (deltaY < -30 && _touchStartOpen) _closeDrawer();
+      else if (Math.abs(deltaY) < 10) {
+        // 幾乎沒移動視為 tap，也切換
+        _drawerOpen ? _closeDrawer() : _openDrawer();
+      }
+    }, { passive: true });
   }
 
   function speakText(text){
