@@ -453,7 +453,7 @@ html,body{
   width:60px;
   height:60px;
   flex-shrink:0;
-  background:#1A6ADB;
+  background:url('https://upload.wikimedia.org/wikipedia/zh/thumb/d/d1/ROC_Police_Broadcasting_Service_Seal.svg/1280px-ROC_Police_Broadcasting_Service_Seal.svg.png') center/contain no-repeat #FFFFFF;
   border-radius:29.5px 0 0 29.5px;
 }
 
@@ -2964,9 +2964,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   var dataUrl=c.toDataURL('image/png');
   var link=document.getElementById('appTouchIcon');
   if(link) link.href=dataUrl;
-  // 音樂播放器圖標同步使用 app logo
-  var icon=document.getElementById('radioIcon');
-  if(icon) icon.style.background='url('+dataUrl+') center/cover no-repeat';
+
 })();
 </script>
 </body>
