@@ -664,6 +664,21 @@ html,body{
   -webkit-backdrop-filter:blur(18px);
   z-index:4;
   font-family:"SF Pro Display","SF Pro Text",Arial,sans-serif;
+  transform-origin:top right;
+  transform:scale(0);
+  opacity:0;
+  pointer-events:none;
+  transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s;
+}
+
+.cctvOverlay::after{
+  content:'';
+  position:absolute;
+  bottom:-10px;
+  right:18px;
+  border-left:8px solid transparent;
+  border-right:8px solid transparent;
+  border-top:10px solid rgba(255,255,255,0.88);
 }
 
 .cctvPanelTitle{
@@ -1206,36 +1221,50 @@ geolocate.trigger();
     return R * c;
   }
 
-  // ===== 📷 定位經過監視器附近時自動顯示 =====
-  const CCTV_AUTO_SHOW_RADIUS_KM = 0.1; // 100 公尺內視為「經過」
+  // ===== 📷 定位經過監視器附近時自動顯示,依距離縮放 =====
+  const CCTV_APPEAR_KM = 0.4;  // 400 公尺開始出現(小)
+  const CCTV_FULL_KM   = 0.05; // 50 公尺時為全尺寸
+
+  function setCctvScale(s){
+    const el = document.getElementById('cctvOverlay');
+    if(!el) return;
+    if(s <= 0){
+      el.style.transform = 'scale(0)';
+      el.style.opacity = '0';
+      el.style.pointerEvents = 'none';
+    } else {
+      el.style.transform = 'scale('+Math.min(1,s).toFixed(3)+')';
+      el.style.opacity = Math.min(1, s*1.5).toFixed(3);
+      el.style.pointerEvents = s >= 0.4 ? 'auto' : 'none';
+    }
+  }
 
   function checkCctvProximity(lat, lon){
     const cameras = window.cctvCameras;
     if(!cameras || !cameras.length) return;
+    // 如果是手動點開的就不干涉縮放
+    if(window.cctvActiveCameraId && !window.cctvActiveIsAuto) return;
 
-    // 找出範圍內最近的一支監視器
-    let nearest = null;
-    let nearestDist = Infinity;
+    let nearest = null, nearestDist = Infinity;
     for(let i = 0; i < cameras.length; i++){
       const cam = cameras[i];
-      if (cam.hidden) continue; // 座標有問題的監視器,不參與定位接近偵測
+      if(cam.hidden) continue;
       const d = calculateDistance(lat, lon, cam.lat, cam.lon);
-      if(d <= CCTV_AUTO_SHOW_RADIUS_KM && d < nearestDist){
-        nearest = cam;
-        nearestDist = d;
-      }
+      if(d < nearestDist){ nearest = cam; nearestDist = d; }
     }
 
-    if(nearest){
-      // 範圍內有監視器,且還沒顯示這一支的畫面,就自動切換過去
+    if(nearest && nearestDist <= CCTV_APPEAR_KM){
+      const t = 1 - Math.max(0,(nearestDist - CCTV_FULL_KM)/(CCTV_APPEAR_KM - CCTV_FULL_KM));
+      setCctvScale(t);
       if(window.cctvActiveCameraId !== nearest.id){
-        const label = window.buildCctvLabel ? window.buildCctvLabel(nearest) : (nearest.road + " " + nearest.mile);
+        const label = window.buildCctvLabel ? window.buildCctvLabel(nearest) : (nearest.road + ' ' + nearest.mile);
         window.switchCctvCamera(nearest.url, label, nearest.id, true);
       }
     } else {
-      // 範圍外:如果目前顯示的是「自動觸發」開的,就自動關閉;手動點開的維持不動
+      setCctvScale(0);
       if(window.cctvActiveCameraId && window.cctvActiveIsAuto){
-        window.closeCctvOverlay();
+        window.cctvActiveCameraId = null;
+        window.cctvActiveIsAuto = false;
       }
     }
   }
@@ -2378,16 +2407,16 @@ document.addEventListener("DOMContentLoaded", function(){
     CCTV_BASE_URL = url;
     CCTV_CURRENT_LABEL = label;
     if(cctvPanelTitle) cctvPanelTitle.textContent = "📷 " + label;
-    if(cctvOverlay) cctvOverlay.classList.add("show");
     window.cctvActiveCameraId = camId || null;
     window.cctvActiveIsAuto = !!isAuto;
+    if(!isAuto) setCctvScale(1); // 手動點擊直接全尺寸
     reloadCctvImage();
   };
 
 
   // 關閉彈出視窗時,停止重連計時器,避免在背景一直跑浪費效能
   window.closeCctvOverlay = function(){
-    if(cctvOverlay) cctvOverlay.classList.remove("show");
+    setCctvScale(0);
     if(cctvReloadTimer){
       clearTimeout(cctvReloadTimer);
       cctvReloadTimer = null;
