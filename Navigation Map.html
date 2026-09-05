@@ -1387,45 +1387,76 @@ geolocate.trigger();
     _voiceTestBtn.addEventListener('click', () => speakText('前方200公尺，請右轉，進入忠孝東路'));
   }
 
-  // ===== 語音設定 bottom sheet =====
+  // ===== 語音設定 bottom sheet（跟手滑動）=====
   const _voiceSheet = document.getElementById('voiceSheet');
   const _voiceSheetMask = document.getElementById('voiceSheetMask');
   const _rect3Handle = document.getElementById('rect3Handle');
   let _sheetOpen = false;
+  let _sheetH = 0; // sheet 展開後的高度
 
-  function _openSheet() {
-    _buildVoiceList();
+  function _snapOpen() {
+    _voiceSheet.style.transition = 'transform 0.35s cubic-bezier(0.32,0.72,0,1)';
+    _voiceSheet.style.transform = 'translateY(0)';
     _voiceSheetMask.style.display = 'block';
-    requestAnimationFrame(() => { _voiceSheet.style.transform = 'translateY(0)'; });
     _sheetOpen = true;
   }
-  function _closeSheet() {
+  function _snapClose() {
+    _voiceSheet.style.transition = 'transform 0.35s cubic-bezier(0.32,0.72,0,1)';
     _voiceSheet.style.transform = 'translateY(100%)';
     _voiceSheetMask.style.display = 'none';
     _sheetOpen = false;
   }
 
-  // rect3 點擊或上滑開啟
-  if (_rect3Handle) {
-    let _tsY = 0;
-    _rect3Handle.addEventListener('touchstart', e => { _tsY = e.touches[0].clientY; }, { passive: true });
-    _rect3Handle.addEventListener('touchend', e => {
-      const dy = _tsY - e.changedTouches[0].clientY;
-      if (dy > 20) _openSheet();           // 上滑 > 20px 開
-      else if (dy < -20) _closeSheet();    // 下滑關
-      else _sheetOpen ? _closeSheet() : _openSheet(); // 輕點切換
+  // 共用跟手邏輯：傳入觸發元素，dragging from closed(fromClosed=true) or open(false)
+  function _attachDrag(el, fromClosed) {
+    let tsY = 0, lastY = 0, moved = false;
+
+    el.addEventListener('touchstart', e => {
+      if (fromClosed) {
+        // 從 rect3 開始時先初始化 sheet
+        _buildVoiceList();
+        _sheetH = _voiceSheet.offsetHeight || window.innerHeight * 0.55;
+        _voiceSheetMask.style.display = 'block';
+      }
+      _voiceSheet.style.transition = 'none'; // 跟手時關掉動畫
+      tsY = e.touches[0].clientY;
+      lastY = tsY;
+      moved = false;
+    }, { passive: true });
+
+    el.addEventListener('touchmove', e => {
+      const dy = e.touches[0].clientY - tsY; // 正 = 手往下
+      lastY = e.touches[0].clientY;
+      moved = true;
+      if (fromClosed) {
+        // 從關閉往上拉：dy 負值 = 往上，translateY 從 100% 往 0 走
+        const pct = Math.max(0, 100 + (dy / _sheetH) * 100);
+        _voiceSheet.style.transform = `translateY(${pct}%)`;
+      } else {
+        // 從開啟往下推：dy 正值 = 往下，translateY 從 0 往 100% 走
+        const pct = Math.max(0, (dy / _sheetH) * 100);
+        _voiceSheet.style.transform = `translateY(${pct}%)`;
+      }
+    }, { passive: true });
+
+    el.addEventListener('touchend', e => {
+      const totalDy = lastY - tsY;
+      if (!moved || Math.abs(totalDy) < 8) {
+        // 輕點（沒怎麼移動）：切換
+        _sheetOpen ? _snapClose() : (_buildVoiceList(), _snapOpen());
+        return;
+      }
+      if (fromClosed) {
+        totalDy < -40 ? _snapOpen() : _snapClose();
+      } else {
+        totalDy > 40 ? _snapClose() : _snapOpen();
+      }
     }, { passive: true });
   }
-  // 點遮罩關閉
-  if (_voiceSheetMask) _voiceSheetMask.addEventListener('click', _closeSheet);
-  // sheet 本身的 drag pill 也能下滑關閉
-  if (_voiceSheet) {
-    let _sheetTsY = 0;
-    _voiceSheet.addEventListener('touchstart', e => { _sheetTsY = e.touches[0].clientY; }, { passive: true });
-    _voiceSheet.addEventListener('touchend', e => {
-      if (e.changedTouches[0].clientY - _sheetTsY > 60) _closeSheet();
-    }, { passive: true });
-  }
+
+  if (_rect3Handle) _attachDrag(_rect3Handle, true);   // rect3：從關閉往上拉
+  if (_voiceSheet)  _attachDrag(_voiceSheet,  false);  // sheet 本身：從開啟往下推
+  if (_voiceSheetMask) _voiceSheetMask.addEventListener('click', _snapClose);
 
   function speakText(text){
     if (!('speechSynthesis' in window)) return;
