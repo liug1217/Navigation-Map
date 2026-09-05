@@ -3044,6 +3044,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       var coords=e.features[0].geometry.coordinates.slice();
       if(cctvPopup) cctvPopup.remove();
       var uid='cctv_'+Date.now();
+      var refreshTimer=null;
       cctvPopup=new maplibregl.Popup({maxWidth:'320px',closeButton:true})
         .setLngLat(coords)
         .setHTML(
@@ -3052,7 +3053,23 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
           '<div style="color:#888;font-size:11px;margin-top:4px">點擊關閉即停止串流</div>'
         )
         .addTo(m);
-      cctvPopup.on('close',function(){ var img=document.getElementById(uid); if(img) img.src=''; });
+      // 斷線自動重連
+      function reloadStream(){
+        var img=document.getElementById(uid);
+        if(!img) return;
+        img.src='';
+        setTimeout(function(){ img.src=props.url+'?_='+Date.now(); },200);
+      }
+      var img=document.getElementById(uid);
+      if(img){
+        img.onerror=function(){ setTimeout(reloadStream,2000); };
+        refreshTimer=setInterval(reloadStream,8000);
+      }
+      cctvPopup.on('close',function(){
+        clearInterval(refreshTimer);
+        var img=document.getElementById(uid);
+        if(img) img.src='';
+      });
     });
 
     ['cctv-clusters','cctv-point'].forEach(function(id){
