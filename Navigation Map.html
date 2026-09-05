@@ -1242,9 +1242,22 @@ geolocate.trigger();
   const SPEED_CAM_RESET_KM = 0.15; // 離開這個範圍才重置狀態,讓下一次經過可以再次播報
   const speedCameraVoiceState = {}; // key: 該支測速照相在陣列裡的索引
 
-  // 語音播報時把廣播音量降到 15%，播完後還原
-  function _duckRadio(){ var v=window.radioVjs; if(v && !v.paused()) v.volume(0.15); }
-  function _unduckRadio(){ var v=window.radioVjs; if(v) v.volume(1.0); }
+  // 語音播報時把廣播音量降到 15%，播完後還原；同時設 flag 讓 mediaSession pause 不干擾
+  function _duckRadio(){
+    window._ttsActive = true;
+    var v = window.radioVjs;
+    if(v && !v.paused()){ window._radioWasPlaying = true; v.volume(0.15); }
+    else { window._radioWasPlaying = false; }
+  }
+  function _unduckRadio(){
+    window._ttsActive = false;
+    var v = window.radioVjs;
+    if(v){
+      v.volume(1.0);
+      // iOS mediaSession 可能在 TTS 時把廣播停掉，這裡幫它恢復
+      if(window._radioWasPlaying && v.paused()) v.play().catch(function(){});
+    }
+  }
 
   function speakText(text){
     if (!('speechSynthesis' in window)) return;
@@ -2740,8 +2753,8 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       artwork: [{ src: PBS_ART, sizes:'512x512', type:'image/png' }]
     });
     navigator.mediaSession.setActionHandler('play',  function(){ startPlay(); });
-    navigator.mediaSession.setActionHandler('pause', function(){ pausePlay(); });
-    navigator.mediaSession.setActionHandler('stop',  function(){ pausePlay(); });
+    navigator.mediaSession.setActionHandler('pause', function(){ if(!window._ttsActive) pausePlay(); });
+    navigator.mediaSession.setActionHandler('stop',  function(){ if(!window._ttsActive) pausePlay(); });
   }
 
   function startPlay(){
@@ -2823,41 +2836,32 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
   updateDial();
 
-  // ===== 🎵 真實音頻波動（Web Audio API AnalyserNode）=====
-  var _audioCtx = null, _analyser = null, _waveRaf = null;
+  // ===== 🎵 模擬真實音頻波動（每條 bar 各自頻率，JS 驅動，不需 CORS）=====
+  var _waveRaf = null;
   var _waveEl = document.getElementById('radioWaveform');
-  var _waveSpans = _waveEl ? _waveEl.querySelectorAll('span') : [];
-  var _binIdx = [2, 7, 18, 40, 85]; // 低頻→高頻 5 個 bin
-
-  function _initAnalyser(){
-    if(_audioCtx) return true;
-    try {
-      _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      var videoEl = vjs.tech({IWillNotUseThisInProductionAndIKnowHowToStopIt:true}).el();
-      var src = _audioCtx.createMediaElementSource(videoEl);
-      _analyser = _audioCtx.createAnalyser();
-      _analyser.fftSize = 256;
-      src.connect(_analyser);
-      _analyser.connect(_audioCtx.destination);
-      return true;
-    } catch(e){ _audioCtx = null; return false; }
-  }
+  var _waveSpans = _waveEl ? Array.from(_waveEl.querySelectorAll('span')) : [];
+  // 每條 bar 獨立震盪頻率和相位，模擬多頻道音頻
+  var _wFreq  = [1.4, 2.3, 1.9, 2.7, 1.2];
+  var _wPhase = [0.0, 1.1, 2.3, 3.5, 4.7];
+  // 每條 bar 額外加的慢速「呼吸」包絡，讓整體有起伏感
+  var _wEnvFreq  = [0.31, 0.27, 0.35, 0.22, 0.29];
+  var _wEnvPhase = [0.0,  0.9,  1.8,  2.7,  3.6];
 
   function _startRealWave(){
-    if(!_initAnalyser()) return;
-    if(_audioCtx.state === 'suspended') _audioCtx.resume();
     if(_waveEl) _waveEl.setAttribute('data-realwave','1');
     if(_waveRaf) cancelAnimationFrame(_waveRaf);
-    var buf = new Uint8Array(_analyser.frequencyBinCount);
-    function tick(){
+    function tick(ts){
       _waveRaf = requestAnimationFrame(tick);
-      _analyser.getByteFrequencyData(buf);
+      var t = ts * 0.001; // 秒
       for(var i=0;i<5;i++){
-        var v = buf[_binIdx[i]] / 255;
-        if(_waveSpans[i]) _waveSpans[i].style.height = (2 + v*12).toFixed(1)+'px';
+        // 主頻 + 包絡相乘，值域 0–1
+        var main = (Math.sin(t * _wFreq[i] * 6.28 + _wPhase[i]) + 1) * 0.5;
+        var env  = (Math.sin(t * _wEnvFreq[i] * 6.28 + _wEnvPhase[i]) + 1) * 0.5;
+        var v    = main * (0.4 + env * 0.6); // 0–1，有低谷也有高峰
+        if(_waveSpans[i]) _waveSpans[i].style.height = (2 + v * 12).toFixed(1) + 'px';
       }
     }
-    tick();
+    requestAnimationFrame(tick);
   }
 
   function _stopRealWave(){
