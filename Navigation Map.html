@@ -1487,18 +1487,97 @@ geolocate.trigger();
     }
   }
 
-  function speakText(text){
-    if (!('speechSynthesis' in window)) return;
+  // ===== 語音包（錄音 m4a + TTS fallback）=====
+  const VP = {
+    base: 'voice_pack/',
+    _c: {},   // audio cache
+
+    // 中文數字拼接（支援 1–9999）
+    _numClips(n) {
+      const r = [];
+      n = Math.round(n);
+      if (n >= 1000) { r.push(String(Math.floor(n/1000)), '千'); n %= 1000; }
+      if (n >= 100)  { r.push(String(Math.floor(n/100)),  '百'); n %= 100; }
+      if (n >= 20)   { r.push(String(Math.floor(n/10)),   '十'); n %= 10; }
+      else if (n >= 10) { r.push('十'); n %= 10; }
+      if (n > 0)     r.push(String(n));
+      return r;
+    },
+
+    // 距離（公尺 or 公里）→ clip 名稱陣列
+    _distClips(meters) {
+      if (meters >= 1000) {
+        const km = Math.round(meters / 1000);
+        return [...this._numClips(km), '公', '里'];
+      }
+      const m = Math.max(10, Math.round(meters / 10) * 10);
+      return [...this._numClips(m), '公', '尺'];
+    },
+
+    // 方向文字 → TTS 文字（這批音檔沒有方向詞，用 TTS 補）
+    _DIRS: new Set(['右轉','左轉','直行','迴轉','靠右行駛','靠左行駛',
+                    '大幅右轉','大幅左轉','進入圓環','匯入車流',
+                    '繼續直行','繼續前進','路底轉彎']),
+
+    // 解析 speakText 文字 → {clips:[], tts:''}
+    parse(text) {
+      // 系統訊息（有固定錄音的）
+      if (text === '開始導航') return { clips:['開始導航'], tts:'' };
+
+      // 前方X公尺/公里 + 方向
+      const m1 = text.match(/^前方(\d+)公(尺|里)(.*)$/);
+      if (m1) {
+        const meters = m1[2] === '里'
+          ? parseInt(m1[1]) * 1000
+          : parseInt(m1[1]);
+        const rest = m1[3].replace(/^[，,\s]+/, '').trim();
+        return { clips: ['前方', ...this._distClips(meters)], tts: rest };
+      }
+
+      // 前方X公里（無方向）
+      const m2 = text.match(/^前方(\d+(?:\.\d+)?)公里$/);
+      if (m2) {
+        const km = parseFloat(m2[1]);
+        return { clips: ['前方', ...this._numClips(Math.round(km)), '公', '里'], tts: '' };
+      }
+
+      // 全程 / 大約需要 → TTS 整句（數字混合太複雜）
+      return { clips: [], tts: text };
+    },
+
+    async _playClip(name) {
+      const key = name + '.m4a';
+      if (!this._c[key]) {
+        const a = new Audio(this.base + encodeURIComponent(key));
+        await new Promise(r => { a.oncanplaythrough = r; a.onerror = r; a.load(); });
+        this._c[key] = a;
+      }
+      const a = this._c[key];
+      if (a.error) return;
+      a.currentTime = 0;
+      await new Promise(r => { a.onended = r; a.onerror = r; a.play().catch(r); });
+    },
+
+    async run(text) {
+      const { clips, tts } = this.parse(text);
+      for (const c of clips) await this._playClip(c).catch(()=>{});
+      if (tts) await new Promise(r => {
+        if (!('speechSynthesis' in window)) { r(); return; }
+        const u = _makeUtter(tts);
+        u.onend = r; u.onerror = r;
+        window.speechSynthesis.speak(u);
+      });
+    },
+  };
+
+  async function speakText(text){
+    _duckRadio();
     try {
-      _duckRadio();
-      window.speechSynthesis.cancel();
-      const utter = _makeUtter(text);
-      utter.onend   = _unduckRadio;
-      utter.onerror = _unduckRadio;
-      window.speechSynthesis.speak(utter);
-    } catch(e) {
-      _unduckRadio();
+      await VP.run(text);
+    } catch(e){
       console.error('語音播報失敗:', e);
+    } finally {
+      _unduckRadio();
     }
   }
 
