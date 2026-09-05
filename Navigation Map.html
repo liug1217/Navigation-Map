@@ -2972,6 +2972,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/gh/liug1217/Navigation-Map@main/cctv_data.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/liug1217/Navigation-Map@main/speed_camera_data.js"></script>
 <script>
 /* ===== CCTV 攝影機整合（資料來自 cctv_data.js） ===== */
 (function(){
@@ -3074,6 +3075,89 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     }
   }
   tryInit();
+})();
+</script>
+<script>
+/* ===== 測速照相地圖圖層 ===== */
+(function(){
+  function initSpeedLayers(m){
+    if(m.getSource('speed-cam')) return;
+    var data = window.speedCameraData;
+    if(!data) return;
+
+    // 為每個速限值畫紅框白底圓形圖示
+    [25,30,40,50,60,70,80,90,100,110].forEach(function(lim){
+      var key='speed-'+lim;
+      if(m.hasImage(key)) return;
+      var sz=60, r=sz/2, border=5;
+      var cv=document.createElement('canvas'); cv.width=cv.height=sz;
+      var cx=cv.getContext('2d');
+      // 白底圓
+      cx.beginPath(); cx.arc(r,r,r-1,0,Math.PI*2);
+      cx.fillStyle='#FFFFFF'; cx.fill();
+      // 紅框
+      cx.beginPath(); cx.arc(r,r,r-border/2,0,Math.PI*2);
+      cx.strokeStyle='#FF0000'; cx.lineWidth=border; cx.stroke();
+      // 速限文字
+      var fs=lim>=100?20:22;
+      cx.font='bold '+fs+'px Arial,sans-serif';
+      cx.textAlign='center'; cx.textBaseline='middle';
+      cx.fillStyle='#000000'; cx.fillText(String(lim),r,r+1);
+      m.addImage(key,{width:sz,height:sz,data:cx.getImageData(0,0,sz,sz).data});
+    });
+
+    m.addSource('speed-cam',{type:'geojson',data:data,cluster:true,clusterMaxZoom:13,clusterRadius:50});
+
+    m.addLayer({
+      id:'speed-clusters',type:'circle',source:'speed-cam',
+      filter:['has','point_count'],
+      paint:{
+        'circle-color':['step',['get','point_count'],'#FF9500',10,'#FF6B00',50,'#CC2200'],
+        'circle-radius':['step',['get','point_count'],14,10,20,50,26],
+        'circle-opacity':0.9,'circle-stroke-width':2,'circle-stroke-color':'#fff'
+      }
+    });
+    m.addLayer({
+      id:'speed-point',type:'symbol',source:'speed-cam',
+      filter:['!',['has','point_count']],
+      layout:{
+        'icon-image':['concat','speed-',['to-string',['get','limit']]],
+        'icon-size':0.7,'icon-allow-overlap':true,'icon-ignore-placement':true
+      }
+    });
+
+    m.on('click','speed-clusters',function(e){
+      var f=m.queryRenderedFeatures(e.point,{layers:['speed-clusters']});
+      if(!f.length) return;
+      m.getSource('speed-cam').getClusterExpansionZoom(f[0].properties.cluster_id,function(err,zoom){
+        if(err) return;
+        m.easeTo({center:f[0].geometry.coordinates,zoom:zoom+0.5});
+      });
+    });
+    m.on('click','speed-point',function(e){
+      var p=e.features[0].properties;
+      var coords=e.features[0].geometry.coordinates.slice();
+      new maplibregl.Popup({closeButton:true,maxWidth:'260px'})
+        .setLngLat(coords)
+        .setHTML('<div style="font-size:13px;font-weight:700;color:#CC2200">📸 固定測速</div>'+
+          '<div style="font-size:12px;margin-top:4px">限速 <b>'+p.limit+'</b> km/h</div>'+
+          '<div style="font-size:11px;color:#666;margin-top:2px">'+p.addr+'</div>')
+        .addTo(m);
+    });
+    ['speed-clusters','speed-point'].forEach(function(id){
+      m.on('mouseenter',id,function(){ m.getCanvas().style.cursor='pointer'; });
+      m.on('mouseleave',id,function(){ m.getCanvas().style.cursor=''; });
+    });
+  }
+
+  function trySpeedInit(){
+    var m=window.map;
+    var data=window.speedCameraData;
+    if(!m||!data){ setTimeout(trySpeedInit,300); return; }
+    if(m.loaded()){ initSpeedLayers(m); }
+    else { m.once('load',function(){ initSpeedLayers(m); }); }
+  }
+  trySpeedInit();
 })();
 </script>
 </body>
