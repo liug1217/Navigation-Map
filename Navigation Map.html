@@ -2975,135 +2975,128 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 /* ===== CCTV 即時攝影機整合 ===== */
 (function(){
   var CCTV_URL = 'https://tisvcloud.freeway.gov.tw/history/motc20/CCTV.xml';
+  var PROXY = 'https://corsproxy.io/?url=';
   var cctvPopup = null;
 
-  function waitMap(cb){
-    if(window.map && window.map.loaded()) cb();
-    else if(window.map) window.map.on('load', cb);
-    else setTimeout(function(){ waitMap(cb); }, 300);
+  function getText(el, tag){
+    var n = el.getElementsByTagName(tag)[0];
+    return n ? n.textContent.trim() : '';
+  }
+
+  function parseXML(text){
+    var doc = new DOMParser().parseFromString(text, 'application/xml');
+    var items = doc.getElementsByTagName('CCTV');
+    var features = [];
+    for(var i=0; i<items.length; i++){
+      var item = items[i];
+      var lon = parseFloat(getText(item,'PositionLon'));
+      var lat = parseFloat(getText(item,'PositionLat'));
+      if(!lon||!lat||isNaN(lon)||isNaN(lat)) continue;
+      features.push({
+        type:'Feature',
+        geometry:{ type:'Point', coordinates:[lon,lat] },
+        properties:{
+          url: getText(item,'VideoStreamURL'),
+          road: getText(item,'RoadName'),
+          mile: getText(item,'LocationMile')
+        }
+      });
+    }
+    return { type:'FeatureCollection', features:features };
   }
 
   function loadCCTV(){
-    return fetch(CCTV_URL)
+    return fetch(CCTV_URL, {mode:'cors'})
       .then(function(r){ return r.text(); })
-      .then(function(xml){
-        var doc = new DOMParser().parseFromString(xml, 'application/xml');
-        var items = doc.querySelectorAll('CCTV');
-        var features = [];
-        items.forEach(function(item){
-          var lon = parseFloat(item.querySelector('PositionLon')&&item.querySelector('PositionLon').textContent);
-          var lat = parseFloat(item.querySelector('PositionLat')&&item.querySelector('PositionLat').textContent);
-          if(!lon||!lat||isNaN(lon)||isNaN(lat)) return;
-          features.push({
-            type:'Feature',
-            geometry:{ type:'Point', coordinates:[lon,lat] },
-            properties:{
-              id: (item.querySelector('CCTVID')||{}).textContent||'',
-              url: (item.querySelector('VideoStreamURL')||{}).textContent||'',
-              road: (item.querySelector('RoadName')||{}).textContent||'',
-              mile: (item.querySelector('LocationMile')||{}).textContent||''
-            }
-          });
-        });
-        return { type:'FeatureCollection', features:features };
-      });
+      .catch(function(){
+        return fetch(PROXY + encodeURIComponent(CCTV_URL)).then(function(r){ return r.text(); });
+      })
+      .then(parseXML);
   }
 
-  waitMap(function(){
-    var map = window.map;
+  function initLayers(m, geojson){
+    if(m.getSource('cctv')) return;
 
-    loadCCTV().then(function(geojson){
-      map.addSource('cctv',{
-        type:'geojson',
-        data: geojson,
-        cluster: true,
-        clusterMaxZoom: 13,
-        clusterRadius: 45
-      });
-
-      // 群組圓圈（大小依數量分三段）
-      map.addLayer({
-        id:'cctv-clusters',
-        type:'circle',
-        source:'cctv',
-        filter:['has','point_count'],
-        paint:{
-          'circle-color':[
-            'step',['get','point_count'],
-            '#3B9EFF', 10,
-            '#1A6ADB', 50,
-            '#003DA5'
-          ],
-          'circle-radius':[
-            'step',['get','point_count'],
-            14, 10,
-            20, 50,
-            26
-          ],
-          'circle-opacity':0.88,
-          'circle-stroke-width':2,
-          'circle-stroke-color':'#ffffff'
-        }
-      });
-
-      // 單點攝影機（紅點）
-      map.addLayer({
-        id:'cctv-point',
-        type:'circle',
-        source:'cctv',
-        filter:['!',['has','point_count']],
-        paint:{
-          'circle-color':'#FF3B30',
-          'circle-radius':6,
-          'circle-stroke-width':2,
-          'circle-stroke-color':'#ffffff',
-          'circle-opacity':0.9
-        }
-      });
-
-      // 點擊群組 → 放大展開
-      map.on('click','cctv-clusters',function(e){
-        var f = map.queryRenderedFeatures(e.point,{layers:['cctv-clusters']});
-        if(!f.length) return;
-        map.getSource('cctv').getClusterExpansionZoom(f[0].properties.cluster_id,function(err,zoom){
-          if(err) return;
-          map.easeTo({ center:f[0].geometry.coordinates, zoom:zoom+0.5 });
-        });
-      });
-
-      // 點擊單點 → 彈出 MJPEG 畫面
-      map.on('click','cctv-point',function(e){
-        var props = e.features[0].properties;
-        var coords = e.features[0].geometry.coordinates.slice();
-        if(cctvPopup) cctvPopup.remove();
-        cctvPopup = new maplibregl.Popup({ maxWidth:'320px', closeButton:true })
-          .setLngLat(coords)
-          .setHTML(
-            '<div style="font-size:12px;font-weight:700;color:#1A6ADB;margin-bottom:5px">'+
-            props.road+' '+props.mile+'</div>'+
-            '<img id="cctvImg" src="'+props.url+'" '+
-            'style="width:300px;height:200px;object-fit:cover;border-radius:8px;display:block;background:#111" '+
-            'onerror="this.style.display=\'none\';document.getElementById(\'cctvErr\').style.display=\'block\'">' +
-            '<div id="cctvErr" style="display:none;color:#888;font-size:12px;padding:8px">無法載入攝影機畫面</div>'
-          )
-          .addTo(map);
-        // 關閉 popup 時停止串流
-        cctvPopup.on('close',function(){
-          var img=document.getElementById('cctvImg');
-          if(img) img.src='';
-        });
-      });
-
-      // 游標樣式
-      ['cctv-clusters','cctv-point'].forEach(function(id){
-        map.on('mouseenter',id,function(){ map.getCanvas().style.cursor='pointer'; });
-        map.on('mouseleave',id,function(){ map.getCanvas().style.cursor=''; });
-      });
-
-    }).catch(function(err){
-      console.warn('CCTV 載入失敗:',err);
+    m.addSource('cctv',{
+      type:'geojson',
+      data: geojson,
+      cluster: true,
+      clusterMaxZoom: 13,
+      clusterRadius: 50
     });
-  });
+
+    m.addLayer({
+      id:'cctv-clusters',
+      type:'circle',
+      source:'cctv',
+      filter:['has','point_count'],
+      paint:{
+        'circle-color':['step',['get','point_count'],'#3B9EFF',10,'#1A6ADB',50,'#003DA5'],
+        'circle-radius':['step',['get','point_count'],14,10,20,50,26],
+        'circle-opacity':0.9,
+        'circle-stroke-width':2,
+        'circle-stroke-color':'#fff'
+      }
+    });
+
+    m.addLayer({
+      id:'cctv-point',
+      type:'circle',
+      source:'cctv',
+      filter:['!',['has','point_count']],
+      paint:{
+        'circle-color':'#FF3B30',
+        'circle-radius':6,
+        'circle-stroke-width':2,
+        'circle-stroke-color':'#fff',
+        'circle-opacity':0.92
+      }
+    });
+
+    m.on('click','cctv-clusters',function(e){
+      var f=m.queryRenderedFeatures(e.point,{layers:['cctv-clusters']});
+      if(!f.length) return;
+      m.getSource('cctv').getClusterExpansionZoom(f[0].properties.cluster_id,function(err,zoom){
+        if(err) return;
+        m.easeTo({center:f[0].geometry.coordinates,zoom:zoom+0.5});
+      });
+    });
+
+    m.on('click','cctv-point',function(e){
+      var props=e.features[0].properties;
+      var coords=e.features[0].geometry.coordinates.slice();
+      if(cctvPopup) cctvPopup.remove();
+      var uid='cctv_'+Date.now();
+      cctvPopup=new maplibregl.Popup({maxWidth:'320px',closeButton:true})
+        .setLngLat(coords)
+        .setHTML(
+          '<div style="font-size:12px;font-weight:700;color:#1A6ADB;margin-bottom:5px">'+props.road+' '+props.mile+'</div>'+
+          '<img id="'+uid+'" src="'+props.url+'" style="width:300px;height:200px;object-fit:cover;border-radius:8px;display:block;background:#000">'+
+          '<div style="color:#888;font-size:11px;margin-top:4px">點擊關閉即停止串流</div>'
+        )
+        .addTo(m);
+      cctvPopup.on('close',function(){ var img=document.getElementById(uid); if(img) img.src=''; });
+    });
+
+    ['cctv-clusters','cctv-point'].forEach(function(id){
+      m.on('mouseenter',id,function(){ m.getCanvas().style.cursor='pointer'; });
+      m.on('mouseleave',id,function(){ m.getCanvas().style.cursor=''; });
+    });
+  }
+
+  // 等 map 就緒才加圖層
+  loadCCTV().then(function(geojson){
+    function tryAdd(){
+      var m = window.map;
+      if(!m){ setTimeout(tryAdd, 300); return; }
+      if(m.loaded()){
+        initLayers(m, geojson);
+      } else {
+        m.once('load', function(){ initLayers(m, geojson); });
+      }
+    }
+    tryAdd();
+  }).catch(function(e){ console.warn('CCTV 載入失敗:', e); });
 })();
 </script>
 </body>
