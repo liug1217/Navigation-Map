@@ -3764,8 +3764,20 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   var SOURCE = 'signals';
   var _popup = null;
 
+  function makeEmojiImage(m, id, emoji, size){
+    var c = document.createElement('canvas');
+    c.width = c.height = size;
+    var ctx = c.getContext('2d');
+    ctx.font = Math.floor(size*0.78)+'px serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, size/2, size/2);
+    m.addImage(id, ctx.getImageData(0,0,size,size));
+  }
+
   function initSignals(m){
     if(!window.SIGNAL_DATA) return;
+    makeEmojiImage(m, 'signal-icon', '🚦', 48);
+
     m.addSource(SOURCE, {
       type: 'geojson',
       data: window.SIGNAL_DATA,
@@ -3801,17 +3813,16 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       paint: {'text-color':'#fff'}
     });
 
-    // 單一號誌 emoji
+    // 單一號誌 emoji（canvas 圖片）
     m.addLayer({
       id: 'signal-single',
       type: 'symbol',
       source: SOURCE,
       filter: ['!',['has','point_count']],
       layout: {
-        'text-field': '🚦',
-        'text-size': 22,
-        'text-allow-overlap': false,
-        'text-ignore-placement': false
+        'icon-image': 'signal-icon',
+        'icon-size': 0.6,
+        'icon-allow-overlap': false
       }
     });
 
