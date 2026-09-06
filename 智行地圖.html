@@ -2571,11 +2571,24 @@ if (navigator.geolocation) {
         });
       }
 
+      // 更新車子 marker 位置
+      if (typeof window.updateCarMarker === 'function') {
+        window.updateCarMarker(currentLon, currentLat);
+      }
+
+      // 地圖跟隨（不強制 zoom，由使用者控制縮放層級）
+      if (followUser) {
+        map.easeTo({
+          center: [currentLon, currentLat],
+          duration: 350,
+          padding: getUserCameraPadding(),
+          bearing: (window.compassHeading != null ? window.compassHeading : 0)
+        });
+      }
+
       if (typeof checkTurnByTurn === 'function') {
         checkTurnByTurn(currentLat, currentLon);
       }
-
-      // marker 已統一由第三個 watchPosition 的 userMarker（車子圖示）處理
 
       const elapsedMs = now - startTime;
       const speedKmh = currentSpeed * 3.6;
@@ -2609,8 +2622,6 @@ if (navigator.geolocation) {
 
 <script>
 map.on('load', () => {
-
-  let userMarker = null;
 
   const style = document.createElement('style');
   style.innerHTML = `
@@ -2652,8 +2663,6 @@ map.on('load', () => {
     return new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([lng, lat]);
   }
 
-  let _lastNavState = false; // 追蹤導航狀態切換，避免不必要的 marker 重建
-
   // 更新車子圖示的旋轉方向（掛到 window 讓主腳本的 handleDeviceOrientation 能呼叫）
   window.updateUserMarkerHeading = function() {
     if (!userMarker) return;
@@ -2663,47 +2672,19 @@ map.on('load', () => {
     el.style.transform = `rotate(${heading}deg)`;
   };
 
-  // GPS 平滑：指數移動平均，抑制定位飄動
-  let _sLat = null, _sLon = null;
-  const GPS_ALPHA = 0.45; // 越大越貼近原始GPS，越小越平滑
-
-  navigator.geolocation.watchPosition((pos) => {
-    const rawLng = pos.coords.longitude;
-    const rawLat = pos.coords.latitude;
-
-    // 初始化或精確度太差時直接跳
-    if (_sLat === null || (pos.coords.accuracy && pos.coords.accuracy > 80)) {
-      _sLat = rawLat; _sLon = rawLng;
-    } else {
-      _sLat = _sLat + GPS_ALPHA * (rawLat - _sLat);
-      _sLon = _sLon + GPS_ALPHA * (rawLng - _sLon);
-    }
-    const lat = _sLat, lng = _sLon;
-
-    const navStateChanged = (_lastNavState !== isNavigating);
-    _lastNavState = isNavigating;
-
-    if (!userMarker || navStateChanged) {
-      if (userMarker) userMarker.remove();
+  // 更新車子 marker 位置，由第二個 watchPosition 統一呼叫
+  window.updateCarMarker = function(lng, lat) {
+    if (!userMarker) {
       userMarker = createUserDot(lng, lat).addTo(map);
     } else {
       userMarker.setLngLat([lng, lat]);
     }
+  };
 
-    if (followUser) {
-      map.easeTo({
-        center: [lng, lat],
-        duration: 350,
-        padding: getUserCameraPadding(),
-        bearing: (window.compassHeading != null ? window.compassHeading : 0)
-      });
-    }
-
-  }, (err) => {
-    console.log("GPS error:", err);
-  }, {
-    enableHighAccuracy: true
-  });
+  // 地圖載入完成時若已有定位，立即顯示車子圖示
+  if (window.currentLon && window.currentLat) {
+    window.updateCarMarker(window.currentLon, window.currentLat);
+  }
 
 });
 </script>
