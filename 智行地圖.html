@@ -1091,18 +1091,7 @@ if (navigator.geolocation) {
   map.on('dragstart', () => { followUser = false; });
 
   map.on('load',()=>{
-
-const geolocate = new maplibregl.GeolocateControl({
-  positionOptions: {
-    enableHighAccuracy: true
-  },
-  trackUserLocation: true,
-  showUserHeading: true
-});
-
-map.addControl(geolocate);
-geolocate.on('trackuserlocationstart', () => { followUser = true; });
-geolocate.trigger();
+    // GeolocateControl 已移除，改用自訂 watchPosition + 車子圖示
   });
   /* 移除預設 NavigationControl，改用自訂控制項 */
 
@@ -2658,44 +2647,22 @@ map.on('load', () => {
 
   function createUserDot(lng, lat) {
     const el = document.createElement('div');
-
-    if (isNavigating) {
-      // 導航模式：顯示車子 SVG，方向跟著羅盤旋轉
-      el.style.width = '32px';
-      el.style.height = '32px';
-      el.style.display = 'flex';
-      el.style.alignItems = 'center';
-      el.style.justifyContent = 'center';
-      el.style.transition = 'transform 0.3s ease';
-      const heading = window.compassHeading != null ? window.compassHeading : 0;
-      el.style.transform = `rotate(${heading}deg)`;
-      el.innerHTML = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="16" cy="16" r="15" fill="white" fill-opacity="0.9"/>
-        <path d="M16 4 L22 24 L16 20 L10 24 Z" fill="#2F80FF"/>
-        <circle cx="16" cy="16" r="3" fill="white"/>
-      </svg>`;
-    } else {
-      // 一般模式：藍色圓點
-      el.style.width = '16px';
-      el.style.height = '16px';
-      el.style.borderRadius = '50%';
-      el.style.background = '#2F80FF';
-      el.style.border = '3px solid white';
-      el.style.boxShadow = '0 0 12px rgba(47,128,255,0.8)';
-      el.style.animation = 'pulse 1.4s infinite';
-    }
-
-    return new maplibregl.Marker({
-      element: el,
-      anchor: 'center'
-    }).setLngLat([lng, lat]);
+    el.style.cssText = 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;transition:transform 0.3s ease;';
+    const heading = window.compassHeading != null ? window.compassHeading : 0;
+    el.style.transform = `rotate(${heading}deg)`;
+    el.innerHTML = `<svg width="36" height="36" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="15" fill="white" fill-opacity="0.92"/>
+      <path d="M16 4 L22 24 L16 20 L10 24 Z" fill="#2F80FF"/>
+      <circle cx="16" cy="16" r="3" fill="white"/>
+    </svg>`;
+    return new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([lng, lat]);
   }
 
   let _lastNavState = false; // 追蹤導航狀態切換，避免不必要的 marker 重建
 
   // 更新車子圖示的旋轉方向（掛到 window 讓主腳本的 handleDeviceOrientation 能呼叫）
   window.updateUserMarkerHeading = function() {
-    if (!isNavigating || !userMarker) return;
+    if (!userMarker) return;
     const el = userMarker.getElement();
     if (!el) return;
     const heading = window.compassHeading != null ? window.compassHeading : 0;
