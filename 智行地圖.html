@@ -1027,9 +1027,12 @@ function updateUserLocation(position) {
   const lng = position.coords.longitude;
   const lat = position.coords.latitude;
 
-  window.currentLat = lat; // 讓搜尋導航功能盡早就能取得目前位置
+  window.currentLat = lat;
   window.currentLon = lng;
-  // 地圖跟隨和 marker 更新由 map.on('load') 裡的 watchPosition 統一處理
+  // 地圖和 updateCarMarker 都 ready 時立刻顯示車子，不等第二個 watchPosition
+  if (typeof window.updateCarMarker === 'function') {
+    window.updateCarMarker(lng, lat);
+  }
 }
 
 if (navigator.geolocation) {
@@ -1089,7 +1092,7 @@ if (navigator.geolocation) {
   let followUser = true;
   window._setFollowUser = function(v){ followUser = v; };
   map.on('dragstart', () => { followUser = false; });
-  map.on('zoomstart', (e) => { if (e.originalEvent) followUser = false; });
+  map.on('zoomstart', (e) => { if (e.originalEvent && !isNavigating) followUser = false; });
 
   map.on('load',()=>{
     // GeolocateControl 已移除，改用自訂 watchPosition + 車子圖示
@@ -2681,7 +2684,7 @@ map.on('load', () => {
     }
   };
 
-  // 地圖載入完成時若已有定位，立即顯示車子圖示
+  // updateCarMarker 定義完成後，若 updateUserLocation 已有定位資料則立即補顯示
   if (window.currentLon && window.currentLat) {
     window.updateCarMarker(window.currentLon, window.currentLat);
   }
