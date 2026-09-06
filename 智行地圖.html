@@ -373,7 +373,7 @@ html,body{
 /* ===== 金幣顯示 ===== */
 .coinDisplay{
   position:fixed;
-  bottom:220px;
+  top:96px;
   right:8px;
   background:rgba(0,0,0,0.52);
   backdrop-filter:blur(8px);
@@ -386,6 +386,16 @@ html,body{
   cursor:pointer;
   user-select:none;
   box-shadow:0 2px 8px rgba(0,0,0,0.3);
+  transition:box-shadow 0.3s;
+}
+.coinDisplay.glow{
+  box-shadow:0 0 14px 3px rgba(255,215,0,0.55),0 2px 8px rgba(0,0,0,0.3);
+}
+body.navigating .coinDisplay{ top:117px; }
+.coinStreak{
+  font-size:11px;
+  font-weight:700;
+  color:#FF7043;
 }
 .coinLvBadge{
   font-size:10px;
@@ -414,27 +424,53 @@ html,body{
 }
 @keyframes coinFloatUp{
   0%{opacity:1;transform:translateY(0) scale(1);}
-  60%{opacity:1;transform:translateY(-50px) scale(1.1);}
-  100%{opacity:0;transform:translateY(-90px) scale(0.8);}
+  60%{opacity:1;transform:translateY(-55px) scale(1.15);}
+  100%{opacity:0;transform:translateY(-100px) scale(0.8);}
 }
-/* 金幣彈出提示框 */
+/* 升級大動畫 */
+.coinLevelUp{
+  position:fixed;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  z-index:10000;
+  text-align:center;
+  pointer-events:none;
+  animation:lvUpAnim 2.8s ease-out forwards;
+}
+.coinLevelUp .lvUpTitle{
+  font-size:38px;font-weight:900;
+  color:#FFD700;text-shadow:0 0 20px rgba(255,215,0,0.8);
+}
+.coinLevelUp .lvUpName{
+  font-size:20px;font-weight:700;color:#fff;
+  margin-top:4px;text-shadow:0 2px 8px rgba(0,0,0,0.8);
+}
+@keyframes lvUpAnim{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(0.5);}
+  20%{opacity:1;transform:translate(-50%,-50%) scale(1.1);}
+  70%{opacity:1;transform:translate(-50%,-50%) scale(1);}
+  100%{opacity:0;transform:translate(-50%,-60%) scale(0.9);}
+}
+/* Toast 提示 */
 .coinToast{
   position:fixed;
-  bottom:285px;
+  top:133px;
   right:8px;
-  background:linear-gradient(135deg,#2c1a00,#4a2e00);
-  border:1px solid rgba(255,215,0,0.4);
-  border-radius:14px;
-  padding:10px 16px;
+  background:linear-gradient(135deg,#1a1200,#3a2800);
+  border:1px solid rgba(255,215,0,0.35);
+  border-radius:12px;
+  padding:7px 13px;
   color:#fff;
-  font-size:13px;
+  font-size:12px;
   z-index:9998;
-  max-width:220px;
-  box-shadow:0 4px 16px rgba(0,0,0,0.5);
-  animation:toastIn 0.3s ease,toastOut 0.4s ease 2.2s forwards;
+  max-width:200px;
+  pointer-events:none;
+  box-shadow:0 4px 14px rgba(0,0,0,0.5);
+  animation:toastIn 0.25s ease,toastOut 0.35s ease 2s forwards;
 }
-@keyframes toastIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
-@keyframes toastOut{to{opacity:0;transform:translateY(10px);}}
+body.navigating .coinToast{ top:155px; }
+@keyframes toastIn{from{opacity:0;transform:translateX(12px);}to{opacity:1;transform:none;}}
+@keyframes toastOut{to{opacity:0;transform:translateX(12px);}}
 
 /* 導航中：藍色導航條移到最頂，其他元素全部跟著下移 */
 body.navigating .rect8{ top:0; }
@@ -985,7 +1021,8 @@ html, body {
 <div class="mapClock" id="mapClock">00:00:00</div>
 
 <!-- 金幣顯示 -->
-<div class="coinDisplay" id="coinDisplay" title="點擊查看等級">
+<div class="coinDisplay" id="coinDisplay">
+  <span class="coinStreak" id="coinStreak" hidden>🔥<span id="coinStreakNum">1</span></span>
   <span class="coinLvBadge" id="coinLvBadge">Lv.1</span>
   <span class="coinEmoji">🪙</span>
   <span class="coinAmt" id="coinAmt">0</span>
@@ -3910,96 +3947,204 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 </script>
 
 <script>
-// ===== 🪙 金幣獎勵系統 =====
+// ===== 🪙 金幣獎勵系統 v2 =====
 (function(){
-  const COIN_KEY  = 'smartnav_coins';
-  const DATE_KEY  = 'smartnav_date';
-  const TOTAL_KEY = 'smartnav_km';
+  const K_COIN    = 'sn_coins';
+  const K_DATE    = 'sn_date';
+  const K_STREAK  = 'sn_streak';
+  const K_KM      = 'sn_km';
+  const K_DAILY   = 'sn_daily_km';
+  const K_MILE    = 'sn_milestones'; // JSON array of achieved km values
+  const K_MISSION = 'sn_mission';    // 今日任務已完成 date string
 
   const LEVELS = [
-    { min:0,    label:'Lv.1', name:'新手上路' },
-    { min:50,   label:'Lv.2', name:'老司機'   },
-    { min:150,  label:'Lv.3', name:'資深駕駛' },
-    { min:350,  label:'Lv.4', name:'導航大師' },
-    { min:700,  label:'Lv.5', name:'交通達人' },
+    { min:0,    label:'Lv.1', name:'新手上路',  emoji:'🚗' },
+    { min:50,   label:'Lv.2', name:'老司機',    emoji:'🚕' },
+    { min:150,  label:'Lv.3', name:'資深駕駛',  emoji:'🚙' },
+    { min:350,  label:'Lv.4', name:'導航大師',  emoji:'🏎️' },
+    { min:700,  label:'Lv.5', name:'交通達人',  emoji:'✈️' },
+  ];
+  const MILESTONES = [
+    { km:10,  coin:20,  label:'行駛10公里達成！' },
+    { km:50,  coin:50,  label:'行駛50公里達成！' },
+    { km:100, coin:100, label:'行駛100公里達成！' },
+    { km:500, coin:200, label:'行駛500公里達成！' },
   ];
 
-  let coins    = parseInt(localStorage.getItem(COIN_KEY)  || '0', 10);
-  let totalKm  = parseFloat(localStorage.getItem(TOTAL_KEY) || '0');
-  let _lastCoinStep = Math.floor(totalKm / 0.5);
+  let coins   = parseInt(localStorage.getItem(K_COIN)   || '0', 10);
+  let totalKm = parseFloat(localStorage.getItem(K_KM)   || '0');
+  let dailyKm = parseFloat(localStorage.getItem(K_DAILY)|| '0');
+  let streak  = parseInt(localStorage.getItem(K_STREAK) || '1', 10);
+  let doneMs  = JSON.parse(localStorage.getItem(K_MILE) || '[]');
 
-  function getLv(c){ let r=LEVELS[0]; for(const l of LEVELS){ if(c>=l.min) r=l; } return r; }
+  let _lastStep  = Math.floor(totalKm / 0.5);
+  let _toastQ    = [];  // toast 排隊
+  let _toasting  = false;
 
-  function saveAndRefresh(){
-    localStorage.setItem(COIN_KEY, coins);
-    const lvBadge = document.getElementById('coinLvBadge');
-    const amtEl   = document.getElementById('coinAmt');
-    const lv      = getLv(coins);
-    if(lvBadge) lvBadge.textContent = lv.label;
-    if(amtEl)   amtEl.textContent   = coins;
+  // ── 工具 ──────────────────────────────
+  function getLv(c){ let r=LEVELS[0]; for(const l of LEVELS) if(c>=l.min) r=l; return r; }
+  function isNight(){ const h=new Date().getHours(); return h>=21||h<6; }
+
+  function refresh(){
+    localStorage.setItem(K_COIN, coins);
+    const lv = getLv(coins);
+    const bd = document.getElementById('coinLvBadge');
+    const am = document.getElementById('coinAmt');
+    const sk = document.getElementById('coinStreak');
+    const sn = document.getElementById('coinStreakNum');
+    if(bd) bd.textContent = lv.label;
+    if(am) am.textContent = coins;
+    if(sk && sn){ if(streak>=2){ sk.hidden=false; sn.textContent=streak+'天'; } else { sk.hidden=true; } }
   }
 
-  function floatAnim(amount){
+  // ── 飄字 ──────────────────────────────
+  function floatAnim(amount, night){
     const disp = document.getElementById('coinDisplay');
-    let x = window.innerWidth - 80, y = window.innerHeight - 240;
-    if(disp){ const r=disp.getBoundingClientRect(); x=r.left+8; y=r.top-10; }
-    const div = document.createElement('div');
-    div.className = 'coinFloat';
-    div.textContent = '+' + amount + ' 🪙';
-    div.style.left = x + 'px';
-    div.style.top  = y + 'px';
-    document.body.appendChild(div);
-    setTimeout(() => div.remove(), 1700);
+    let x=window.innerWidth-90, y=90;
+    if(disp){ const r=disp.getBoundingClientRect(); x=r.left; y=r.top-4; }
+    const d = document.createElement('div');
+    d.className = 'coinFloat';
+    d.textContent = (night?'🌙':'')+ '+' + amount + ' 🪙';
+    d.style.cssText = 'left:'+x+'px;top:'+y+'px';
+    document.body.appendChild(d);
+    setTimeout(()=>d.remove(), 1700);
+    // 暫時發光
+    const disp2=document.getElementById('coinDisplay');
+    if(disp2){ disp2.classList.add('glow'); setTimeout(()=>disp2.classList.remove('glow'),800); }
   }
 
+  // ── Toast 隊列 ───────────────────────
   function showToast(msg){
-    const t = document.createElement('div');
-    t.className = 'coinToast';
-    t.innerHTML = '🪙 ' + msg;
+    _toastQ.push(msg);
+    if(!_toasting) flushToast();
+  }
+  function flushToast(){
+    if(!_toastQ.length){ _toasting=false; return; }
+    _toasting=true;
+    const msg=_toastQ.shift();
+    const t=document.createElement('div');
+    t.className='coinToast';
+    t.textContent=msg;
     document.body.appendChild(t);
-    setTimeout(() => t.remove(), 2700);
+    setTimeout(()=>{ t.remove(); flushToast(); }, 2400);
   }
 
-  function earn(amount, reason){
-    coins += amount;
-    saveAndRefresh();
-    floatAnim(amount);
-    if(reason) showToast(reason + ' +' + amount + ' 金幣！');
+  // ── 升級動畫 ────────────────────────
+  function levelUpAnim(lv){
+    const el=document.createElement('div');
+    el.className='coinLevelUp';
+    el.innerHTML='<div class="lvUpTitle">'+lv.emoji+' 升級！</div><div class="lvUpName">'+lv.label+' '+lv.name+'</div>';
+    document.body.appendChild(el);
+    // 爆出 10 顆金幣
+    for(let i=0;i<10;i++){
+      setTimeout(()=>{
+        const c=document.createElement('div');
+        c.className='coinFloat';
+        c.textContent='🪙';
+        c.style.left=(Math.random()*window.innerWidth*0.7+window.innerWidth*0.1)+'px';
+        c.style.top=(window.innerHeight*0.35+Math.random()*80)+'px';
+        c.style.fontSize=(12+Math.random()*14)+'px';
+        document.body.appendChild(c);
+        setTimeout(()=>c.remove(),1700);
+      },i*80);
+    }
+    setTimeout(()=>el.remove(), 2900);
+  }
+
+  // ── 主要獎勵函式 ────────────────────
+  function earn(amount, reason, forceNoMult){
+    const mult = (!forceNoMult && isNight()) ? 2 : 1;
+    const total = amount * mult;
+    const prevLv = getLv(coins);
+    coins += total;
+    refresh();
+    floatAnim(total, mult>1);
+    const nightNote = mult>1 ? '（夜間×2）' : '';
+    showToast(reason + nightNote + '  +' + total + ' 🪙');
+    const newLv = getLv(coins);
+    if(newLv.min > prevLv.min) setTimeout(()=>levelUpAnim(newLv), 600);
   }
   window.earnCoin = earn;
 
-  // 每日首次登入 +5
+  // ── 每日簽到 + 連續天數 ─────────────
   const today = new Date().toDateString();
-  if(localStorage.getItem(DATE_KEY) !== today){
-    localStorage.setItem(DATE_KEY, today);
-    setTimeout(() => earn(5, '每日首次登入'), 2500);
+  const lastDate = localStorage.getItem(K_DATE);
+  if(lastDate !== today){
+    // 判斷連續性（昨天有來）
+    const yesterday = new Date(Date.now()-86400000).toDateString();
+    streak = (lastDate === yesterday) ? streak+1 : 1;
+    localStorage.setItem(K_STREAK, streak);
+    localStorage.setItem(K_DATE, today);
+    // 重置今日里程
+    dailyKm = 0;
+    localStorage.setItem(K_DAILY, '0');
+    localStorage.removeItem(K_MISSION);
+    refresh();
+    // 簽到獎勵（連線 bonus）
+    const base = 5;
+    let bonus = 0, bonusMsg = '';
+    if(streak===3){ bonus=10; bonusMsg=' 連續3天+10'; }
+    else if(streak===7){ bonus=20; bonusMsg=' 連續7天+20'; }
+    else if(streak>0 && streak%7===0){ bonus=20; bonusMsg=' 連續'+streak+'天+20'; }
+    setTimeout(()=>{
+      earn(base, '每日登入（第'+streak+'天）', true);
+      if(bonus) setTimeout(()=>earn(bonus,'連線獎勵'+bonusMsg,true),800);
+    }, 2200);
+  } else {
+    refresh();
   }
 
-  // 每 500m 行駛 +1
+  // ── 距離追蹤：每 500m +1（夜間×2）+ 里程碑 ──
   window._coinCheckDist = function(kmTotal){
+    const prev = totalKm;
     totalKm = kmTotal;
-    localStorage.setItem(TOTAL_KEY, totalKm.toFixed(3));
+    dailyKm += (kmTotal - prev);
+    localStorage.setItem(K_KM, totalKm.toFixed(3));
+    localStorage.setItem(K_DAILY, dailyKm.toFixed(3));
+
+    // 每 500m +1
     const step = Math.floor(totalKm / 0.5);
-    if(step > _lastCoinStep){
-      const gained = step - _lastCoinStep;
-      _lastCoinStep = step;
-      earn(gained, '行駛 ' + Math.round(totalKm * 10) / 10 + ' km');
+    if(step > _lastStep){
+      const gained = step - _lastStep;
+      _lastStep = step;
+      earn(gained, '行駛+500m');
+    }
+
+    // 里程碑成就
+    for(const m of MILESTONES){
+      if(prev < m.km && totalKm >= m.km && !doneMs.includes(m.km)){
+        doneMs.push(m.km);
+        localStorage.setItem(K_MILE, JSON.stringify(doneMs));
+        setTimeout(()=>earn(m.coin, '🏆 '+m.label, true), 300);
+      }
+    }
+
+    // 每日任務：今天開車 2km
+    const missionDone = localStorage.getItem(K_MISSION);
+    if(!missionDone && dailyKm >= 2){
+      localStorage.setItem(K_MISSION, today);
+      setTimeout(()=>earn(10,'🎯 每日任務：今天開車2km！',true), 400);
     }
   };
 
-  // 點擊金幣顯示等級詳情
-  const coinDisp = document.getElementById('coinDisplay');
-  if(coinDisp){
-    coinDisp.addEventListener('click', ()=>{
-      const lv = getLv(coins);
-      const next = LEVELS.find(l => l.min > coins);
-      const msg = lv.label + ' ' + lv.name + '\n共 ' + coins + ' 🪙'
-        + (next ? '\n距下一等級還需 ' + (next.min - coins) + ' 枚' : '\n已達最高等級！');
-      alert(msg);
-    });
-  }
+  // ── 點擊查看詳情 ────────────────────
+  const cd = document.getElementById('coinDisplay');
+  if(cd) cd.addEventListener('click', ()=>{
+    const lv  = getLv(coins);
+    const nxt = LEVELS.find(l=>l.min>coins);
+    const km  = Math.round(totalKm*10)/10;
+    const dkm = Math.round(dailyKm*10)/10;
+    const mis = localStorage.getItem(K_MISSION) ? '✅ 已完成' : dkm+'/2 km';
+    alert(
+      lv.emoji+' '+lv.label+' '+lv.name+'\n'
+      +'🪙 '+coins+' 金幣\n'
+      +'🔥 連續 '+streak+' 天\n'
+      +'📍 累積 '+km+' km\n'
+      +'🎯 今日任務 '+mis
+      +(nxt?'\n\n距 '+nxt.label+' 還需 '+(nxt.min-coins)+' 枚':'\n\n👑 已達最高等級！')
+    );
+  });
 
-  saveAndRefresh();
 })();
 </script>
 </body>
