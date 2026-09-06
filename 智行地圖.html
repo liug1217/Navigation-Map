@@ -370,6 +370,72 @@ html,body{
   white-space:nowrap;
 }
 
+/* ===== 金幣顯示 ===== */
+.coinDisplay{
+  position:fixed;
+  bottom:220px;
+  right:8px;
+  background:rgba(0,0,0,0.52);
+  backdrop-filter:blur(8px);
+  border-radius:20px;
+  padding:5px 11px;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  z-index:15;
+  cursor:pointer;
+  user-select:none;
+  box-shadow:0 2px 8px rgba(0,0,0,0.3);
+}
+.coinLvBadge{
+  font-size:10px;
+  font-weight:700;
+  color:#FFD700;
+  background:rgba(255,215,0,0.18);
+  border-radius:8px;
+  padding:1px 5px;
+}
+.coinAmt{
+  font-size:13px;
+  font-weight:700;
+  color:#fff;
+}
+.coinEmoji{ font-size:15px; }
+/* 飄起的金幣動畫 */
+.coinFloat{
+  position:fixed;
+  z-index:9999;
+  font-size:18px;
+  font-weight:800;
+  color:#FFD700;
+  text-shadow:0 1px 4px rgba(0,0,0,0.6);
+  pointer-events:none;
+  animation:coinFloatUp 1.6s ease-out forwards;
+}
+@keyframes coinFloatUp{
+  0%{opacity:1;transform:translateY(0) scale(1);}
+  60%{opacity:1;transform:translateY(-50px) scale(1.1);}
+  100%{opacity:0;transform:translateY(-90px) scale(0.8);}
+}
+/* 金幣彈出提示框 */
+.coinToast{
+  position:fixed;
+  bottom:285px;
+  right:8px;
+  background:linear-gradient(135deg,#2c1a00,#4a2e00);
+  border:1px solid rgba(255,215,0,0.4);
+  border-radius:14px;
+  padding:10px 16px;
+  color:#fff;
+  font-size:13px;
+  z-index:9998;
+  max-width:220px;
+  box-shadow:0 4px 16px rgba(0,0,0,0.5);
+  animation:toastIn 0.3s ease,toastOut 0.4s ease 2.2s forwards;
+}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+@keyframes toastOut{to{opacity:0;transform:translateY(10px);}}
+
 /* 導航中：藍色導航條移到最頂，其他元素全部跟著下移 */
 body.navigating .rect8{ top:0; }
 body.navigating .mapClock{ top:77px; }
@@ -917,6 +983,13 @@ html, body {
 
 <!-- 時鐘 -->
 <div class="mapClock" id="mapClock">00:00:00</div>
+
+<!-- 金幣顯示 -->
+<div class="coinDisplay" id="coinDisplay" title="點擊查看等級">
+  <span class="coinLvBadge" id="coinLvBadge">Lv.1</span>
+  <span class="coinEmoji">🪙</span>
+  <span class="coinAmt" id="coinAmt">0</span>
+</div>
 
 <!-- 自訂地圖控制按鈕群 -->
 <div class="mapCtrlGroup">
@@ -1966,6 +2039,7 @@ if (navigator.geolocation) {
         if (searchBarWrapEl) searchBarWrapEl.style.display = '';
         togglePoiLayers(true); // 恢復POI地標
         speakText('您已到達目的地');
+        if (typeof window.earnCoin === 'function') window.earnCoin(15, '完成導航');
       } else {
         updateRect8Display();
       }
@@ -2552,6 +2626,7 @@ if (navigator.geolocation) {
         const distance = calculateDistance(lastPosition.lat, lastPosition.lon, currentLat, currentLon);
         totalDistance += distance;
         lastPosition = { lat: currentLat, lon: currentLon };
+        if (typeof window._coinCheckDist === 'function') window._coinCheckDist(totalDistance);
       }
 
       if (lastPosition) {
@@ -3831,6 +3906,100 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     else m.once('load', function(){ initSignals(m); });
   }
   tryInit();
+})();
+</script>
+
+<script>
+// ===== 🪙 金幣獎勵系統 =====
+(function(){
+  const COIN_KEY  = 'smartnav_coins';
+  const DATE_KEY  = 'smartnav_date';
+  const TOTAL_KEY = 'smartnav_km';
+
+  const LEVELS = [
+    { min:0,    label:'Lv.1', name:'新手上路' },
+    { min:50,   label:'Lv.2', name:'老司機'   },
+    { min:150,  label:'Lv.3', name:'資深駕駛' },
+    { min:350,  label:'Lv.4', name:'導航大師' },
+    { min:700,  label:'Lv.5', name:'交通達人' },
+  ];
+
+  let coins    = parseInt(localStorage.getItem(COIN_KEY)  || '0', 10);
+  let totalKm  = parseFloat(localStorage.getItem(TOTAL_KEY) || '0');
+  let _lastCoinStep = Math.floor(totalKm / 0.5);
+
+  function getLv(c){ let r=LEVELS[0]; for(const l of LEVELS){ if(c>=l.min) r=l; } return r; }
+
+  function saveAndRefresh(){
+    localStorage.setItem(COIN_KEY, coins);
+    const lvBadge = document.getElementById('coinLvBadge');
+    const amtEl   = document.getElementById('coinAmt');
+    const lv      = getLv(coins);
+    if(lvBadge) lvBadge.textContent = lv.label;
+    if(amtEl)   amtEl.textContent   = coins;
+  }
+
+  function floatAnim(amount){
+    const disp = document.getElementById('coinDisplay');
+    let x = window.innerWidth - 80, y = window.innerHeight - 240;
+    if(disp){ const r=disp.getBoundingClientRect(); x=r.left+8; y=r.top-10; }
+    const div = document.createElement('div');
+    div.className = 'coinFloat';
+    div.textContent = '+' + amount + ' 🪙';
+    div.style.left = x + 'px';
+    div.style.top  = y + 'px';
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 1700);
+  }
+
+  function showToast(msg){
+    const t = document.createElement('div');
+    t.className = 'coinToast';
+    t.innerHTML = '🪙 ' + msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2700);
+  }
+
+  function earn(amount, reason){
+    coins += amount;
+    saveAndRefresh();
+    floatAnim(amount);
+    if(reason) showToast(reason + ' +' + amount + ' 金幣！');
+  }
+  window.earnCoin = earn;
+
+  // 每日首次登入 +5
+  const today = new Date().toDateString();
+  if(localStorage.getItem(DATE_KEY) !== today){
+    localStorage.setItem(DATE_KEY, today);
+    setTimeout(() => earn(5, '每日首次登入'), 2500);
+  }
+
+  // 每 500m 行駛 +1
+  window._coinCheckDist = function(kmTotal){
+    totalKm = kmTotal;
+    localStorage.setItem(TOTAL_KEY, totalKm.toFixed(3));
+    const step = Math.floor(totalKm / 0.5);
+    if(step > _lastCoinStep){
+      const gained = step - _lastCoinStep;
+      _lastCoinStep = step;
+      earn(gained, '行駛 ' + Math.round(totalKm * 10) / 10 + ' km');
+    }
+  };
+
+  // 點擊金幣顯示等級詳情
+  const coinDisp = document.getElementById('coinDisplay');
+  if(coinDisp){
+    coinDisp.addEventListener('click', ()=>{
+      const lv = getLv(coins);
+      const next = LEVELS.find(l => l.min > coins);
+      const msg = lv.label + ' ' + lv.name + '\n共 ' + coins + ' 🪙'
+        + (next ? '\n距下一等級還需 ' + (next.min - coins) + ' 枚' : '\n已達最高等級！');
+      alert(msg);
+    });
+  }
+
+  saveAndRefresh();
 })();
 </script>
 </body>
