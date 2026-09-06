@@ -1562,10 +1562,12 @@ geolocate.trigger();
       if (name in this._bufs) return Promise.resolve(this._bufs[name]);
       const p = (async () => {
         try {
+          const url = this.base + encodeURIComponent(name + '.m4a');
+          // fetch 失敗（404/網路錯誤）直接 return null，不碰 AudioContext
+          const ab = await fetch(url).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status));
+          // 只有 fetch 成功才建立 AudioContext（需要使用者手勢後才能 resume）
           const ctx = this._getCtx();
           if (ctx.state === 'suspended') await ctx.resume();
-          const url = this.base + encodeURIComponent(name + '.m4a');
-          const ab = await fetch(url).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status));
           const buf = await ctx.decodeAudioData(ab);
           this._bufs[name] = buf;
           return buf;
@@ -1691,8 +1693,10 @@ geolocate.trigger();
         if (!('speechSynthesis' in window)) { r(); return; }
         const u = _makeUtter(ttsFinal);
         const done = () => { clearTimeout(t); r(); };
-        const t = setTimeout(done, 10000);
+        const t = setTimeout(done, 8000);
         u.onend = done; u.onerror = done;
+        // Chrome/Android: cancel 先清掉卡住的 queue，再 speak
+        window.speechSynthesis.cancel();
         window.speechSynthesis.speak(u);
       });
     },
