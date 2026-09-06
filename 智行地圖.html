@@ -456,21 +456,22 @@ body.navigating .coinDisplay{ top:117px; }
   position:fixed;
   top:133px;
   right:8px;
-  background:linear-gradient(135deg,#1a1200,#3a2800);
-  border:1px solid rgba(255,215,0,0.35);
-  border-radius:12px;
-  padding:7px 13px;
-  color:#fff;
-  font-size:12px;
+  background:rgba(30,20,0,0.82);
+  border:1px solid rgba(255,215,0,0.3);
+  border-radius:10px;
+  padding:4px 10px;
+  color:#FFD700;
+  font-size:11px;
+  font-weight:600;
   z-index:9998;
-  max-width:200px;
+  max-width:180px;
   pointer-events:none;
-  box-shadow:0 4px 14px rgba(0,0,0,0.5);
-  animation:toastIn 0.25s ease,toastOut 0.35s ease 2s forwards;
+  box-shadow:0 2px 10px rgba(0,0,0,0.5);
+  animation:toastIn 0.18s ease,toastOut 0.3s ease 1.2s forwards;
 }
 body.navigating .coinToast{ top:155px; }
-@keyframes toastIn{from{opacity:0;transform:translateX(12px);}to{opacity:1;transform:none;}}
-@keyframes toastOut{to{opacity:0;transform:translateX(12px);}}
+@keyframes toastIn{from{opacity:0;transform:translateX(8px);}to{opacity:1;transform:none;}}
+@keyframes toastOut{to{opacity:0;transform:translateX(8px);}}
 
 /* 導航中：藍色導航條移到最頂，其他元素全部跟著下移 */
 body.navigating .rect8{ top:0; }
@@ -1415,6 +1416,7 @@ if (navigator.geolocation) {
       if(window.cctvActiveCameraId !== nearest.id){
         const label = window.buildCctvLabel ? window.buildCctvLabel(nearest) : (nearest.road + ' ' + nearest.mile);
         window.switchCctvCamera(nearest.url, label, nearest.id, true);
+        if (typeof window._coinCctv === 'function') window._coinCctv();
       }
     } else {
       if(window.cctvActiveCameraId && window.cctvActiveIsAuto){ window.closeCctvOverlay(); }
@@ -2067,6 +2069,7 @@ if (navigator.geolocation) {
         speakText('請' + text + roadPart);
       }
       currentStepIndex++;
+      if (typeof window.earnCoin === 'function') window.earnCoin(2, '✅ 轉彎完成');
       navStepVoiceState[currentStepIndex] = navStepVoiceState[currentStepIndex] || 'idle';
       if (currentStepIndex >= navSteps.length) {
         isNavigating = false;
@@ -2356,6 +2359,7 @@ if (navigator.geolocation) {
       currentStepIndex = 0;
       Object.keys(navStepVoiceState).forEach(k => delete navStepVoiceState[k]);
       isNavigating = true;
+      if (typeof window._coinFirstNav === 'function') window._coinFirstNav();
       document.body.classList.add('navigating');
       if (searchBarWrapEl) searchBarWrapEl.style.display = 'none';
       if (rect8) rect8.style.display = 'flex';
@@ -2664,6 +2668,7 @@ if (navigator.geolocation) {
         totalDistance += distance;
         lastPosition = { lat: currentLat, lon: currentLon };
         if (typeof window._coinCheckDist === 'function') window._coinCheckDist(totalDistance);
+        if (typeof window._coinDriveHeartbeat === 'function') window._coinDriveHeartbeat();
       }
 
       if (lastPosition) {
@@ -3254,6 +3259,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     if(styleBtn) styleBtn.addEventListener('click', function(){
       styleIdx = (styleIdx + 1) % STYLES.length;
       applyStyle(styleIdx);
+      if (typeof window._coinStyleSwitch === 'function') window._coinStyleSwitch();
     });
   }
   init();
@@ -3977,13 +3983,14 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   let streak  = parseInt(localStorage.getItem(K_STREAK) || '1', 10);
   let doneMs  = JSON.parse(localStorage.getItem(K_MILE) || '[]');
 
-  let _lastStep  = Math.floor(totalKm / 0.5);
+  let _lastStep  = Math.floor(totalKm / 0.05); // 每 50m 一格
   let _toastQ    = [];  // toast 排隊
   let _toasting  = false;
 
   // ── 工具 ──────────────────────────────
   function getLv(c){ let r=LEVELS[0]; for(const l of LEVELS) if(c>=l.min) r=l; return r; }
   function isNight(){ const h=new Date().getHours(); return h>=21||h<6; }
+  function isWeekend(){ const d=new Date().getDay(); return d===0||d===6; }
 
   function refresh(){
     localStorage.setItem(K_COIN, coins);
@@ -4026,7 +4033,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     t.className='coinToast';
     t.textContent=msg;
     document.body.appendChild(t);
-    setTimeout(()=>{ t.remove(); flushToast(); }, 2400);
+    setTimeout(()=>{ t.remove(); flushToast(); }, 1600);
   }
 
   // ── 升級動畫 ────────────────────────
@@ -4053,14 +4060,18 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
   // ── 主要獎勵函式 ────────────────────
   function earn(amount, reason, forceNoMult){
-    const mult = (!forceNoMult && isNight()) ? 2 : 1;
-    const total = amount * mult;
+    let mult = 1, notes = [];
+    if(!forceNoMult){
+      if(isNight())   { mult *= 2; notes.push('🌙夜間×2'); }
+      if(isWeekend()) { mult = Math.round(mult * 1.5); notes.push('🎉週末×1.5'); }
+    }
+    const total = Math.max(1, Math.round(amount * mult));
     const prevLv = getLv(coins);
     coins += total;
     refresh();
-    floatAnim(total, mult>1);
-    const nightNote = mult>1 ? '（夜間×2）' : '';
-    showToast(reason + nightNote + '  +' + total + ' 🪙');
+    floatAnim(total, notes.length > 0);
+    const note = notes.length ? ' （'+notes.join('·')+'）' : '';
+    showToast(reason + note + '  +' + total + ' 🪙');
     const newLv = getLv(coins);
     if(newLv.min > prevLv.min) setTimeout(()=>levelUpAnim(newLv), 600);
   }
@@ -4094,20 +4105,21 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     refresh();
   }
 
-  // ── 距離追蹤：每 500m +1（夜間×2）+ 里程碑 ──
+  // ── 距離追蹤：每 100m +1（夜間×2、週末×1.5）+ 里程碑 ──
   window._coinCheckDist = function(kmTotal){
     const prev = totalKm;
     totalKm = kmTotal;
-    dailyKm += (kmTotal - prev);
+    const delta = kmTotal - prev;
+    if(delta > 0) dailyKm += delta;
     localStorage.setItem(K_KM, totalKm.toFixed(3));
     localStorage.setItem(K_DAILY, dailyKm.toFixed(3));
 
-    // 每 500m +1
-    const step = Math.floor(totalKm / 0.5);
+    // 每 50m +1
+    const step = Math.floor(totalKm / 0.05);
     if(step > _lastStep){
       const gained = step - _lastStep;
       _lastStep = step;
-      earn(gained, '行駛+500m');
+      earn(gained, '🚗 +50m');
     }
 
     // 里程碑成就
@@ -4127,20 +4139,66 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     }
   };
 
+  // ── 持續行駛時間獎勵：每 2 分鐘 +1 ──
+  let _driveTimer = null, _lastMoveTime = 0;
+  window._coinDriveHeartbeat = function(){
+    _lastMoveTime = Date.now();
+    if(_driveTimer) return;
+    _driveTimer = setInterval(()=>{
+      if(Date.now() - _lastMoveTime > 15000){ clearInterval(_driveTimer); _driveTimer=null; return; }
+      earn(1,'⏱ 持續行駛2分鐘');
+    }, 120000);
+  };
+
+  // ── 監視器觸發 +1（每日上限8次）──
+  const K_CCTV_CNT = 'sn_cctv_'+new Date().toDateString();
+  window._coinCctv = function(){
+    const cnt = parseInt(localStorage.getItem(K_CCTV_CNT)||'0',10);
+    if(cnt >= 8) return;
+    localStorage.setItem(K_CCTV_CNT, cnt+1);
+    earn(1,'📹 發現監視器');
+  };
+
+  // ── 切換地圖樣式 +2（每日上限3次）──
+  const K_STYLE_CNT = 'sn_style_'+new Date().toDateString();
+  window._coinStyleSwitch = function(){
+    const cnt = parseInt(localStorage.getItem(K_STYLE_CNT)||'0',10);
+    if(cnt >= 3) return;
+    localStorage.setItem(K_STYLE_CNT, cnt+1);
+    earn(2,'🗺️ 切換地圖樣式',true);
+  };
+
+  // ── 每日第一次開始導航 +5 ──
+  const K_NAV_DATE = 'sn_navdate';
+  window._coinFirstNav = function(){
+    const t = new Date().toDateString();
+    if(localStorage.getItem(K_NAV_DATE) === t) return;
+    localStorage.setItem(K_NAV_DATE, t);
+    earn(5,'🧭 今日第一次導航',true);
+  };
+
   // ── 點擊查看詳情 ────────────────────
   const cd = document.getElementById('coinDisplay');
   if(cd) cd.addEventListener('click', ()=>{
     const lv  = getLv(coins);
     const nxt = LEVELS.find(l=>l.min>coins);
     const km  = Math.round(totalKm*10)/10;
-    const dkm = Math.round(dailyKm*10)/10;
-    const mis = localStorage.getItem(K_MISSION) ? '✅ 已完成' : dkm+'/2 km';
+    const dkm = Math.round(dailyKm*100)/100;
+    const mis = localStorage.getItem(K_MISSION) ? '✅ 已完成' : dkm.toFixed(2)+'/2 km';
+    const cctvCnt = parseInt(localStorage.getItem('sn_cctv_'+new Date().toDateString())||'0',10);
+    const stylCnt = parseInt(localStorage.getItem('sn_style_'+new Date().toDateString())||'0',10);
+    const night = isNight() ? '🌙 夜間 ×2 加成中！\n' : '';
+    const wknd  = isWeekend() ? '🎉 週末 ×1.5 加成中！\n' : '';
     alert(
       lv.emoji+' '+lv.label+' '+lv.name+'\n'
-      +'🪙 '+coins+' 金幣\n'
+      +'🪙 共 '+coins+' 金幣\n'
       +'🔥 連續 '+streak+' 天\n'
-      +'📍 累積 '+km+' km\n'
-      +'🎯 今日任務 '+mis
+      +'📍 累積 '+km+' km\n\n'
+      +night+wknd
+      +'今日任務\n'
+      +'  🎯 開車2km：'+mis+'\n'
+      +'  📹 監視器：'+cctvCnt+'/8 次\n'
+      +'  🗺️ 切換樣式：'+stylCnt+'/3 次'
       +(nxt?'\n\n距 '+nxt.label+' 還需 '+(nxt.min-coins)+' 枚':'\n\n👑 已達最高等級！')
     );
   });
