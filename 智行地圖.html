@@ -1367,6 +1367,7 @@ if (navigator.geolocation) {
     currentStepIndex = 0;
     Object.keys(navStepVoiceState).forEach(k => delete navStepVoiceState[k]);
     document.body.classList.remove('navigating');
+    if ('mediaSession' in navigator) { navigator.mediaSession.playbackState = 'none'; navigator.mediaSession.metadata = null; }
     if (rect8) rect8.style.display = 'none';
     if (searchBarWrapEl) searchBarWrapEl.style.display = '';
     togglePoiLayers(true);
@@ -2126,15 +2127,39 @@ if (navigator.geolocation) {
     const roadName = step.name ? ('進入' + step.name) : '';
     if (rect8Instruction) rect8Instruction.innerText = text + (roadName ? roadName : '');
     if (rect8Icon) rect8Icon.innerText = iconForManeuver(step.maneuver);
+    let distText = '';
     if (rect8Distance) {
       if (distanceMeters == null) {
         rect8Distance.innerText = '';
       } else if (distanceMeters >= 1000) {
-        rect8Distance.innerText = (distanceMeters / 1000).toFixed(1) + '公里後';
+        distText = (distanceMeters / 1000).toFixed(1) + ' 公里後';
+        rect8Distance.innerText = distText;
       } else {
-        rect8Distance.innerText = Math.round(distanceMeters) + '公尺後';
+        distText = Math.round(distanceMeters) + ' 公尺後';
+        rect8Distance.innerText = distText;
       }
     }
+    // ── MediaSession → 靈動島 / 鎖定畫面 ──
+    if ('mediaSession' in navigator) {
+      const icon = iconForManeuver(step.maneuver);
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: icon + ' ' + text + (roadName ? ' ' + step.name : ''),
+        artist: distText || '導航中',
+        album: '智行地圖',
+        artwork: [{ src: _navArtwork(), sizes: '512x512', type: 'image/png' }]
+      });
+    }
+  }
+
+  function _navArtwork(){
+    if(window.__navArt) return window.__navArt;
+    const c = document.createElement('canvas'); c.width = c.height = 512;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#0a84ff';
+    ctx.beginPath(); ctx.arc(256,256,256,0,Math.PI*2); ctx.fill();
+    ctx.font = 'bold 280px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff'; ctx.fillText('🗺', 256, 270);
+    return (window.__navArt = c.toDataURL());
   }
 
   // GPS每次更新時呼叫:算出離下一個轉彎點多遠,更新畫面跟語音播報
@@ -2178,6 +2203,7 @@ if (navigator.geolocation) {
         if (speedPillNum) speedPillNum.innerText = '0';
         if (searchBarWrapEl) searchBarWrapEl.style.display = '';
         togglePoiLayers(true); // 恢復POI地標
+        if ('mediaSession' in navigator) { navigator.mediaSession.playbackState = 'none'; navigator.mediaSession.metadata = null; }
         speakText('您已到達目的地');
         if (typeof window.earnCoin === 'function') window.earnCoin(15, '完成導航');
         // 顯示抵達統計卡
@@ -2479,6 +2505,7 @@ if (navigator.geolocation) {
       Object.keys(navStepVoiceState).forEach(k => delete navStepVoiceState[k]);
       isNavigating = true;
       window._navStats = {t0:Date.now(), coins0:+(localStorage.getItem('sn_coins')||0), km0:totalDistance, turns:0, cleanCams:0};
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
       if (typeof window._coinFirstNav === 'function') window._coinFirstNav();
       if (typeof window._hintCoinNav === 'function') setTimeout(window._hintCoinNav, 1500);
       document.body.classList.add('navigating');
