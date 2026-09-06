@@ -4442,30 +4442,18 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   ];
   let _hintIdx = 0;
 
-  function showCoinHint(text){
-    const el = document.createElement('div');
-    el.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);'
-      +'background:rgba(0,0,0,0.78);color:#FFD700;padding:9px 16px;border-radius:20px;'
-      +'font-size:13px;font-weight:600;z-index:9999;pointer-events:none;'
-      +'backdrop-filter:blur(6px);border:1px solid rgba(255,215,0,0.25);'
-      +'animation:toastIn 0.3s ease;white-space:nowrap;max-width:90vw;text-align:center;';
-    el.textContent = text;
-    document.body.appendChild(el);
-    setTimeout(()=>{ el.style.animation='toastOut 0.3s ease forwards'; setTimeout(()=>el.remove(),350); }, 3500);
-  }
-
-  // 情境提示：外部呼叫
-  window._hintCoinNav   = ()=> showCoinHint('🧭 開始導航！每個轉彎 +2🪙，抵達 +15🪙');
-  window._hintCoinCam   = ()=> showCoinHint('📷 前方測速照相！守法通過 +5🪙');
-  window._hintCoinCctv  = ()=> showCoinHint('📹 監視器 +1🪙（每日最多8次）');
+  // 情境提示：直接用既有 toast
+  window._hintCoinNav   = ()=> showToast('🧭 開始導航！每個轉彎 +2🪙，抵達 +15🪙');
+  window._hintCoinCam   = ()=> showToast('📷 前方測速照相！守法通過 +5🪙');
+  window._hintCoinCctv  = ()=> showToast('📹 監視器 +1🪙（每日最多8次）');
 
   // 閒置提示：3分鐘沒賺幣就提示一條
   window._lastEarnTime = Date.now();
   setInterval(()=>{
     if(Date.now() - (window._lastEarnTime||0) > 3*60*1000){
-      showCoinHint(COIN_HINTS[_hintIdx % COIN_HINTS.length]);
+      showToast(COIN_HINTS[_hintIdx % COIN_HINTS.length]);
       _hintIdx++;
-      window._lastEarnTime = Date.now(); // 避免連續觸發
+      window._lastEarnTime = Date.now();
     }
   }, 60*1000);
 
