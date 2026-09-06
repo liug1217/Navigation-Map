@@ -1515,6 +1515,7 @@ if (navigator.geolocation) {
         const label = window.buildCctvLabel ? window.buildCctvLabel(nearest) : (nearest.road + ' ' + nearest.mile);
         window.switchCctvCamera(nearest.url, label, nearest.id, true);
         if (typeof window._coinCctv === 'function') window._coinCctv();
+        if (typeof window._hintCoinCctv === 'function') window._hintCoinCctv();
       }
     } else {
       if(window.cctvActiveCameraId && window.cctvActiveIsAuto){ window.closeCctvOverlay(); }
@@ -2479,6 +2480,7 @@ if (navigator.geolocation) {
       isNavigating = true;
       window._navStats = {t0:Date.now(), coins0:+(localStorage.getItem('sn_coins')||0), km0:totalDistance, turns:0, cleanCams:0};
       if (typeof window._coinFirstNav === 'function') window._coinFirstNav();
+      if (typeof window._hintCoinNav === 'function') setTimeout(window._hintCoinNav, 1500);
       document.body.classList.add('navigating');
       if (searchBarWrapEl) searchBarWrapEl.style.display = 'none';
       if (rect8) rect8.style.display = 'flex';
@@ -2601,6 +2603,7 @@ if (navigator.geolocation) {
         if (limit) items.push('限速' + limit + '公里');
         if (isOverSpeed) items.push('您已超速');
         speakQueue(items);
+        if (typeof window._hintCoinCam === 'function') window._hintCoinCam();
         speedCameraVoiceState[idx] = 'warned';
 
       } else if (d <= SPEED_CAM_PASS_KM && state === 'warned') {
@@ -4210,6 +4213,46 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     setTimeout(()=>el.remove(), 2900);
   }
 
+  // ── 金幣音效 ────────────────────────
+  function playCoinSound(type){
+    try {
+      const ctx = window.VP && VP._getCtx ? VP._getCtx() : new (window.AudioContext||window.webkitAudioContext)();
+      if(ctx.state==='suspended') ctx.resume();
+      const t = ctx.currentTime;
+      if(type==='levelup'){
+        // 升級：四音符上行琶音
+        [523,659,784,1047].forEach((hz,i)=>{
+          const o=ctx.createOscillator(), g=ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.frequency.value=hz; o.type='sine';
+          const s=t+i*0.1;
+          g.gain.setValueAtTime(0,s); g.gain.linearRampToValueAtTime(0.22,s+0.02);
+          g.gain.exponentialRampToValueAtTime(0.001,s+0.22);
+          o.start(s); o.stop(s+0.25);
+        });
+      } else if(type==='big'){
+        // 大獎：兩聲 ting
+        [880,1047].forEach((hz,i)=>{
+          const o=ctx.createOscillator(), g=ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.frequency.value=hz; o.type='sine';
+          const s=t+i*0.12;
+          g.gain.setValueAtTime(0,s); g.gain.linearRampToValueAtTime(0.2,s+0.01);
+          g.gain.exponentialRampToValueAtTime(0.001,s+0.25);
+          o.start(s); o.stop(s+0.28);
+        });
+      } else {
+        // 普通：單聲 ting
+        const o=ctx.createOscillator(), g=ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value=880; o.type='sine';
+        g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.18,t+0.01);
+        g.gain.exponentialRampToValueAtTime(0.001,t+0.18);
+        o.start(t); o.stop(t+0.2);
+      }
+    } catch(e){}
+  }
+
   // ── 主要獎勵函式 ────────────────────
   function earn(amount, reason, forceNoMult){
     let mult = 1, notes = [];
@@ -4224,7 +4267,13 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     const note = notes.length ? '（'+notes.join('·')+'）' : '';
     showToast(reason + (note?' '+note:'') + '  +' + total + ' 🪙');
     const newLv = getLv(coins);
-    if(newLv.min > prevLv.min) setTimeout(()=>levelUpAnim(newLv), 600);
+    if(newLv.min > prevLv.min){
+      playCoinSound('levelup');
+      setTimeout(()=>levelUpAnim(newLv), 600);
+    } else {
+      playCoinSound(total >= 10 ? 'big' : 'normal');
+    }
+    window._lastEarnTime = Date.now();
   }
   window.earnCoin = earn;
 
@@ -4377,6 +4426,48 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     }
     panel.classList.add('open');
   }
+
+  // ── 金幣提示系統 ─────────────────────
+  const COIN_HINTS = [
+    '🧭 開始導航，每個轉彎 +2🪙',
+    '🏁 抵達目的地 +15🪙',
+    '📷 守法通過測速照相 +5🪙',
+    '📹 靠近監視器自動切換 +1🪙',
+    '🎯 每天開車2公里完成任務 +10🪙',
+    '🗺️ 切換地圖樣式 +2🪙（每日3次）',
+    '🔥 連續使用越多天，簽到越多金幣',
+    '🎉 週末自動×1.5加成，外出賺更多',
+    '🛣️ 每行駛50公尺 +1🪙',
+    '🏆 達到里程碑（5/10/20...km）有大獎',
+  ];
+  let _hintIdx = 0;
+
+  function showCoinHint(text){
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);'
+      +'background:rgba(0,0,0,0.78);color:#FFD700;padding:9px 16px;border-radius:20px;'
+      +'font-size:13px;font-weight:600;z-index:9999;pointer-events:none;'
+      +'backdrop-filter:blur(6px);border:1px solid rgba(255,215,0,0.25);'
+      +'animation:toastIn 0.3s ease;white-space:nowrap;max-width:90vw;text-align:center;';
+    el.textContent = text;
+    document.body.appendChild(el);
+    setTimeout(()=>{ el.style.animation='toastOut 0.3s ease forwards'; setTimeout(()=>el.remove(),350); }, 3500);
+  }
+
+  // 情境提示：外部呼叫
+  window._hintCoinNav   = ()=> showCoinHint('🧭 開始導航！每個轉彎 +2🪙，抵達 +15🪙');
+  window._hintCoinCam   = ()=> showCoinHint('📷 前方測速照相！守法通過 +5🪙');
+  window._hintCoinCctv  = ()=> showCoinHint('📹 監視器 +1🪙（每日最多8次）');
+
+  // 閒置提示：3分鐘沒賺幣就提示一條
+  window._lastEarnTime = Date.now();
+  setInterval(()=>{
+    if(Date.now() - (window._lastEarnTime||0) > 3*60*1000){
+      showCoinHint(COIN_HINTS[_hintIdx % COIN_HINTS.length]);
+      _hintIdx++;
+      window._lastEarnTime = Date.now(); // 避免連續觸發
+    }
+  }, 60*1000);
 
   // ── tripCloseBtn ────────────────────
   const tcb = document.getElementById('tripCloseBtn');
