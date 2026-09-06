@@ -3082,6 +3082,9 @@ function updateEarthquakeAlertDisplay(){
 
   earthquakeAlertEl.textContent = `🌋 ${latestEarthquake.ReportContent || "有感地震"}`;
   earthquakeAlertEl.style.display = "block";
+
+  // 通知地圖 marker 更新
+  if (typeof window.updateEqMapMarker === 'function') window.updateEqMapMarker(latestEarthquake);
 }
 
 fetchCwaEarthquake();
@@ -3676,6 +3679,79 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     else { m.once('load',function(){ initSpeedLayers(m); }); }
   }
   trySpeedInit();
+})();
+</script>
+
+<script>
+/* ===== 🌋 地震震央地圖標記（跟監視器相同樣式）===== */
+(function(){
+  var eqMarker = null;
+  var eqPopup  = null;
+
+  function makeEqIcon(m){
+    if(m.hasImage('eq-icon')) return;
+    var ew=48, eh=60, tip=10;
+    var cv=document.createElement('canvas'); cv.width=ew; cv.height=eh;
+    var cx=cv.getContext('2d');
+    cx.fillStyle='rgba(255,255,255,0.88)';
+    cx.beginPath();
+    cx.moveTo(ew/2-8,eh-tip); cx.lineTo(ew/2+8,eh-tip); cx.lineTo(ew/2,eh); cx.closePath();
+    cx.fill();
+    cx.font=(ew*0.76)+'px serif';
+    cx.textAlign='center'; cx.textBaseline='middle';
+    cx.fillText('🌋',ew/2,(eh-tip)/2);
+    m.addImage('eq-icon',{width:ew,height:eh,data:cx.getImageData(0,0,ew,eh).data});
+  }
+
+  function showEqPopup(eq, lngLat){
+    if(eqPopup) eqPopup.remove();
+    var info = eq.EarthquakeInfo || {};
+    var epi  = info.Epicenter || {};
+    var mag  = (info.EarthquakeMagnitude || {}).MagnitudeValue || '?';
+    var loc  = epi.Location || '';
+    var time = info.OriginTime || '';
+    var dep  = info.FocalDepth ? info.FocalDepth+' km' : '';
+    var img  = eq.ReportImageURI || '';
+    var html =
+      '<div style="font-size:14px;font-weight:700;color:#CC2200;margin-bottom:6px">🌋 地震報告</div>'+
+      '<div style="font-size:13px;margin-bottom:3px">📍 '+loc+'</div>'+
+      '<div style="font-size:13px;margin-bottom:3px">規模 <b>'+mag+'</b>'+(dep ? '　深度 '+dep : '')+'</div>'+
+      '<div style="font-size:11px;color:#666;margin-bottom:6px">🕐 '+time+'</div>'+
+      (img ? '<img src="'+img+'" style="width:280px;border-radius:6px;display:block;background:#eee" onerror="this.style.display=\'none\'">' : '')+
+      '<div style="font-size:11px;color:#888;margin-top:6px">'+(eq.ReportContent||'')+'</div>';
+    eqPopup=new maplibregl.Popup({maxWidth:'320px',closeButton:true})
+      .setLngLat(lngLat).setHTML(html).addTo(window.map);
+  }
+
+  window.updateEqMapMarker = function(eq){
+    var m = window.map;
+    if(!m || !m.loaded()) return;
+    if(!eq){ if(eqMarker){ eqMarker.remove(); eqMarker=null; } return; }
+    var epi = (eq.EarthquakeInfo||{}).Epicenter||{};
+    var lat = epi.EpicenterLatitude, lon = epi.EpicenterLongitude;
+    if(!lat||!lon) return;
+    makeEqIcon(m);
+    if(eqMarker){
+      eqMarker.setLngLat([lon,lat]);
+      eqMarker.getElement()._eq = eq;
+    } else {
+      var el=document.createElement('div');
+      el.style.cssText='width:48px;height:60px;cursor:pointer;font-size:36px;text-align:center;line-height:50px;filter:drop-shadow(0 2px 5px rgba(0,0,0,0.45))';
+      el.textContent='🌋';
+      el._eq=eq;
+      el.addEventListener('click',function(){ showEqPopup(el._eq,[lon,lat]); });
+      eqMarker=new maplibregl.Marker({element:el,anchor:'bottom'})
+        .setLngLat([lon,lat]).addTo(m);
+    }
+  };
+
+  function tryInit(){
+    var m=window.map;
+    if(!m){ setTimeout(tryInit,300); return; }
+    if(m.loaded()) window.updateEqMapMarker(null);
+    else m.once('load',function(){ window.updateEqMapMarker(null); });
+  }
+  tryInit();
 })();
 </script>
 </body>
