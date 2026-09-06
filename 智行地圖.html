@@ -1089,6 +1089,7 @@ if (navigator.geolocation) {
   let followUser = true;
   window._setFollowUser = function(v){ followUser = v; };
   map.on('dragstart', () => { followUser = false; });
+  map.on('zoomstart', (e) => { if (e.originalEvent) followUser = false; });
 
   map.on('load',()=>{
     // GeolocateControl 已移除，改用自訂 watchPosition + 車子圖示
@@ -2567,16 +2568,6 @@ if (navigator.geolocation) {
               coordinates: routeCoordinates
             }
           }]
-        });
-      }
-
-      if (followUser) {
-        map.easeTo({
-          center: [currentLon, currentLat],
-          zoom: 15,
-          duration: 300,
-          padding: getUserCameraPadding(),
-          bearing: (window.compassHeading != null ? window.compassHeading : 0)
         });
       }
 
