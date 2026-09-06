@@ -2584,21 +2584,7 @@ if (navigator.geolocation) {
         checkTurnByTurn(currentLat, currentLon);
       }
 
-      if (!marker) {
-        const el = document.createElement('div');
-        el.style.width = '20px';
-        el.style.height = '20px';
-        el.style.backgroundColor = '#3b82f6';
-        el.style.borderRadius = '50%';
-        el.style.border = '2px solid white';
-        el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
-
-        marker = new maplibregl.Marker(el).setLngLat([currentLon, currentLat]).addTo(map);
-        markerDisplayLngLat = [currentLon, currentLat];
-      } else {
-        // 用 1 秒的平滑動畫移動過去,而不是瞬間跳轉到新座標
-        animateMarkerTo(currentLon, currentLat, 1000);
-      }
+      // marker 已統一由第三個 watchPosition 的 userMarker（車子圖示）處理
 
       const elapsedMs = now - startTime;
       const speedKmh = currentSpeed * 3.6;
