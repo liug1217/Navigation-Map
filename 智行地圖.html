@@ -3445,6 +3445,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 </script>
 <script src="https://cdn.jsdelivr.net/gh/liug1217/Navigation-Map@main/cctv_data.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/liug1217/Navigation-Map@main/speed_camera_data.js"></script>
+<script src="thb_cctv_data.js"></script>
 <script>
 /* ===== CCTV 攝影機整合（資料來自 cctv_data.js） ===== */
 (function(){
@@ -3457,7 +3458,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       features.push({
         type:'Feature',
         geometry:{type:'Point',coordinates:[d.lon,d.lat]},
-        properties:{url:d.url,road:d.road,mile:d.mile}
+        properties:{url:d.url,road:d.road,mile:d.mile,desc:d.desc||''}
       });
     }
     return {type:'FeatureCollection',features:features};
@@ -3545,12 +3546,14 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
       if(cctvPopup) cctvPopup.remove();
       var uid='cctv_'+Date.now();
       var baseUrl=props.url;
+      var sep=baseUrl.indexOf('?')>=0?'&':'?';
       var refreshTimer=null;
+      var label=props.desc||((props.road||'')+(props.mile?' '+props.mile:''));
       cctvPopup=new maplibregl.Popup({maxWidth:'320px',closeButton:true})
         .setLngLat(coords)
         .setHTML(
-          '<div style="font-size:12px;font-weight:700;color:#1A6ADB;margin-bottom:5px">'+props.road+' '+props.mile+'</div>'+
-          '<img id="'+uid+'" src="'+baseUrl+'&t='+Date.now()+'" style="width:300px;height:200px;object-fit:cover;border-radius:8px;display:block;background:#000">'+
+          '<div style="font-size:12px;font-weight:700;color:#1A6ADB;margin-bottom:5px">'+label+'</div>'+
+          '<img id="'+uid+'" src="'+baseUrl+sep+'t='+Date.now()+'" style="width:300px;height:200px;object-fit:cover;border-radius:8px;display:block;background:#000">'+
           '<div style="color:#888;font-size:11px;margin-top:4px">點擊關閉即停止串流</div>'
         )
         .addTo(m);
@@ -3558,7 +3561,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
         var img=document.getElementById(uid);
         if(!img) return;
         img.onerror=function(){ setTimeout(reconnect,2000); };
-        img.src=baseUrl+'&t='+Date.now();
+        img.src=baseUrl+sep+'t='+Date.now();
       }
       var img=document.getElementById(uid);
       if(img) img.onerror=function(){ setTimeout(reconnect,2000); };
@@ -3577,13 +3580,15 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     });
   }
 
-  // 等 map 及資料就緒
+  // 等 map 及資料就緒（合併原始 + THB 攝影機）
   function tryInit(){
     var m = window.map;
     var data = window.CCTV_DATA;
     if(!m || !data){ setTimeout(tryInit, 300); return; }
-    window.cctvCameras = data; // 供 checkCctvProximity 使用
-    var geojson = buildGeoJSON(data);
+    var thb = window.THB_CCTV_DATA || [];
+    var merged = data.concat(thb);
+    window.cctvCameras = merged; // 供 checkCctvProximity 使用
+    var geojson = buildGeoJSON(merged);
     if(m.loaded()){
       initLayers(m, geojson);
     } else {
