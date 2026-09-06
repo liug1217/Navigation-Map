@@ -3759,45 +3759,93 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
 <script src="signal_data.js"></script>
 <script>
-/* ===== 🚦 號誌地圖標記 ===== */
+/* ===== 🚦 臺北市號誌路口（GeoJSON cluster）===== */
 (function(){
-  var signalMarkers = [];
+  var SOURCE = 'signals';
+  var _popup = null;
 
-  function makeSignalEl(){
-    var el = document.createElement('div');
-    el.style.cssText = 'width:36px;height:44px;cursor:pointer;font-size:28px;text-align:center;line-height:36px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))';
-    el.textContent = '🚦';
-    return el;
-  }
-
-  function showSignalPopup(d, lngLat){
-    if(window._signalPopup) window._signalPopup.remove();
-    var rows = '';
-    if(d.id)   rows += `<tr><td>識別碼</td><td>${d.id}</td></tr>`;
-    if(d.type) rows += `<tr><td>種類</td><td>${d.type}</td></tr>`;
-    if(d.date) rows += `<tr><td>設置日期</td><td>${d.date}</td></tr>`;
-    if(d.note) rows += `<tr><td>備註</td><td>${d.note}</td></tr>`;
-    var html = `<div style="font-size:13px;max-width:220px"><b>🚦 號誌</b><table style="border-collapse:collapse;margin-top:4px">${rows}</table></div>`;
-    window._signalPopup = new maplibregl.Popup({closeButton:true,offset:20})
-      .setLngLat(lngLat).setHTML(html).addTo(window.map);
-  }
-
-  function addSignalMarkers(m){
+  function initSignals(m){
     if(!window.SIGNAL_DATA) return;
-    window.SIGNAL_DATA.forEach(function(d){
-      var el = makeSignalEl();
-      el.addEventListener('click', function(){ showSignalPopup(d, [d.lon, d.lat]); });
-      var mk = new maplibregl.Marker({element:el, anchor:'bottom'})
-        .setLngLat([d.lon, d.lat]).addTo(m);
-      signalMarkers.push(mk);
+    m.addSource(SOURCE, {
+      type: 'geojson',
+      data: window.SIGNAL_DATA,
+      cluster: true,
+      clusterMaxZoom: 14,
+      clusterRadius: 40
     });
+
+    // 群集圓圈
+    m.addLayer({
+      id: 'signal-clusters',
+      type: 'circle',
+      source: SOURCE,
+      filter: ['has','point_count'],
+      paint: {
+        'circle-color': ['step',['get','point_count'],'#22c55e',50,'#f59e0b',200,'#ef4444'],
+        'circle-radius': ['step',['get','point_count'],14,50,20,200,26],
+        'circle-opacity': 0.85
+      }
+    });
+
+    // 群集數字
+    m.addLayer({
+      id: 'signal-cluster-count',
+      type: 'symbol',
+      source: SOURCE,
+      filter: ['has','point_count'],
+      layout: {
+        'text-field': '{point_count_abbreviated}',
+        'text-font': ['Noto Sans Bold','Open Sans Bold'],
+        'text-size': 13
+      },
+      paint: {'text-color':'#fff'}
+    });
+
+    // 單一號誌 emoji
+    m.addLayer({
+      id: 'signal-single',
+      type: 'symbol',
+      source: SOURCE,
+      filter: ['!',['has','point_count']],
+      layout: {
+        'text-field': '🚦',
+        'text-size': 22,
+        'text-allow-overlap': false,
+        'text-ignore-placement': false
+      }
+    });
+
+    // 點擊群集 → 縮放進去
+    m.on('click','signal-clusters',function(e){
+      var feat = m.queryRenderedFeatures(e.point,{layers:['signal-clusters']})[0];
+      m.getSource(SOURCE).getClusterExpansionZoom(feat.properties.cluster_id,function(err,zoom){
+        if(err) return;
+        m.easeTo({center:feat.geometry.coordinates, zoom:zoom});
+      });
+    });
+
+    // 點擊單一號誌 → popup
+    m.on('click','signal-single',function(e){
+      var p = e.features[0].properties;
+      var coord = e.features[0].geometry.coordinates.slice();
+      if(_popup) _popup.remove();
+      var urlRow = p.url ? `<tr><td colspan="2"><a href="${p.url}" target="_blank" style="color:#3b82f6">📄 時制報表</a></td></tr>` : '';
+      var html = `<div style="font-size:13px;min-width:180px"><b>🚦 ${p.name||'號誌路口'}</b><table style="border-collapse:collapse;margin-top:6px;width:100%"><tr><td style="color:#888;padding:1px 4px">設備</td><td>${p.dev}</td></tr><tr><td style="color:#888;padding:1px 4px">路口ID</td><td>${p.icid}</td></tr><tr><td style="color:#888;padding:1px 4px">群組</td><td>${p.grp}</td></tr>${urlRow}</table></div>`;
+      _popup = new maplibregl.Popup({closeButton:true, offset:16, maxWidth:'260px'})
+        .setLngLat(coord).setHTML(html).addTo(m);
+    });
+
+    m.on('mouseenter','signal-clusters',function(){ m.getCanvas().style.cursor='pointer'; });
+    m.on('mouseleave','signal-clusters',function(){ m.getCanvas().style.cursor=''; });
+    m.on('mouseenter','signal-single',function(){ m.getCanvas().style.cursor='pointer'; });
+    m.on('mouseleave','signal-single',function(){ m.getCanvas().style.cursor=''; });
   }
 
   function tryInit(){
     var m = window.map;
-    if(!m){ setTimeout(tryInit, 300); return; }
-    if(m.loaded()) addSignalMarkers(m);
-    else m.once('load', function(){ addSignalMarkers(m); });
+    if(!m){ setTimeout(tryInit,300); return; }
+    if(m.loaded()) initSignals(m);
+    else m.once('load', function(){ initSignals(m); });
   }
   tryInit();
 })();
