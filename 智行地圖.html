@@ -1036,6 +1036,7 @@ if (navigator.geolocation) {
 <script>
   const satelliteStyle = {
     version: 8,
+    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
       'esri-satellite': {
         type: 'raster',
@@ -3149,12 +3150,14 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     const STYLES = [
       { icon:'🛰', label:'衛星', style:{
         version:8,
+        glyphs:'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
         sources:{ 'esri':{ type:'raster', tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize:256, maxzoom:19 }},
         layers:[{ id:'bg', type:'background', paint:{'background-color':'#000'}},{ id:'sat', type:'raster', source:'esri'}]
       }},
       { icon:'🗺', label:'街道', style:'https://tiles.openfreemap.org/styles/liberty' },
       { icon:'🌙', label:'夜間', style:{
         version:8,
+        glyphs:'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
         sources:{ 'carto-dark':{ type:'raster', tiles:['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png','https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'], tileSize:256, attribution:'© CARTO', maxzoom:19 }},
         layers:[{ id:'bg', type:'background', paint:{'background-color':'#111'}},{ id:'tiles', type:'raster', source:'carto-dark'}]
       }}
