@@ -1676,10 +1676,19 @@ geolocate.trigger();
 
     async run(text) {
       const { clips, tts } = this.parse(text);
-      if (clips.length > 0) await this._playClips(clips);
-      if (tts) await new Promise(r => {
+      let clipsOk = false;
+      if (clips.length > 0) {
+        const bufs = await Promise.all(clips.map(n => this._load(n)));
+        if (bufs.some(b => b)) {
+          await this._playClips(clips);
+          clipsOk = true;
+        }
+      }
+      // 音檔不存在時用 TTS 念整句
+      const ttsFinal = clipsOk ? tts : text;
+      if (ttsFinal) await new Promise(r => {
         if (!('speechSynthesis' in window)) { r(); return; }
-        const u = _makeUtter(tts);
+        const u = _makeUtter(ttsFinal);
         const done = () => { clearTimeout(t); r(); };
         const t = setTimeout(done, 10000);
         u.onend = done; u.onerror = done;
