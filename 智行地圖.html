@@ -3062,6 +3062,10 @@ async function fetchCwaEarthquake(){
 function updateEarthquakeAlertDisplay(){
   if(!earthquakeAlertEl) return;
 
+  // 無論是否影響當前縣市，都先更新地圖震央標記
+  window.latestEarthquake = latestEarthquake;
+  if (typeof window.updateEqMapMarker === 'function') window.updateEqMapMarker(latestEarthquake);
+
   if(!latestEarthquake || !lastKnownCounty){
     earthquakeAlertEl.style.display = "none";
     return;
@@ -3082,9 +3086,6 @@ function updateEarthquakeAlertDisplay(){
 
   earthquakeAlertEl.textContent = `🌋 ${latestEarthquake.ReportContent || "有感地震"}`;
   earthquakeAlertEl.style.display = "block";
-
-  // 通知地圖 marker 更新
-  if (typeof window.updateEqMapMarker === 'function') window.updateEqMapMarker(latestEarthquake);
 }
 
 fetchCwaEarthquake();
@@ -3748,8 +3749,55 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   function tryInit(){
     var m=window.map;
     if(!m){ setTimeout(tryInit,300); return; }
-    if(m.loaded()) window.updateEqMapMarker(null);
-    else m.once('load',function(){ window.updateEqMapMarker(null); });
+    var fn=function(){ window.updateEqMapMarker(window.latestEarthquake||null); };
+    if(m.loaded()) fn();
+    else m.once('load',fn);
+  }
+  tryInit();
+})();
+</script>
+
+<script src="signal_data.js"></script>
+<script>
+/* ===== 🚦 號誌地圖標記 ===== */
+(function(){
+  var signalMarkers = [];
+
+  function makeSignalEl(){
+    var el = document.createElement('div');
+    el.style.cssText = 'width:36px;height:44px;cursor:pointer;font-size:28px;text-align:center;line-height:36px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))';
+    el.textContent = '🚦';
+    return el;
+  }
+
+  function showSignalPopup(d, lngLat){
+    if(window._signalPopup) window._signalPopup.remove();
+    var rows = '';
+    if(d.id)   rows += `<tr><td>識別碼</td><td>${d.id}</td></tr>`;
+    if(d.type) rows += `<tr><td>種類</td><td>${d.type}</td></tr>`;
+    if(d.date) rows += `<tr><td>設置日期</td><td>${d.date}</td></tr>`;
+    if(d.note) rows += `<tr><td>備註</td><td>${d.note}</td></tr>`;
+    var html = `<div style="font-size:13px;max-width:220px"><b>🚦 號誌</b><table style="border-collapse:collapse;margin-top:4px">${rows}</table></div>`;
+    window._signalPopup = new maplibregl.Popup({closeButton:true,offset:20})
+      .setLngLat(lngLat).setHTML(html).addTo(window.map);
+  }
+
+  function addSignalMarkers(m){
+    if(!window.SIGNAL_DATA) return;
+    window.SIGNAL_DATA.forEach(function(d){
+      var el = makeSignalEl();
+      el.addEventListener('click', function(){ showSignalPopup(d, [d.lon, d.lat]); });
+      var mk = new maplibregl.Marker({element:el, anchor:'bottom'})
+        .setLngLat([d.lon, d.lat]).addTo(m);
+      signalMarkers.push(mk);
+    });
+  }
+
+  function tryInit(){
+    var m = window.map;
+    if(!m){ setTimeout(tryInit, 300); return; }
+    if(m.loaded()) addSignalMarkers(m);
+    else m.once('load', function(){ addSignalMarkers(m); });
   }
   tryInit();
 })();
