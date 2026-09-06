@@ -1571,9 +1571,9 @@ if (navigator.geolocation) {
   }
 
   // ===== 🔊 測速照相語音播報 =====
-  const SPEED_CAM_WARN_KM = 0.1;   // 100公尺:預告
-  const SPEED_CAM_PASS_KM = 0.02;  // 20公尺:視為已經通過
-  const SPEED_CAM_RESET_KM = 0.15; // 離開這個範圍才重置狀態,讓下一次經過可以再次播報
+  const SPEED_CAM_WARN_KM  = 1.0;  // 1公里:最遠預告
+  const SPEED_CAM_PASS_KM  = 0.02; // 20公尺:視為已通過
+  const SPEED_CAM_RESET_KM = 1.2;  // 離開後重置
   const speedCameraVoiceState = {}; // key: 該支測速照相在陣列裡的索引
 
   // 語音播報時把廣播音量降到 15%，播完後還原；同時設 flag 讓 mediaSession pause 不干擾
@@ -2145,9 +2145,12 @@ if (navigator.geolocation) {
     if (maneuver.type === 'arrive') return '即將到達目的地';
     if (maneuver.type === 'roundabout' || maneuver.type === 'rotary') return '進入圓環';
     if (maneuver.type === 'merge') return '匯入車流';
+    if (maneuver.type === 'on ramp') return (maneuver.modifier && maneuver.modifier.includes('left') ? '靠左' : '靠右') + '上匝道';
+    if (maneuver.type === 'off ramp') return (maneuver.modifier && maneuver.modifier.includes('left') ? '靠左' : '靠右') + '下匝道';
     if (maneuver.type === 'fork') return '請靠' + (maneuver.modifier && maneuver.modifier.includes('left') ? '左' : '右') + '行駛';
     if (maneuver.type === 'end of road') return '路底' + (maneuver.modifier && modMap[maneuver.modifier] ? modMap[maneuver.modifier] : '轉彎');
     if (maneuver.type === 'continue' || maneuver.type === 'new name') return '繼續直行';
+    if (maneuver.type === 'notification') return '注意前方路況';
     if (maneuver.modifier && modMap[maneuver.modifier]) return modMap[maneuver.modifier];
     return '繼續前進';
   }
@@ -2156,6 +2159,9 @@ if (navigator.geolocation) {
   function iconForManeuver(maneuver){
     if (maneuver.type === 'depart') return '🚗';
     if (maneuver.type === 'arrive') return '🏁';
+    if (maneuver.type === 'roundabout' || maneuver.type === 'rotary') return '🔄';
+    if (maneuver.type === 'on ramp') return '⬆';
+    if (maneuver.type === 'off ramp') return (maneuver.modifier||'').includes('left') ? '↖' : '↗';
     const mod = maneuver.modifier || '';
     if (mod.includes('sharp left')) return '↰';
     if (mod.includes('sharp right')) return '↱';
@@ -2233,12 +2239,13 @@ if (navigator.geolocation) {
 
     console.log('[轉彎導航] 第' + currentStepIndex + '步,距離' + Math.round(meters) + '公尺,狀態:' + state + ',指示:' + text);
 
-    // 由近到遠檢查(順序很重要),避免GPS更新間隔太大時整個跳過播報門檻
+    // 由近到遠檢查(順序很重要)
+    // 狀態: idle → w1000 → w500 → w400 → w300 → w100(請轉彎) → (complete)
+    const STEP_STATES = ['w1000','w500','w400','w300','w100'];
+    function pastState(s, target){ return STEP_STATES.indexOf(s) >= STEP_STATES.indexOf(target); }
+
     if (meters <= 15) {
-      // 出發點本身不用播報,直接靜默前進到第一個真正的轉彎
-      if (!isDepart && state !== 'warned30' && state !== 'passed') {
-        speakText('請' + text + roadPart);
-      }
+      if (!isDepart && !pastState(state,'w100')) speakText('請' + text + roadPart);
       currentStepIndex++;
       if (window._navStats) window._navStats.turns++;
       if (typeof window.earnCoin === 'function') window.earnCoin(2, '✅ 轉彎完成');
@@ -2249,11 +2256,10 @@ if (navigator.geolocation) {
         if (rect8) rect8.style.display = 'none';
         if (speedPillNum) speedPillNum.innerText = '0';
         if (searchBarWrapEl) searchBarWrapEl.style.display = '';
-        togglePoiLayers(true); // 恢復POI地標
+        togglePoiLayers(true);
         if ('mediaSession' in navigator) { navigator.mediaSession.playbackState = 'none'; navigator.mediaSession.metadata = null; }
         speakText('您已到達目的地');
         if (typeof window.earnCoin === 'function') window.earnCoin(15, '完成導航');
-        // 顯示抵達統計卡
         (function(){
           const s = window._navStats;
           const card = document.getElementById('tripSummaryCard');
@@ -2275,12 +2281,23 @@ if (navigator.geolocation) {
       } else {
         updateRect8Display();
       }
-    } else if (meters <= 30 && !isDepart && state !== 'warned30') {
-      speakText('請' + text + roadPart);
-      navStepVoiceState[currentStepIndex] = 'warned30';
-    } else if (meters <= 200 && !isDepart && state === 'idle') {
-      speakText('前方' + (Math.max(10, Math.round(meters / 10) * 10)) + '公尺' + text + roadPart);
-      navStepVoiceState[currentStepIndex] = 'warned200';
+    } else if (!isDepart) {
+      if (meters <= 100 && !pastState(state,'w100')) {
+        speakText('請' + text + (roadPart ? '，'+roadPart : ''));
+        navStepVoiceState[currentStepIndex] = 'w100';
+      } else if (meters <= 300 && !pastState(state,'w300')) {
+        speakText('前方300公尺，' + text + (roadPart ? '，'+roadPart : ''));
+        navStepVoiceState[currentStepIndex] = 'w300';
+      } else if (meters <= 400 && !pastState(state,'w400')) {
+        speakText('前方400公尺，' + text + (roadPart ? '，'+roadPart : ''));
+        navStepVoiceState[currentStepIndex] = 'w400';
+      } else if (meters <= 500 && !pastState(state,'w500')) {
+        speakText('前方500公尺，' + text + (roadPart ? '，'+roadPart : ''));
+        navStepVoiceState[currentStepIndex] = 'w500';
+      } else if (meters <= 1000 && state === 'idle') {
+        speakText('前方1公里，' + text + (roadPart ? '，'+roadPart : ''));
+        navStepVoiceState[currentStepIndex] = 'w1000';
+      }
     }
   }
 
@@ -2668,22 +2685,12 @@ if (navigator.geolocation) {
 
       const state = speedCameraVoiceState[idx] || 'idle';
 
-      if (d <= SPEED_CAM_WARN_KM && state === 'idle') {
-        // 進入100公尺範圍,第一次播報預告
-        const limit = p.limit;
-        const meters = Math.max(10, Math.round((d * 1000) / 10) * 10);
-        const isOverSpeed = !!(currentSpeedKmh && limit && currentSpeedKmh > Number(limit));
-        const items = ['前方' + meters + '公尺', '有固定', '測速照相'];
-        if (limit) items.push('限速' + limit + '公里');
-        if (isOverSpeed) items.push('您已超速');
-        speakQueue(items);
-        if (typeof window._hintCoinCam === 'function') window._hintCoinCam();
-        speedCameraVoiceState[idx] = 'warned';
+      // 狀態: idle → w1000 → w500 → warned(100m) → passed
+      const limTxt = p.limit ? ('限速' + p.limit + '公里') : '';
+      const overTxt = (currentSpeedKmh && p.limit && currentSpeedKmh > Number(p.limit)) ? '您已超速' : '';
 
-      } else if (d <= SPEED_CAM_PASS_KM && state === 'warned') {
-        // 已經很靠近,視為通過
-        const passLimit = p.limit;
-        const passedClean = !passLimit || currentSpeedKmh <= passLimit;
+      if (d <= SPEED_CAM_PASS_KM && state !== 'passed' && state !== 'idle') {
+        const passedClean = !p.limit || currentSpeedKmh <= p.limit;
         if (passedClean && typeof window.earnCoin === 'function') {
           window.earnCoin(5, '📷 守法通過測速照相');
           if (window._navStats) window._navStats.cleanCams++;
@@ -2691,9 +2698,25 @@ if (navigator.geolocation) {
         }
         speakQueue(['通過測速照相']);
         speedCameraVoiceState[idx] = 'passed';
-
+      } else if (d <= 0.1 && state !== 'warned' && state !== 'passed') {
+        const m = Math.max(10, Math.round(d*1000/10)*10);
+        const items = ['前方' + m + '公尺', '有固定', '測速照相'];
+        if (limTxt) items.push(limTxt);
+        if (overTxt) items.push(overTxt);
+        speakQueue(items);
+        if (typeof window._hintCoinCam === 'function') window._hintCoinCam();
+        speedCameraVoiceState[idx] = 'warned';
+      } else if (d <= 0.5 && state !== 'w500' && state !== 'warned' && state !== 'passed') {
+        const items = ['前方500公尺', '有固定', '測速照相'];
+        if (limTxt) items.push(limTxt);
+        speakQueue(items);
+        speedCameraVoiceState[idx] = 'w500';
+      } else if (d <= SPEED_CAM_WARN_KM && state === 'idle') {
+        const items = ['前方1公里', '有固定', '測速照相'];
+        if (limTxt) items.push(limTxt);
+        speakQueue(items);
+        speedCameraVoiceState[idx] = 'w1000';
       } else if (d > SPEED_CAM_RESET_KM && state !== 'idle') {
-        // 離開範圍夠遠,重置狀態,讓之後再經過同一支時還能再播報
         speedCameraVoiceState[idx] = 'idle';
       }
     });
