@@ -2482,6 +2482,11 @@ if (navigator.geolocation) {
 
       } else if (d <= SPEED_CAM_PASS_KM && state === 'warned') {
         // 已經很靠近,視為通過
+        const passLimit = p.limit;
+        const passedClean = !passLimit || currentSpeedKmh <= passLimit;
+        if (passedClean && typeof window.earnCoin === 'function') {
+          window.earnCoin(5, '📷 守法通過測速照相');
+        }
         speakQueue(['通過測速照相']);
         speedCameraVoiceState[idx] = 'passed';
 
@@ -3989,7 +3994,6 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
 
   // ── 工具 ──────────────────────────────
   function getLv(c){ let r=LEVELS[0]; for(const l of LEVELS) if(c>=l.min) r=l; return r; }
-  function isNight(){ const h=new Date().getHours(); return h>=21||h<6; }
   function isWeekend(){ const d=new Date().getDay(); return d===0||d===6; }
 
   function refresh(){
@@ -4005,7 +4009,7 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   }
 
   // ── 飄字 ──────────────────────────────
-  function floatAnim(amount, night){
+  function floatAnim(amount, special){
     const disp = document.getElementById('coinDisplay');
     let x=window.innerWidth-90, y=90;
     if(disp){ const r=disp.getBoundingClientRect(); x=r.left; y=r.top-4; }
@@ -4062,7 +4066,6 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
   function earn(amount, reason, forceNoMult){
     let mult = 1, notes = [];
     if(!forceNoMult){
-      if(isNight())   { mult *= 2; notes.push('🌙夜間×2'); }
       if(isWeekend()) { mult = Math.round(mult * 1.5); notes.push('🎉週末×1.5'); }
     }
     const total = Math.max(1, Math.round(amount * mult));
@@ -4070,8 +4073,8 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     coins += total;
     refresh();
     floatAnim(total, notes.length > 0);
-    const note = notes.length ? ' （'+notes.join('·')+'）' : '';
-    showToast(reason + note + '  +' + total + ' 🪙');
+    const note = notes.length ? '（'+notes.join('·')+'）' : '';
+    showToast(reason + (note?' '+note:'') + '  +' + total + ' 🪙');
     const newLv = getLv(coins);
     if(newLv.min > prevLv.min) setTimeout(()=>levelUpAnim(newLv), 600);
   }
@@ -4187,14 +4190,13 @@ setInterval(fetchCwaEarthquake, CWA_EQ_UPDATE_INTERVAL_MS);
     const mis = localStorage.getItem(K_MISSION) ? '✅ 已完成' : dkm.toFixed(2)+'/2 km';
     const cctvCnt = parseInt(localStorage.getItem('sn_cctv_'+new Date().toDateString())||'0',10);
     const stylCnt = parseInt(localStorage.getItem('sn_style_'+new Date().toDateString())||'0',10);
-    const night = isNight() ? '🌙 夜間 ×2 加成中！\n' : '';
     const wknd  = isWeekend() ? '🎉 週末 ×1.5 加成中！\n' : '';
     alert(
       lv.emoji+' '+lv.label+' '+lv.name+'\n'
       +'🪙 共 '+coins+' 金幣\n'
       +'🔥 連續 '+streak+' 天\n'
       +'📍 累積 '+km+' km\n\n'
-      +night+wknd
+      +wknd
       +'今日任務\n'
       +'  🎯 開車2km：'+mis+'\n'
       +'  📹 監視器：'+cctvCnt+'/8 次\n'
