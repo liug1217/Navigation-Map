@@ -370,8 +370,12 @@ html,body{
   white-space:nowrap;
 }
 
-/* 導航中時鐘下移，避免被導航面板遮住 */
-body.navigating .mapClock{ top:84px; }
+/* 導航中：藍色導航條移到最頂，其他元素全部跟著下移 */
+body.navigating .rect8{ top:0; }
+body.navigating .mapClock{ top:77px; }
+body.navigating .rect6{ top:77px; }
+body.navigating .weatherAlert{ top:117px; }
+body.navigating .earthquakeAlert{ top:155px; }
 
 /* ===== 隱藏 MapLibre 預設控制按鈕 ===== */
 .maplibregl-ctrl-top-right,
@@ -912,7 +916,7 @@ html, body {
 </div>
 
 <!-- 時鐘 -->
-<div class="mapClock" id="mapClock">00:00</div>
+<div class="mapClock" id="mapClock">00:00:00</div>
 
 <!-- 自訂地圖控制按鈕群 -->
 <div class="mapCtrlGroup">
