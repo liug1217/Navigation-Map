@@ -2633,13 +2633,30 @@ map.on('load', () => {
 
   function createUserDot(lng, lat) {
     const el = document.createElement('div');
-    el.style.cssText = 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;transition:transform 0.3s ease;';
+    el.style.cssText = 'width:30px;height:48px;display:flex;align-items:center;justify-content:center;transition:transform 0.25s ease;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));';
     const heading = window.compassHeading != null ? window.compassHeading : 0;
     el.style.transform = `rotate(${heading}deg)`;
-    el.innerHTML = `<svg width="36" height="36" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="16" cy="16" r="15" fill="white" fill-opacity="0.92"/>
-      <path d="M16 4 L22 24 L16 20 L10 24 Z" fill="#2F80FF"/>
-      <circle cx="16" cy="16" r="3" fill="white"/>
+    el.innerHTML = `<svg width="30" height="48" viewBox="0 0 30 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- 車身 -->
+      <rect x="4" y="8" width="22" height="32" rx="6" fill="#1E88E5"/>
+      <!-- 前輪 -->
+      <rect x="0" y="10" width="5" height="10" rx="2.5" fill="#222"/>
+      <rect x="25" y="10" width="5" height="10" rx="2.5" fill="#222"/>
+      <!-- 後輪 -->
+      <rect x="0" y="28" width="5" height="10" rx="2.5" fill="#222"/>
+      <rect x="25" y="28" width="5" height="10" rx="2.5" fill="#222"/>
+      <!-- 擋風玻璃（前） -->
+      <rect x="7" y="12" width="16" height="10" rx="3" fill="rgba(200,235,255,0.65)"/>
+      <!-- 後車窗 -->
+      <rect x="7" y="28" width="16" height="8" rx="2" fill="rgba(200,235,255,0.3)"/>
+      <!-- 頭燈 -->
+      <rect x="5" y="8" width="6" height="3" rx="1.5" fill="#FFEE58"/>
+      <rect x="19" y="8" width="6" height="3" rx="1.5" fill="#FFEE58"/>
+      <!-- 尾燈 -->
+      <rect x="5" y="37" width="6" height="3" rx="1.5" fill="#EF5350"/>
+      <rect x="19" y="37" width="6" height="3" rx="1.5" fill="#EF5350"/>
+      <!-- 車頂中線 -->
+      <rect x="13" y="23" width="4" height="5" rx="2" fill="rgba(255,255,255,0.18)"/>
     </svg>`;
     return new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([lng, lat]);
   }
@@ -2655,26 +2672,37 @@ map.on('load', () => {
     el.style.transform = `rotate(${heading}deg)`;
   };
 
+  // GPS 平滑：指數移動平均，抑制定位飄動
+  let _sLat = null, _sLon = null;
+  const GPS_ALPHA = 0.45; // 越大越貼近原始GPS，越小越平滑
+
   navigator.geolocation.watchPosition((pos) => {
-    const lng = pos.coords.longitude;
-    const lat = pos.coords.latitude;
+    const rawLng = pos.coords.longitude;
+    const rawLat = pos.coords.latitude;
+
+    // 初始化或精確度太差時直接跳
+    if (_sLat === null || (pos.coords.accuracy && pos.coords.accuracy > 80)) {
+      _sLat = rawLat; _sLon = rawLng;
+    } else {
+      _sLat = _sLat + GPS_ALPHA * (rawLat - _sLat);
+      _sLon = _sLon + GPS_ALPHA * (rawLng - _sLon);
+    }
+    const lat = _sLat, lng = _sLon;
 
     const navStateChanged = (_lastNavState !== isNavigating);
     _lastNavState = isNavigating;
 
     if (!userMarker || navStateChanged) {
-      // 首次建立或導航狀態切換時才重建 marker
       if (userMarker) userMarker.remove();
       userMarker = createUserDot(lng, lat).addTo(map);
     } else {
-      // 平常只移動位置，不重建 DOM
       userMarker.setLngLat([lng, lat]);
     }
 
     if (followUser) {
       map.easeTo({
         center: [lng, lat],
-        duration: 800,
+        duration: 350,
         padding: getUserCameraPadding(),
         bearing: (window.compassHeading != null ? window.compassHeading : 0)
       });
